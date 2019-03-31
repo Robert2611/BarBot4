@@ -1,0 +1,198 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<meta name="google" content="notranslate" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+		<link rel="stylesheet" type="text/css" href="css/main.css">
+		<link rel="stylesheet" type="text/css" href="css/keyboard.css">
+		<script type="text/javascript" src="js/JQuery.js"></script>
+		<script type="text/javascript" src="js/keyboard.js"></script>
+		<script type="text/javascript" src="js/ajax.js"></script>
+		<script type="text/javascript" src="js/listrecipes.js"></script>
+		<script type="text/javascript" src="js/edit.js"></script>
+		<script type="text/javascript" src="js/admin.js"></script>
+		<script type="text/javascript" src="js/single_ingredient.js"></script>
+		<title>Bar-Bot</title>
+		<script>
+			var demo = true;
+			$(function(){
+				//list_load();
+				load_page("listrecipes");
+				updater();
+				$("#bar_bot_title").click(function(e){
+					current_page = "";
+					load_page("listrecipes");
+				});
+				$("#admin").click(function(e){
+					e.preventDefault();
+					load_page("admin_overview");
+				});
+				$("#main").click(function(e){
+					if (e.target !== this)
+						return;
+					keyboard_hide();
+				});
+				$("#nav").find('[page]') //find all with attribute page
+					.click(function(e){;
+						var page = $(this).attr('page');
+						if( page == "new" )
+							load_page("edit", {'action':'getrecipe', 'id':-1});
+						else if( page == "single_ingredient" )
+							load_page("single_ingredient", {'action':'admin'});
+						else
+							load_page(page);
+					});
+			});
+		</script>
+	</head>
+	<body>
+		<div id="wrapper">
+			<h1 id="bar_bot_title">Bar-Bot 3.5</h1>
+			<div id="nav">
+				<div class="button" page="listrecipes">Liste</div>
+				<div class="button" page="new">Neu</div>
+				<div class="button" page="single_ingredient">Nachschlag</div>
+			</div>
+			<a href="?page=admin" id="admin"></a>
+			<!--<a href="#" onclick="list_load(); return false;">Load</a>-->
+			<div id="main">
+				<div id="content">
+				</div>
+			</div>
+		</div>
+		<div id="overlayer">
+			<div id="overlayer_content"></div>
+		</div>
+		<!--PAGE LIST-->
+		<template id="t_list">
+			<div class="cocktails">
+			</div>
+		</template>
+		<template id="t_cocktail">
+			<div class="cocktail">
+				<div class="header">
+					<span></span>
+					<a class="order" title="Bestellen"></a>
+				</div>
+				<ul class="ingredients"></ul>
+				<a class="edit" title="bearbeiten"></a>
+			</div>
+		</template>
+		<template id="t_cocktail_ingredient">
+			<li><span class="amount"></span> cl <span class="ingredient"></span></li>
+		</template>
+		<!--PAGE ADMIN-->
+		<template id="t_admin_clean">
+			<h2>Admin - Reinigung</h2>
+			<a class="button clean_cycle_left">Linke Hälfte</a>
+			<br/>
+			<a class="button clean_cycle_right">Rechte Hälfte</a>
+			<br/>
+			<p>Einzelne Ports reinigen.<br/><b>Achtung!</b><br/>Pumpe wird direkt aktiviert, das Glas fährt nicht zur Position.</p>
+			<div class="flexlist ports"></div>
+		</template>
+		<template id="t_admin_clean_port">
+			<div class="button port"/>
+		</template>
+		<template id="t_admin_edit_ports">
+			<h2>Admin - Ports</h2>
+			<br/>
+			<table class="ports">
+			</table>
+			</br>
+			<input type="submit" value="Ports speichern"/>
+		</template>
+		<template id="t_admin_edit_port">
+			<tr>
+				<td class="port_name"/>
+				<td><select class="port_content"></select></td>
+			</tr>
+		</template>
+		<template id="t_admin_calibrate">
+			<h2>Admin - Port kalibrieren</h2>
+			<label>Port:</label>
+			<select name="port"></select>
+			<br/>
+			<br/>
+			<div class="button start_pump">Pumpe starten</div>
+			<br/>
+			<label>Menge [cl]:</label>
+			<input type="text" name="calibration"/>
+			<br/>
+			<input type="submit" disabled="true" value="speichern"/>
+		</template>
+		<template id="t_admin_overview">
+			<h2>Admin - Übersicht</h2>
+			<div class="button" page="admin_edit_ports">Positionen</div>
+			<div class="button" page="admin_calibrate">Kalibrierung</div>
+			<div class="button" page="admin_clean">Reinigung</div>
+			<div class="button" page="admin_system">System</div>
+			<table class="ports">
+				<tr>
+					<th>Position</th>
+					<th>Zutat</th>
+					<th>Kalibrierung</th>
+				</tr>
+			</table>
+		</template>
+		<template id="t_admin_overview_port">
+			<tr>
+				<td class="port"></td>
+				<td class="ingredient"></td>
+				<td class="calibration"></td>
+			</tr>
+		</template>
+		<template id="t_admin_system">
+			<h2>Admin - System</h2>
+			<div class="button restart_gui">GUI neu starten</div>
+			<br/>
+			<br/>
+			<br/>
+			<div class="button restart_raspberry">Raspberry neu starten</div>
+			<br/>
+			<div class="button shutdown_raspberry">Raspberry herunterfahren</div>
+		</template>
+		<!--PAGE EDIT-->
+		<template id="t_edit">
+			<h2>Rezept bearbeiten</h2>
+			<input type="hidden" name="rid"/>
+			<p class="message"></p>
+			<label>Name: </label>
+			<br/>
+			<input type="text" name="name"/>
+			<br/>
+			<label>Zutaten: </label>
+			<ul class="ingredients">
+				<li class="add_ingredient button">+</li>
+			</ul>
+			<input type="submit" name="save" value="speichern"/>
+		</template>
+		<template id="t_edit_ingredient">
+			<li>
+				<input type="hidden" name="id[]"/>
+				<select name="ingredient[]"></select>
+				<select name="amount[]"></select>
+			</li>
+		</template>
+		<!--PAGE SINGLE INGREDIENT-->
+		<template id="t_single_ingredient">
+			<h2>Nachschlag</h2>
+			<p>Ist dein Cocktail noch nicht perfekt?<br/>Hier kannst du nachhelfen.</p>
+			<select name="ingredient"></select>
+			<select name="amount"></select>
+			<br/>
+			<input type="submit" value="OK"/>
+		</template>
+		<!--OVERLAYER-->
+		<template id="t_server_error">
+			<p class="error">Server antwortet nicht</p>
+			<br/>
+			<div class="button start_server">Server starten</div>
+			<br/>
+			<div class="button restart_raspberry">Raspberry neu starten</div>
+			<br/>
+			<div class="button shutdown_raspberry">Raspberry herunterfahren</div>
+		</template>
+	</body>
+</html>
