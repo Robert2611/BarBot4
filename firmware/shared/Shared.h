@@ -1,0 +1,1 @@
+#define BALANCE_BOARD_ADDRESS 0x01
