@@ -1,16 +1,25 @@
-#include <Arduino.h>
+#include "Arduino.h"
 #include "HX711.h"
 #include "Butterworth.h"
 #include "Wire.h"
 #include "Shared.h"
 
+#ifdef __AVR_ATmega328P__
+//arduino nano
 #define BALANCE_PIN_DATA 4
 #define BALANCE_PIN_CLOCK 5
 #define BALANCE_GAIN 128
 
+#else
+//actual
+#define BALANCE_PIN_DATA 4
+#define BALANCE_PIN_CLOCK 5
+#define BALANCE_GAIN 128
+
+#endif
+
 #define SERIAL_DEBUG
 
-byte balance_wire_data[1 + sizeof(float)];
 
 // filter parameters
 const float samplingrate = 89;    // Hz
@@ -19,7 +28,7 @@ const float cutoff_frequency = 5; // Hz
 HX711 balance;
 Butterworth butterworth;
 bool new_data = false;
-byte i2c_register = 0xFF;
+byte i2c_command = 0xFF;
 float raw_value;
 float filtered_value;
 const float devider = 1000;
@@ -32,21 +41,21 @@ void recieved(int count)
   if (count != 1)
     return;
   //set the address to what the master sent
-  i2c_register = Wire.read();
+  i2c_command = Wire.read();
 }
 
 void request()
 {
-  switch (i2c_register)
+  switch (i2c_command)
   {
-  case 0x00:
+  case BALANCE_CMDBALANCE_HAS_NEW_DATA:
     Wire.write(new_data);
     new_data = false;
     break;
-  case 0x01:
+  case BALANCE_CMDBALANCE_GET_DATA_RAW:
     WIRE_SEND_FLOAT(raw_value);
     break;
-  case 0x02:
+  case BALANCE_CMDBALANCE_GET_DATA:
     WIRE_SEND_FLOAT(filtered_value);
     break;
   //no register set or unknown register
@@ -56,9 +65,9 @@ void request()
     Serial.println("Wrong request");
 #endif
     Wire.write(0);
+    i2c_command = 0xFF;
     break;
-  }
-  i2c_register = 0xFF;
+  }  
 }
 
 void setup()
@@ -89,11 +98,5 @@ void loop()
     Serial.print(",");
     Serial.println(filtered_value);
 #endif
-    balance_wire_data[0] = BALANCE_BOARD_ADDRESS;
-    for (int i = 0; i < (int)sizeof(float); i++)
-    {
-      balance_wire_data[i + 1] = ((byte *)&filtered_value)[i];
-    }
-    Wire.write(balance_wire_data, sizeof(balance_wire_data));
   }
 }

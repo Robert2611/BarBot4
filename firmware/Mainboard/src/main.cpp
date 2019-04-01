@@ -51,51 +51,22 @@ void setup()
 
 	Wire.begin();
 }
-
-bool balance_has_data()
-{
-	Wire.beginTransmission(BALANCE_BOARD_ADDRESS);
-	Wire.write(0x00);
-	Wire.endTransmission();
-	byte returned = Wire.requestFrom(BALANCE_BOARD_ADDRESS, 1);
-	return returned == 1 && Wire.read();
-}
-
-float balance_get_raw_data()
-{
-	float result = 0;
-	Wire.beginTransmission(BALANCE_BOARD_ADDRESS);
-	Wire.write(0x01);
-	Wire.endTransmission();
-	byte returned = Wire.requestFrom(BALANCE_BOARD_ADDRESS, sizeof(float));
-	if (returned == sizeof(float))
-	{
-		Wire.readBytes((byte *)&result, sizeof(float));
-	}
-	return result;
-}
-float balance_get_data()
-{
-	float result = 0;
-	Wire.beginTransmission(BALANCE_BOARD_ADDRESS);
-	Wire.write(0x02);
-	Wire.endTransmission();
-	byte returned = Wire.requestFrom(BALANCE_BOARD_ADDRESS, sizeof(float));
-	if (returned == sizeof(float))
-	{
-		Wire.readBytes((byte *)&result, sizeof(float));
-	}
-	return result;
-}
 long last_millis = 0;
 void loop()
 {
 	if (millis() > last_millis + 3)
 	{
 		last_millis = millis();
-		if (balance_has_data())
+		//check if balance has new data
+		bool has_data = false;
+		if (I2C_GET_BOOL(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_GET_DATA, &has_data) && has_data)
 		{
-			Serial.println(balance_get_data());
-		}		
+			//if new data is there get it
+			float data;
+			if (I2C_GET_FLOAT(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_GET_DATA, &data))
+			{
+				Serial.println(data);
+			}
+		}
 	}
 }
