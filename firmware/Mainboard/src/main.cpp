@@ -59,7 +59,7 @@ void loop()
 		last_millis = millis();
 		//check if balance has new data
 		bool has_data = false;
-		if (I2C_GET_BOOL(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_GET_DATA, &has_data) && has_data)
+		if (I2C_GET_BOOL(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_HAS_NEW_DATA, &has_data) && has_data)
 		{
 			//if new data is there get it
 			float data;
