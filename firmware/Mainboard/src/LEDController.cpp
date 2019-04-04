@@ -14,21 +14,17 @@ void LEDController::begin()
     animator = new NeoPixelAnimator(PIXEL_COUNT, NEO_CENTISECONDS);
 }
 
-
 void LEDController::update()
 {
-    if (false)
+    for (int i = 0; i < PIXEL_COUNT; i++)
     {
-        for (int i = 0; i < PIXEL_COUNT; i++)
-        {
-            if (i == currentFrame)
-                NPBus->SetPixelColor(i, RgbColor(150, 0, 0));
-            else
-                NPBus->SetPixelColor(i, RgbColor(0, 0, 0));
-        }
-        NPBus->Show();
-        currentFrame++;
-        if (currentFrame >= PIXEL_COUNT)
-            currentFrame = 0;
+        if (i == currentFrame)
+            NPBus->SetPixelColor(i, RgbColor(150, 0, 0));
+        else
+            NPBus->SetPixelColor(i, RgbColor(0, 0, 0));
     }
+    NPBus->Show();
+    currentFrame++;
+    if (currentFrame >= PIXEL_COUNT)
+        currentFrame = 0;
 }
