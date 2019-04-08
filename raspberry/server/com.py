@@ -98,7 +98,7 @@ class com(Thread):
 		self.action = "mixing"
 
 	def startSingleIngredient(self, port, duration):
-		self.data = {"port":port, "duration":duration}
+		self.data = [{"port":port, "duration":duration}]
 		self.action = "single_ingredient"
 
 	def startCleaning(self, port, duration):

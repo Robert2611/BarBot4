@@ -32,7 +32,7 @@ class database(object):
 		self.cursor.execute("""
 			SELECT ingredient as iid, id as port
 			FROM Ports
-		""");
+		""")
 		res = dict()
 		for ingredient in self.cursor.fetchall():
 			res[ingredient["port"]] = ingredient["iid"]
@@ -53,7 +53,7 @@ class database(object):
 		if res == None:
 			self.close()
 			return None
-		return dict(res);
+		return dict(res)
 
 	def getAllIngredients(self):
 		self.open()
@@ -62,7 +62,7 @@ class database(object):
 			FROM Ingredients i
 			LEFT JOIN Ports p
 			ON p.ingredient = i.id
-		""");
+		""")
 		res = dict()
 		for ingredient in self.cursor.fetchall():
 			res[ingredient["id"]] = dict(ingredient)
@@ -263,30 +263,46 @@ class database(object):
 	def getIntSetting(self, name):
 		return int(self.getStrSetting(name))
 
-	def getOrderedCocktailCount(self, startdate):
+	def getOrderedCocktailCount(self, date):
 		self.open()
 		self.cursor.execute("""
-			SELECT r.name AS name, COUNT(*) AS count, r.successor_id AS successor, r.id AS id
-			FROM Orders o
+			SELECT r.name, r.id AS rid, COUNT(*) AS count
+			FROM Orders O
 			JOIN Recipes r
-			ON r.id = o.recipe
-			WHERE o.started > DATE(:startdate)
-			GROUP BY o.recipe
-		""", {'startdate':startdate})
+			ON r.id = O.recipe
+			WHERE O.started >= DATETIME(:date, "+0.5 days")
+			AND O.started < DATETIME(:date, "+1.5 days")
+			GROUP BY r.id
+			ORDER BY count DESC
+		""", {'date':date})
 		res = [dict(row) for row in self.cursor.fetchall()]
 		return res
 
-	def getOrderedIngredientsAmount(self, startdate):
+	def getOrderedIngredientsAmount(self, date):
 		self.open()
 		self.cursor.execute("""
-			SELECT i.name AS ingredient, SUM(ri.amount)/100 AS amount
+			SELECT i.name AS ingredient, i.id AS iid, SUM(ri.amount)/100 AS liters
 			FROM RecipeItems ri
 			JOIN Orders o
 			ON o.recipe = ri.recipe
 			JOIN Ingredients i
 			ON i.id = ri.ingredient
-			WHERE o.started > DATE(:startdate)
+			WHERE O.started >= DATETIME(:date, "+0.5 days")
+			AND O.started < DATETIME(:date, "+1.5 days")
 			GROUP BY i.id
-		""", {'startdate':startdate})
+			ORDER BY liters DESC
+		""", {'date':date})
+		res = [dict(row) for row in self.cursor.fetchall()]
+		return res
+	
+	def getOrderedCocktailsByTime(self, date):
+		self.open()
+		self.cursor.execute("""
+			SELECT strftime('%Y-%m-%d %H',o.started) AS hour, count(*) AS count
+			FROM Orders o
+			WHERE O.started >= DATETIME(:date, "+0.5 days")
+			AND O.started < DATETIME(:date, "+1.5 days")
+			GROUP BY hour
+		""", {'date':date})
 		res = [dict(row) for row in self.cursor.fetchall()]
 		return res

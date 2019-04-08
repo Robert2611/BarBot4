@@ -90,7 +90,7 @@ def OnRequest(action, data):
 			return {"error":"busy"}
 		iid = getParameter(data, "ingredient", int)
 		amount = getParameter(data, "amount", int)
-		if id == None:
+		if iid == None:
 			return {"error":"no_id_set"}
 		port_cal = db.getPortAndCalibration(iid)
 		if port_cal == None:
