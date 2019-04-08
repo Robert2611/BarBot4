@@ -1,0 +1,2 @@
+#define PIXEL_COUNT 60
+#define PIN_NEOPIXEL 12

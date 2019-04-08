@@ -4,6 +4,8 @@
 #include "LEDController.h"
 #include "Wire.h"
 #include "Shared.h"
+#include "Configuration.h"
+#include "BalanceBoard.h"
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
@@ -14,7 +16,8 @@ TaskHandle_t LEDTask;
 
 BluetoothSerial SerialBT;
 Protocol protocol(&SerialBT);
-LEDController LEDC;
+LEDController LEDC(PIXEL_COUNT, PIN_NEOPIXEL);
+BalanceBoard balance;
 
 void DoBluetoothTask(void *parameters)
 {
@@ -33,22 +36,7 @@ void DoLEDTask(void *parameters)
 		delay(100);
 	}
 }
-void balanceLEDSetType(byte type)
-{
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TYPE, &type, 1);
-}
-void balanceLEDSetColorA(RGB color)
-{
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_A, (byte *)&color, 3);
-}
-void balanceLEDSetColorB(RGB color)
-{
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_B, (byte *)&color, 3);
-}
-void balanceLEDSetPeriod(unsigned int time)
-{
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TIME, (byte *)&time, sizeof(time));
-}
+
 void setup()
 {
 	//start serial communication for debugging
@@ -86,17 +74,9 @@ void loop()
 	{
 		last_millis = millis();
 		//check if balance has new data
-		bool has_data = false;
-		if (I2C_GET_BOOL(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_HAS_NEW_DATA, &has_data) && has_data)
-		{
-			//if new data is there get it
-			float data;
-			if (I2C_GET_FLOAT(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_GET_DATA, &data))
-			{
-				RGB test = {0, (byte)(-data / 20000), 0};
-				balanceLEDSetColorA(test);
-				balanceLEDSetType(BALANCE_LED_TYPE_CONTINOUS);
-			}
+		if(balance.readData()){
+			float data = balance.getWeight();
+			RGB test = {0, (byte)(-data / 20000), 0};
 		}
 	}
 	yield();

@@ -1,8 +1,9 @@
 #include "LEDController.h"
 
-LEDController::LEDController()
+LEDController::LEDController(int _pixel_count, int _pin)
 {
-    NPBus = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(PIXEL_COUNT, PIN_NEOPIXEL);
+    pixel_count = _pixel_count;
+    NPBus = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(pixel_count, _pin);
 }
 
 void LEDController::begin()
@@ -10,13 +11,11 @@ void LEDController::begin()
     // this resets all the neopixels to an off state
     NPBus->Begin();
     NPBus->Show();
-    currentFrame = 0;
-    animator = new NeoPixelAnimator(PIXEL_COUNT, NEO_CENTISECONDS);
 }
 
 void LEDController::update()
 {
-    for (int i = 0; i < PIXEL_COUNT; i++)
+    for (int i = 0; i < pixel_count; i++)
     {
         if (i == currentFrame)
             NPBus->SetPixelColor(i, RgbColor(150, 0, 0));
@@ -25,6 +24,6 @@ void LEDController::update()
     }
     NPBus->Show();
     currentFrame++;
-    if (currentFrame >= PIXEL_COUNT)
+    if (currentFrame >= pixel_count)
         currentFrame = 0;
 }
