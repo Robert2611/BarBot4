@@ -2,7 +2,6 @@
 
 StateMachine::StateMachine()
 {
-	return;
 	startup = true;
 	status = BAR_BOT_IDLE;
 	current_action_start_millis = 0;
@@ -34,7 +33,6 @@ void StateMachine::start_draft(int pump_index, long duration)
 
 void StateMachine::begin()
 {
-	return;
 	pinMode(X_MOTOR_HOME, INPUT_PULLUP);
 
 	pinMode(PUMP_SERIAL_DATA, OUTPUT);
@@ -42,21 +40,20 @@ void StateMachine::begin()
 	pinMode(PUMP_SERIAL_RCLK, OUTPUT);
 	pinMode(PUMP_SERIAL_SCLK, OUTPUT);
 
-	//stop_pumps();
+	stop_pumps();
 
 	//stepper->setPinsInverted(true, true); //invert (dir?,step?,enable?)
 	//stepper->setMaxSpeed(options->max_speed * MICROSTEPS);
 	//stepper->setAcceleration(options->max_accel * MICROSTEPS);
 
-	//leds->begin();
+	leds->begin();
     //TODO: Make sure stirring device is out of the way
-	if (false)
+	if (true)
 		start_homing();
 }
 
 bool StateMachine::is_homed()
 {
-	//read two times to be sure...
 	return digitalRead(X_MOTOR_HOME) && digitalRead(X_MOTOR_HOME);
 }
 
@@ -201,7 +198,7 @@ void StateMachine::update()
 		}
 		break;
 	}
-	//leds->update();
+	leds->update();
 }
 
 void StateMachine::set_max_speed(long speed)
@@ -234,7 +231,7 @@ void StateMachine::start_pump(int pump_index, byte power_pwm)
 	digitalWrite(PUMP_SERIAL_RCLK, HIGH);
 	digitalWrite(PUMP_SERIAL_DATA, LOW);
 	delay(50);
-	//inverted output, because the enabled pin low active
+	//inverted pwm as output, for inverted enabled pin
 	if (pump_index >= 0 && pump_index < 12 && power_pwm > 0)
 		digitalWrite(PUMP_NOT_ENABLED, LOW);
 	//analogWrite(PUMP_NOT_ENABLED, 255 - power_pwm);

@@ -1,6 +1,3 @@
-#ifndef LED_CONTROLLER_H
-#define LED_CONTROLLER_H
-
 #include "NeoPixelBus.h"
 #include "NeoPixelAnimator.h"
 
@@ -15,5 +12,3 @@ private:
     long currentFrame;
     int pixel_count;
 };
-
-#endif
