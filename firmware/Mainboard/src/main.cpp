@@ -1,9 +1,10 @@
 #include "Arduino.h"
 #include "BluetoothSerial.h"
 #include "Protocol.h"
+#include "Shared.h"
 #include "LEDController.h"
 #include "Wire.h"
-#include "Shared.h"
+
 #include "Configuration.h"
 #include "BalanceBoard.h"
 #include "StateMachine.h"
@@ -16,10 +17,12 @@ TaskHandle_t BluetoothTask;
 TaskHandle_t LEDTask;
 
 BluetoothSerial SerialBT;
-Protocol protocol(&SerialBT);
-LEDController LEDC(PIXEL_COUNT, PIN_NEOPIXEL);
 BalanceBoard balance;
 StateMachine state_m;
+
+Protocol protocol(&SerialBT);
+LEDController LEDC;
+
 
 void DoBluetoothTask(void *parameters)
 {
@@ -96,7 +99,7 @@ void loop()
 		last_millis = millis();
 		//check if balance has new data
 		if(balance.readData()){
-			float data = balance.getWeight();
+			/*float data = */ balance.getWeight();
 			//RGB test = {0, (byte)(-data / 20000), 0};
 		}
 	}

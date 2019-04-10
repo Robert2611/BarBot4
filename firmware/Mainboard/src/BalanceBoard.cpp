@@ -10,11 +10,11 @@ void BalanceBoard::LEDSetType(byte type)
 {
 	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TYPE, &type, 1);
 }
-void BalanceBoard::LEDSetColorA(RGB color)
+void BalanceBoard::LEDSetColorA(RGB_t color)
 {
 	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_A, (byte *)&color, 3);
 }
-void BalanceBoard::LEDSetColorB(RGB color)
+void BalanceBoard::LEDSetColorB(RGB_t color)
 {
 	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_B, (byte *)&color, 3);
 }
@@ -23,7 +23,7 @@ void BalanceBoard::LEDSetPeriod(unsigned int time)
 	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TIME, (byte *)&time, sizeof(time));
 }
 
-void BalanceBoard::LEDContinous(RGB color)
+void BalanceBoard::LEDContinous(RGB_t color)
 {
 	LEDSetColorA(color);
 	LEDSetType(BALANCE_LED_TYPE_CONTINOUS);
@@ -34,26 +34,26 @@ void BalanceBoard::LEDOff()
 	LEDSetType(BALANCE_LED_TYPE_OFF);
 }
 
-void BalanceBoard::LEDBlink(RGB colorA, RGB colorB, unsigned int period)
+void BalanceBoard::LEDBlink(RGB_t colorA, RGB_t colorB, unsigned int period)
 {
 	LEDSetColorA(colorA);
 	LEDSetColorA(colorB);
 	LEDSetPeriod(period);
 	LEDSetType(BALANCE_LED_TYPE_BLINK);
 }
-void BalanceBoard::LEDBlink(RGB colorA, unsigned int period)
+void BalanceBoard::LEDBlink(RGB_t colorA, unsigned int period)
 {
 	//second color is black
 	LEDBlink(colorA, {0, 0, 0}, period);
 }
-void BalanceBoard::LEDFade(RGB colorA, RGB colorB, unsigned int period)
+void BalanceBoard::LEDFade(RGB_t colorA, RGB_t colorB, unsigned int period)
 {
 	LEDSetColorA(colorA);
 	LEDSetColorA(colorB);
 	LEDSetPeriod(period);
 	LEDSetType(BALANCE_LED_TYPE_FADE);
 }
-void BalanceBoard::LEDFade(RGB colorA, unsigned int period)
+void BalanceBoard::LEDFade(RGB_t colorA, unsigned int period)
 {
 	//second color is black
 	LEDFade(colorA, {0, 0, 0}, period);

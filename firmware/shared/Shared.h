@@ -18,14 +18,15 @@
 #define BALANCE_LED_TYPE_BLINK 2
 #define BALANCE_LED_TYPE_FADE 3
 
+// fastled also declares a RGB type
 typedef struct
 {
     uint8_t r;
     uint8_t g;
     uint8_t b;
-} RGB;
+} RGB_t;
 
-inline RGB HEXStringToRGB(String HEXString)
+inline RGB_t HEXStringToRGB(String HEXString)
 {
     String str = "";
     if (HEXString.startsWith("#"))
@@ -38,7 +39,7 @@ inline RGB HEXStringToRGB(String HEXString)
     return {(byte)(rgb >> 16), (byte)(rgb >> 8 & 0xFF), (byte)(rgb & 0xFF)};
 }
 
-inline void printColor(RGB color)
+inline void printColor(RGB_t color)
 {
     Serial.print("color: r");
     Serial.print(color.r, HEX);
