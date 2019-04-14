@@ -3,7 +3,7 @@ function show_page_edit(data){
 	recipe = data.recipe;
 	message = data.message;
 
-	var e_form = bar_bot_form('saverecipe');
+	var e_form = bar_bot_form('save_recipe');
 	var e_edit = CloneFromTemplate("t_edit");
 
 	//initialize if new recipe is to be created

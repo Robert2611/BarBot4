@@ -90,7 +90,7 @@ function updater() {
 			if(!demo){
 				console.log(data);
 				if(current_page == "server_error")
-					load_page("listrecipes");
+					load_page("list_recipes");
 				if(data.status == "connecting"){
 					show_overlayer("Verbinde...<br/><br/>");
 					$("#overlayer_content").append($("<div/>",{'class':'button onwhite', 'html':'Neu starten'}).click(function(){

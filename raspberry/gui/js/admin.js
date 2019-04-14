@@ -23,7 +23,7 @@ function show_page_admin_clean(data){
 
 function show_page_admin_edit_ports(data){
 	var e_admin_edit_ports = CloneFromTemplate("t_admin_edit_ports");
-	var e_form = bar_bot_form("setports");
+	var e_form = bar_bot_form("set_ports");
 	var e_table = e_admin_edit_ports.find("table.ports");
 	//ports
 	$.each(data.ports, function(port, iid){
@@ -56,7 +56,7 @@ function show_page_admin_edit_ports(data){
 
 function show_page_admin_calibrate(data){
 	var e_admin_calibrate = CloneFromTemplate("t_admin_calibrate");
-	var e_form = bar_bot_form("setcalibration");
+	var e_form = bar_bot_form("set_calibration");
 	var e_port = e_admin_calibrate.find("select[name=port]");
 	e_port.append($("<option/>", {'value':-1, 'text':'-'}));
 	$.each(data.ports, function(port, iid){

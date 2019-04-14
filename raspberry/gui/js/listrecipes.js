@@ -1,4 +1,4 @@
-function show_page_listrecipes(data){
+function show_page_list_recipes(data){
 	//MAIN
 	//loop through recipes
 	var e_list = CloneFromTemplate("t_list");
@@ -13,7 +13,7 @@ function show_page_listrecipes(data){
 			e_cocktail.find('.order').remove()
 		}
 		$(e_cocktail.find('.edit')).click(function(){
-			load_page("edit", {'action':'getrecipe', 'id':recipe.id});
+			load_page("edit", {'action':'get_recipe', 'id':recipe.id});
 		});
 		//loop through items
 		recipe.items.forEach(function(item){
