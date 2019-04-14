@@ -79,17 +79,22 @@ li.highlight{
 	font-weight:bold;
 }
 
-.order::before, .edit::before{
+.edit::before{
 	content: '';
 	width: 32px;
 	height: 32px;
+	display: block;
+}
+.order::before{
+	content: '';
+	width: 64px;
+	height: 64px;
 	display: block;
 }
 
 .order{
 	display:block;
 	float:right;
-	opacity:0.5;
 }
 .order::before{
 	background-image:url("order.png");
