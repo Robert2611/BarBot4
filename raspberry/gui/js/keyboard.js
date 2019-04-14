@@ -5,6 +5,14 @@ var capslock = false;
 
 function show_keyboard(target){
 	keyboard_target = target;
+	//close keyboard on click anywhere in the body
+	$("body").click(function(e){
+		keyboard_hide();
+	});
+	//if click was on the target, cancel the event
+	target.click(function(ev){
+		ev.stopPropagation();
+	});
 	if($("#keyboard").length == 0)
 		keyboard_add();
 	else
@@ -77,6 +85,7 @@ function update_shift(){
 }
 
 function key_click(){
+	console.log(keyboard_target);
 	if(keyboard_target == undefined)
 		return;
 	var e_key = $(this);

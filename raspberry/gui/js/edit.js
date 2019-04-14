@@ -3,8 +3,8 @@ function show_page_edit(data){
 	recipe = data.recipe;
 	message = data.message;
 
-	var e_form = bar_bot_form('save_recipe');
-	var e_edit = CloneFromTemplate("t_edit");
+	var e_form = bar_bot_form('saverecipe');
+	var e_edit = clone_from_template("t_edit");
 
 	//initialize if new recipe is to be created
 	if(recipe == undefined){
@@ -28,7 +28,7 @@ function show_page_edit(data){
 	e_edit.find('[name=name]')
 		.val(recipe.name)
 		.focus(function(){
-			show_keyboard(e_name);
+			show_keyboard($(this));
 		});
 	e_list = e_edit.find('ul');
 	var e_add_ingredient = e_list.find('li.add_ingredient');
@@ -37,7 +37,7 @@ function show_page_edit(data){
 			edit_create_recipe_item(recipe_item, ingredients).insertBefore(e_add_ingredient);
 		});
 	}else{
-		e_list.append(edit_create_empty_recipe_item(ingredients));
+		edit_create_empty_recipe_item(ingredients).insertBefore(e_add_ingredient);
 	}
 	e_add_ingredient.click(function(){
 		edit_create_empty_recipe_item(ingredients).insertBefore(e_add_ingredient);
@@ -51,7 +51,7 @@ function edit_create_empty_recipe_item(ingredients){
 }
 
 function edit_create_recipe_item(recipe_item, ingredients){
-	var e_list_item = CloneFromTemplate("t_edit_ingredient");
+	var e_list_item = clone_from_template("t_edit_ingredient");
 	e_list_item.find('[name="id[]"]').val(recipe_item.id);
 	//select ingredient
 	e_select_ingredient = e_list_item.find('[name="ingredient[]"]');

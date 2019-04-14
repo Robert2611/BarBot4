@@ -307,3 +307,18 @@ class database(object):
 		""", {'date': date})
         res = [dict(row) for row in self.cursor.fetchall()]
         return res
+
+    def getPartyDates(self):
+        self.open()
+        self.cursor.execute("""
+			SELECT partydate, ordercount
+			FROM (
+				SELECT date(o.started, "-0.5 days") AS partydate,  count(o.id) as ordercount
+				FROM Orders o
+				GROUP BY partydate
+				ORDER BY partydate DESC
+			)
+			WHERE ordercount > 10
+		""")
+        res = [dict(row) for row in self.cursor.fetchall()]
+        return res

@@ -1,5 +1,5 @@
 function show_page_admin_clean(data){
-	var e_admin_clean = CloneFromTemplate("t_admin_clean");
+	var e_admin_clean = clone_from_template("t_admin_clean");
 	e_admin_clean.find(".clean_cycle_left")
 		.click(function(){
 			get_bar_bot_data({"action" : "clean_cycle_left"});
@@ -10,7 +10,7 @@ function show_page_admin_clean(data){
 	});
 	var e_clean_ports = e_admin_clean.find(".ports");
 	for( port=0; port<12; port++){
-		var e_clean_port = CloneFromTemplate("t_admin_clean_port").find(".port");
+		var e_clean_port = clone_from_template("t_admin_clean_port").find(".port");
 		e_clean_port.html( (port + 1) + " reinigen" );
 		//pass data to the click event
 		e_clean_port.click({port : port}, function(e){
@@ -22,15 +22,15 @@ function show_page_admin_clean(data){
 }
 
 function show_page_admin_edit_ports(data){
-	var e_admin_edit_ports = CloneFromTemplate("t_admin_edit_ports");
-	var e_form = bar_bot_form("set_ports");
+	var e_admin_edit_ports = clone_from_template("t_admin_edit_ports");
+	var e_form = bar_bot_form("setports");
 	var e_table = e_admin_edit_ports.find("table.ports");
 	//ports
 	$.each(data.ports, function(port, iid){
 		//don't show special ports
 		if( port >= 12 )
 			return;
-		var e_admin_edit_port = CloneFromTemplate("t_admin_edit_port").find("tr");
+		var e_admin_edit_port = clone_from_template("t_admin_edit_port").find("tr");
 		//workaround
 		var port_name = parseInt(port) + 1;
 		e_admin_edit_port.find(".port_name").text( `Port ${port_name}`);
@@ -55,8 +55,8 @@ function show_page_admin_edit_ports(data){
 }
 
 function show_page_admin_calibrate(data){
-	var e_admin_calibrate = CloneFromTemplate("t_admin_calibrate");
-	var e_form = bar_bot_form("set_calibration");
+	var e_admin_calibrate = clone_from_template("t_admin_calibrate");
+	var e_form = bar_bot_form("setcalibration");
 	var e_port = e_admin_calibrate.find("select[name=port]");
 	e_port.append($("<option/>", {'value':-1, 'text':'-'}));
 	$.each(data.ports, function(port, iid){
@@ -73,7 +73,7 @@ function show_page_admin_calibrate(data){
 	//enable touch keyboard
 	var e_calibration = e_admin_calibrate.find("input[name=calibration]");
 	e_calibration.focus(function(){
-		show_keyboard(e_calibration);
+		show_keyboard($(this));
 	});
 	e_start_pump.click(function(e){
 		e.preventDefault();
@@ -96,12 +96,12 @@ function show_page_admin_calibrate(data){
 }
 
 function show_page_admin_overview(data){
-	var e_admin_overview = CloneFromTemplate("t_admin_overview");
+	var e_admin_overview = clone_from_template("t_admin_overview");
 	var e_table = e_admin_overview.find(".ports");
 	$.each(data.ports, function(port, iid){
 		if( iid < 0 )
 			return;
-		var e_row = CloneFromTemplate("t_admin_overview_port");
+		var e_row = clone_from_template("t_admin_overview_port");
 		e_row.find(".port").html(port);
 		e_row.find(".ingredient").html(data.ingredients[iid].name);
 		e_row.find(".calibration").html(data.ingredients[iid].calibration);
@@ -116,7 +116,7 @@ function show_page_admin_overview(data){
 }
 
 function show_page_admin_system(data){
-	var e_admin_system = CloneFromTemplate("t_admin_system");
+	var e_admin_system = clone_from_template("t_admin_system");
 	e_admin_system.find(".restart_gui").click(function(){
 		location.reload();
 	});

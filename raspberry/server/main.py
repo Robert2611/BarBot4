@@ -11,9 +11,11 @@ import json
 
 STIR_INGREDIENT = 255
 
+is_demo = len(sys.argv) >= 2 and sys.argv[1] == "-d"
 
-def getParameter(data, index, converter=None):
-    value = data.get(index)
+
+def getParameter(request_data, index, converter=None):
+    value = request_data.get(index)
     if value == None:
         return None
     elif converter != None:
@@ -22,30 +24,30 @@ def getParameter(data, index, converter=None):
         return value[0]
 
 
-def OnRequest(action, data):
+def OnRequest(action, request_data):
     if action == "status":
         return {"status": com.action, "progress": com.progress, "message": com.message}
 
-    elif action == "list_recipes":
+    elif action == "listrecipes":
         return {"recipes": db.getRecipes()}
 
-    elif action == "get_recipe":
-        id = getParameter(data, 'id', int)
+    elif action == "getrecipe":
+        id = getParameter(request_data, 'id', int)
         if id == None:
             return {"error": "no_id_set"}
         elif id < 0:
             return {"recipe": None, "ingredients": db.getAllIngredients()}
         return {"recipe": db.getRecipe(id), "ingredients": db.getAllIngredients()}
 
-    elif action == "save_recipe":
+    elif action == "saverecipe":
         if not com.canManipulateDatabase():
             return {"error": "busy"}
         # get variables
-        name = getParameter(data, "name")
-        id = getParameter(data, "rid", int)
-        item_amounts = data.get("amount[]")
-        item_ids = data.get("id[]")
-        item_ingredients = data.get("ingredient[]")
+        name = getParameter(request_data, "name")
+        id = getParameter(request_data, "rid", int)
+        item_amounts = request_data.get("amount[]")
+        item_ids = request_data.get("id[]")
+        item_ingredients = request_data.get("ingredient[]")
         # check data
         if name == None or name == "":
             return {"error": "name_empty"}
@@ -77,7 +79,7 @@ def OnRequest(action, data):
     elif action == "order":
         if com.isArduinoBusy():
             return {"error": "busy"}
-        id = getParameter(data, "id", int)
+        id = getParameter(request_data, "id", int)
         if id == None:
             return {"error": "no_id_set"}
         recipe = db.getRecipe(id)
@@ -90,8 +92,8 @@ def OnRequest(action, data):
     elif action == "single_ingredient":
         if com.isArduinoBusy():
             return {"error": "busy"}
-        iid = getParameter(data, "ingredient", int)
-        amount = getParameter(data, "amount", int)
+        iid = getParameter(request_data, "ingredient", int)
+        amount = getParameter(request_data, "amount", int)
         if iid == None:
             return {"error": "no_id_set"}
         port_cal = db.getPortAndCalibration(iid)
@@ -104,7 +106,7 @@ def OnRequest(action, data):
     elif action == "admin":
         return {"ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
 
-    elif action == "set_ports":
+    elif action == "setports":
         if not com.canManipulateDatabase():
             return {"error": "busy"}
         db_ports = db.getIngredientOfPort()
@@ -113,7 +115,7 @@ def OnRequest(action, data):
         for port in db_ports.keys():
             if port >= 12:
                 continue
-            param = getParameter(data, "port_" + str(port), int)
+            param = getParameter(request_data, "port_" + str(port), int)
             if(param == None):
                 portsOK = False
             else:
@@ -123,11 +125,11 @@ def OnRequest(action, data):
         db.setPorts(ports)
         return {"message": "ports_set", "ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
 
-    elif action == "set_calibration":
+    elif action == "setcalibration":
         if not com.canManipulateDatabase():
             return {"error": "busy"}
-        port = getParameter(data, "port", int)
-        calibration = getParameter(data, "calibration", int)
+        port = getParameter(request_data, "port", int)
+        calibration = getParameter(request_data, "calibration", int)
         if port == None or calibration == None:
             return {"error": "wrong_data"}
         db.setCalibration(port, calibration)
@@ -136,7 +138,7 @@ def OnRequest(action, data):
     elif action == "calibrate":
         if not com.canManipulateDatabase():
             return {"error": "busy"}
-        port = getParameter(data, "port", int)
+        port = getParameter(request_data, "port", int)
         duration = db.getIntSetting("calibrate_duration")
         com.startCleaning(port, duration)
         return {"message": "calirate_started"}
@@ -144,7 +146,7 @@ def OnRequest(action, data):
     elif action == "clean":
         if com.isArduinoBusy():
             return {"error": "busy"}
-        port = getParameter(data, "port", int)
+        port = getParameter(request_data, "port", int)
         duration = db.getIntSetting("clean_duration")
         com.startCleaning(port, duration)
         return {"message": "clean_started"}
@@ -169,9 +171,20 @@ def OnRequest(action, data):
         com.startCleaningCycle(data)
         return {"message": "clean_started"}
 
-    elif action == "statistics_ordered_cocktails":
-        date = getParameter(data, "date")
-        db.getOrderedCocktailCount(date)
+    elif action == "statistics":
+        result = {"parties": db.getPartyDates()}
+        date = getParameter(request_data, "date")
+        if date == None:
+            date = result["parties"][0]["partydate"]
+        result["total_count"] = result["parties"][0]["ordercount"]
+        result["cocktail_count"] = db.getOrderedCocktailCount(date)
+        result["ingredients_amount"] = db.getOrderedIngredientsAmount(date)
+        result["cocktails_by_time"] = db.getOrderedCocktailsByTime(date)
+        result["total_amount"] = sum([ia["liters"]
+                                      for ia in result["ingredients_amount"]])
+        result["date"] = date
+        return result
+
 
 def OnMixingFinished(rid):
     db.closeOrder(rid)
@@ -197,13 +210,19 @@ com.settings = {
     "max_speed": db.getIntSetting("max_speed"),
     "max_accel": db.getIntSetting("max_accel")
 }
-com.start()
+if not is_demo:
+    com.start()
 
 server = server.server(OnRequest)
 server.start()
 
+print("Server started")
+if is_demo:
+    print("Demo mode")
+
 try:
-    com.join()
+    if not is_demo:
+        com.join()
     server.join()
 except KeyboardInterrupt:
     raise

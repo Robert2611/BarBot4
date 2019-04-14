@@ -1,5 +1,5 @@
 function show_page_single_ingredient(data){
-	var e_single_ingredient = CloneFromTemplate("t_single_ingredient");
+	var e_single_ingredient = clone_from_template("t_single_ingredient");
 	var e_form = bar_bot_form("single_ingredient");
 	var e_select_ingredient = e_single_ingredient.find("select[name=ingredient]");
 	var e_select_amount = e_single_ingredient.find("select[name=amount]");

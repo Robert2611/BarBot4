@@ -6,6 +6,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
 		<link rel="stylesheet" type="text/css" href="css/main.css">
 		<link rel="stylesheet" type="text/css" href="css/keyboard.css">
+		<link rel="stylesheet" type="text/css" href="css/bar_chart.css">
 		<script type="text/javascript" src="js/JQuery.js"></script>
 		<script type="text/javascript" src="js/keyboard.js"></script>
 		<script type="text/javascript" src="js/ajax.js"></script>
@@ -13,6 +14,7 @@
 		<script type="text/javascript" src="js/edit.js"></script>
 		<script type="text/javascript" src="js/admin.js"></script>
 		<script type="text/javascript" src="js/single_ingredient.js"></script>
+		<script type="text/javascript" src="js/statistics.js"></script>
 		<title>Bar-Bot</title>
 		<script>
 			var demo = true;
@@ -25,13 +27,9 @@
 					load_page("listrecipes");
 				});
 				$("#admin").click(function(e){
+					//prevent the click event to be passed to the bar_bot_title
 					e.preventDefault();
 					load_page("admin_overview");
-				});
-				$("#main").click(function(e){
-					if (e.target !== this)
-						return;
-					keyboard_hide();
 				});
 				$("#nav").find('[page]') //find all with attribute page
 					.click(function(e){;
@@ -53,6 +51,7 @@
 				<div class="button" page="listrecipes">Liste</div>
 				<div class="button" page="new">Neu</div>
 				<div class="button" page="single_ingredient">Nachschlag</div>
+				<div class="button" page="statistics">Statistik</div>
 			</div>
 			<a href="?page=admin" id="admin"></a>
 			<!--<a href="#" onclick="list_load(); return false;">Load</a>-->
@@ -183,6 +182,27 @@
 			<select name="amount"></select>
 			<br/>
 			<input type="submit" value="OK"/>
+		</template>
+		<!--PAGE STATISTICS-->
+		<template id="t_statistics">
+			<h2>Statistik</h2>
+			<p>Statistik der letzten Parties ansehen</p>
+			<label>Datum:</label> <select name="partydate"></select></br>
+			<h3>Bestellte Cocktails (<span class="total_count"></span>)</h3>
+			<div class="graph_cocktail_count bar_chart"></div>
+			<h3>Verbrauchte Zutaten (<span class="total_amount"></span> l)</h3>
+			<div class="graph_ingredients_amount"></div>
+			<h3>Bestellungen</h3>
+			<div class="graph_cocktails_by_time"></div>
+		</template>
+		<template id="t_bar_chart_row">
+			<div class="bar_chart_row">
+				<div class="bar_chart_label"></div>
+				<div class="bar_chart_bar">
+					<div class="bar_chart_bar_fill"></div>
+				</div>
+				<div class="bar_chart_value"></div>
+			</div>
 		</template>
 		<!--OVERLAYER-->
 		<template id="t_server_error">

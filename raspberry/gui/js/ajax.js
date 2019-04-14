@@ -24,7 +24,7 @@ function system_do(input){
 	});
 }
 
-function CloneFromTemplate(template_name){
+function clone_from_template(template_name){
 	var t_list = document.querySelector('#' + template_name);
 	return $(document.importNode(t_list.content,true));
 }
@@ -67,7 +67,7 @@ function show_start_server(){
 	if(current_page != "server_error"){
 		current_page = "server_error";
 		$("#content").empty();
-		var e_server_error = CloneFromTemplate("t_server_error");
+		var e_server_error = clone_from_template("t_server_error");
 		e_server_error.find(".start_server").click(function(){
 			system_do({'action':'start'});
 		});
@@ -90,7 +90,7 @@ function updater() {
 			if(!demo){
 				console.log(data);
 				if(current_page == "server_error")
-					load_page("list_recipes");
+					load_page("listrecipes");
 				if(data.status == "connecting"){
 					show_overlayer("Verbinde...<br/><br/>");
 					$("#overlayer_content").append($("<div/>",{'class':'button onwhite', 'html':'Neu starten'}).click(function(){
