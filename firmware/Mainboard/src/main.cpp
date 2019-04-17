@@ -18,10 +18,10 @@ TaskHandle_t LEDTask;
 
 BluetoothSerial SerialBT;
 BalanceBoard balance;
-StateMachine state_m;
+StateMachine state_m(&balance);
 
 Protocol protocol(&SerialBT);
-LEDController LEDC;
+LEDAnimator LEDContr;
 
 
 void DoBluetoothTask(void *parameters)
@@ -37,7 +37,7 @@ void DoLEDTask(void *parameters)
 {
 	for (;;)
 	{
-		LEDC.update();
+		LEDContr.update();
 		delay(100);
 	}
 }
@@ -46,7 +46,7 @@ void setup()
 {
 	//start serial communication for debugging
 	Serial.begin(115200);
-	LEDC.begin();
+	LEDContr.begin();
 	//Bluetooth device name
 	SerialBT.begin("Bar Bot 4");
 	Serial.println("Bluetooth started");
@@ -68,7 +68,9 @@ void setup()
 							0,		   //priority
 							&LEDTask,  //out: task handle
 							0);		   //core
-							
+	balance.setCalibration(PUMP_CALIBRATION);
+	balance.setOffset(PUMP_OFFSET);
+
 	//test command that just returns done after a defined time
 	protocol.addCommand(
 		"Delay",
@@ -86,6 +88,22 @@ void setup()
 			return state_m.status == BAR_BOT_IDLE;
 		}
 	);
+		protocol.addCommand(
+		"Pump",
+		[](int param_c, char** param_v){
+			if(param_c == 1){
+				long t = atoi(param_v[0]);
+				if( t > 0 && t < 5000){
+					state_m.start_clean(0, t);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](){
+			return state_m.status == BAR_BOT_IDLE;
+		}
+	);
 	Wire.begin();
 	state_m.begin();
 }
@@ -94,14 +112,5 @@ long last_millis = 0;
 void loop()
 {
 	state_m.update();
-	if (millis() > last_millis + 3)
-	{
-		last_millis = millis();
-		//check if balance has new data
-		if(balance.readData()){
-			/*float data = */ balance.getWeight();
-			//RGB test = {0, (byte)(-data / 20000), 0};
-		}
-	}
 	yield();
 }

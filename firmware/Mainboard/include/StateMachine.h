@@ -4,6 +4,7 @@
 #include "AccelStepper.h"
 #include "LEDController.h"
 #include "Configuration.h"
+#include "BalanceBoard.h"
 
 
 
@@ -29,14 +30,9 @@ extern "C" {
 typedef void (*BarBotStatusChangedHandler) (int);
 };
 
-enum Z_Direction_t{
-	UP,
-	DOWN
-};
-
 class StateMachine {
 public:
-	StateMachine();
+	StateMachine(BalanceBoard* _balance);
 	void begin();
 
 	int status;
@@ -46,13 +42,13 @@ public:
 
 	BarBotStatusChangedHandler onStatusChanged;
 	AccelStepper *stepper;
-	LEDController *leds;
+	LEDAnimator *leds;
 
 	float position_in_mm();
 	void update();
 
 	void start_homing();
-	void start_clean(int pump_index, long duration);
+	void start_clean(int pump_index, float target_weight);
 	void start_draft(int pump_index, long duration);
 	void start_stir(long duration);
 	void start_moveto(long position_in_mm);
@@ -62,15 +58,20 @@ public:
 	void set_max_accel(long accel);
 
 private:
+	void update_balance();
 	bool is_homed();
-	void start_pump(int pump_index, byte power_pwm);
+	void start_pump(int pump_index, uint32_t power_pwm);
 	void stop_pumps();
 	void set_status(int new_status);
 	float get_current_ingredient_position_in_mm();
-	bool stir_pos_reached(Z_Direction_t up_down);
 	void set_target_position(long pos_in_mm);
 	long mm_to_steps(float mm);
 	int current_microstep;
 	bool startup;
+	BalanceBoard* balance;
+	float weight_before_draft;
+	float target_draft_weight;
+	unsigned long balance_last_check_millis;
+	unsigned long balance_last_data_millis;
 };
 #endif // ifndef BAR_BOT_H

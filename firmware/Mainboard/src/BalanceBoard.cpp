@@ -4,6 +4,7 @@ BalanceBoard::BalanceBoard()
 {
 	raw_data = 0;
 	calibration = 1;
+	offset = 0;
 }
 
 void BalanceBoard::LEDSetType(byte type)
@@ -71,6 +72,11 @@ void BalanceBoard::setCalibration(float _calibration)
 	this->calibration = _calibration;
 }
 
+void BalanceBoard::setOffset(float _offset)
+{
+	this->offset = _offset;
+}
+
 bool BalanceBoard::readData()
 {
 	if (!hasNewData())
@@ -84,5 +90,5 @@ bool BalanceBoard::readData()
 
 float BalanceBoard::getWeight()
 {
-	return raw_data * calibration;
+	return (raw_data - offset) * calibration;
 }

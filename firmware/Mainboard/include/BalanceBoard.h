@@ -1,3 +1,5 @@
+#ifndef BALANCE_BOARD_H
+#define BALANCE_BOARD_H
 #include "Shared.h"
 
 class BalanceBoard
@@ -13,6 +15,7 @@ class BalanceBoard
     void LEDOff();
     //balance data wrappers
     void setCalibration(float calibration);
+    void setOffset(float offset);
     bool readData();
     float getWeight();    
   private:
@@ -23,4 +26,6 @@ class BalanceBoard
     void LEDSetPeriod(unsigned int time);
     float raw_data;
     float calibration;
+    float offset;
 };
+#endif

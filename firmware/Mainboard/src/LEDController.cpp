@@ -1,20 +1,20 @@
 #include "LEDController.h"
-
-LEDController::LEDController()
+LEDAnimator::LEDAnimator()
 {
+  stripe = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(PIXEL_COUNT, PIN_NEOPIXEL);
 }
 
-void LEDController::begin()
+void LEDAnimator::begin()
 {
-    FastLED.addLeds<NEOPIXEL, PIN_NEOPIXEL>(LEDs, PIXEL_COUNT);
+  stripe->Begin();
 }
 
-void LEDController::update()
+void LEDAnimator::update()
 {
     
 }
 
-void LEDController::Test(int selectedEffect){
+void LEDAnimator::Test(int selectedEffect){
     switch (selectedEffect)
     {
 
@@ -174,7 +174,7 @@ void LEDController::Test(int selectedEffect){
 }
 
 
-void LEDController::RGBLoop(){
+void LEDAnimator::RGBLoop(){
   for(int j = 0; j < 3; j++ ) { 
     // Fade IN
     for(int k = 0; k < 256; k++) { 
@@ -183,7 +183,7 @@ void LEDController::RGBLoop(){
         case 1: setAll(0,k,0); break;
         case 2: setAll(0,0,k); break;
       }
-      FastLED.show();
+      show();
       delay(3);
     }
     // Fade OUT
@@ -193,13 +193,13 @@ void LEDController::RGBLoop(){
         case 1: setAll(0,k,0); break;
         case 2: setAll(0,0,k); break;
       }
-      FastLED.show();
+      show();
       delay(3);
     }
   }
 }
 
-void LEDController::FadeInOut(byte red, byte green, byte blue){
+void LEDAnimator::FadeInOut(byte red, byte green, byte blue){
   float r, g, b;
       
   for(int k = 0; k < 256; k=k+1) { 
@@ -207,7 +207,7 @@ void LEDController::FadeInOut(byte red, byte green, byte blue){
     g = (k/256.0)*green;
     b = (k/256.0)*blue;
     setAll(r,g,b);
-    FastLED.show();
+    show();
   }
      
   for(int k = 255; k >= 0; k=k-2) {
@@ -215,24 +215,24 @@ void LEDController::FadeInOut(byte red, byte green, byte blue){
     g = (k/256.0)*green;
     b = (k/256.0)*blue;
     setAll(r,g,b);
-    FastLED.show();
+    show();
   }
 }
 
-void LEDController::Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause){
+void LEDAnimator::Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause){
   for(int j = 0; j < StrobeCount; j++) {
     setAll(red,green,blue);
-    FastLED.show();
+    show();
     delay(FlashDelay);
     setAll(0,0,0);
-    FastLED.show();
+    show();
     delay(FlashDelay);
   }
  
  delay(EndPause);
 }
 
-void LEDController::HalloweenEyes(byte red, byte green, byte blue, 
+void LEDAnimator::HalloweenEyes(byte red, byte green, byte blue, 
                    int EyeWidth, int EyeSpace, 
                    boolean Fade, int Steps, int FadeDelay,
                    int EndPause){
@@ -247,7 +247,7 @@ void LEDController::HalloweenEyes(byte red, byte green, byte blue,
     setPixel(Start2ndEye + i, red, green, blue);
   }
   
-  FastLED.show();
+  show();
   
   if(Fade==true) {
     float r, g, b;
@@ -262,7 +262,7 @@ void LEDController::HalloweenEyes(byte red, byte green, byte blue,
         setPixel(Start2ndEye + i, r, g, b);
       }
       
-      FastLED.show();
+      show();
       delay(FadeDelay);
     }
   }
@@ -272,7 +272,7 @@ void LEDController::HalloweenEyes(byte red, byte green, byte blue,
   delay(EndPause);
 }
 
-void LEDController::CylonBounce(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
+void LEDAnimator::CylonBounce(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
 
   for(int i = 0; i < PIXEL_COUNT-EyeSize-2; i++) {
     setAll(0,0,0);
@@ -281,7 +281,7 @@ void LEDController::CylonBounce(byte red, byte green, byte blue, int EyeSize, in
       setPixel(i+j, red, green, blue); 
     }
     setPixel(i+EyeSize+1, red/10, green/10, blue/10);
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
 
@@ -294,14 +294,14 @@ void LEDController::CylonBounce(byte red, byte green, byte blue, int EyeSize, in
       setPixel(i+j, red, green, blue); 
     }
     setPixel(i+EyeSize+1, red/10, green/10, blue/10);
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
   
   delay(ReturnDelay);
 }
 
-void LEDController::NewKITT(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
+void LEDAnimator::NewKITT(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay){
   RightToLeft(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
   LeftToRight(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
   OutsideToCenter(red, green, blue, EyeSize, SpeedDelay, ReturnDelay);
@@ -313,7 +313,7 @@ void LEDController::NewKITT(byte red, byte green, byte blue, int EyeSize, int Sp
 }
 
 // used by NewKITT
-void LEDController::CenterToOutside(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+void LEDAnimator::CenterToOutside(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
   for(int i =((PIXEL_COUNT-EyeSize)/2); i>=0; i--) {
     setAll(0,0,0);
     
@@ -329,14 +329,14 @@ void LEDController::CenterToOutside(byte red, byte green, byte blue, int EyeSize
     }
     setPixel(PIXEL_COUNT-i-EyeSize-1, red/10, green/10, blue/10);
     
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
   delay(ReturnDelay);
 }
 
 // used by NewKITT
-void LEDController::OutsideToCenter(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+void LEDAnimator::OutsideToCenter(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
   for(int i = 0; i<=((PIXEL_COUNT-EyeSize)/2); i++) {
     setAll(0,0,0);
     
@@ -352,14 +352,14 @@ void LEDController::OutsideToCenter(byte red, byte green, byte blue, int EyeSize
     }
     setPixel(PIXEL_COUNT-i-EyeSize-1, red/10, green/10, blue/10);
     
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
   delay(ReturnDelay);
 }
 
 // used by NewKITT
-void LEDController::LeftToRight(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+void LEDAnimator::LeftToRight(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
   for(int i = 0; i < PIXEL_COUNT-EyeSize-2; i++) {
     setAll(0,0,0);
     setPixel(i, red/10, green/10, blue/10);
@@ -367,14 +367,14 @@ void LEDController::LeftToRight(byte red, byte green, byte blue, int EyeSize, in
       setPixel(i+j, red, green, blue); 
     }
     setPixel(i+EyeSize+1, red/10, green/10, blue/10);
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
   delay(ReturnDelay);
 }
 
 // used by NewKITT
-void LEDController::RightToLeft(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
+void LEDAnimator::RightToLeft(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay) {
   for(int i = PIXEL_COUNT-EyeSize-2; i > 0; i--) {
     setAll(0,0,0);
     setPixel(i, red/10, green/10, blue/10);
@@ -382,18 +382,18 @@ void LEDController::RightToLeft(byte red, byte green, byte blue, int EyeSize, in
       setPixel(i+j, red, green, blue); 
     }
     setPixel(i+EyeSize+1, red/10, green/10, blue/10);
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
   delay(ReturnDelay);
 }
 
-void LEDController::Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, boolean OnlyOne) {
+void LEDAnimator::Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, boolean OnlyOne) {
   setAll(0,0,0);
   
   for (int i=0; i<Count; i++) {
      setPixel(random(PIXEL_COUNT),red,green,blue);
-     FastLED.show();
+     show();
      delay(SpeedDelay);
      if(OnlyOne) { 
        setAll(0,0,0); 
@@ -403,12 +403,12 @@ void LEDController::Twinkle(byte red, byte green, byte blue, int Count, int Spee
   delay(SpeedDelay);
 }
 
-void LEDController::TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
+void LEDAnimator::TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
   setAll(0,0,0);
   
   for (int i=0; i<Count; i++) {
      setPixel(random(PIXEL_COUNT),random(0,255),random(0,255),random(0,255));
-     FastLED.show();
+     show();
      delay(SpeedDelay);
      if(OnlyOne) { 
        setAll(0,0,0); 
@@ -418,27 +418,27 @@ void LEDController::TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne) {
   delay(SpeedDelay);
 }
 
-void LEDController::Sparkle(byte red, byte green, byte blue, int SpeedDelay) {
+void LEDAnimator::Sparkle(byte red, byte green, byte blue, int SpeedDelay) {
   int Pixel = random(PIXEL_COUNT);
   setPixel(Pixel,red,green,blue);
-  FastLED.show();
+  show();
   delay(SpeedDelay);
   setPixel(Pixel,0,0,0);
 }
 
-void LEDController::SnowSparkle(byte red, byte green, byte blue, int SparkleDelay, int SpeedDelay) {
+void LEDAnimator::SnowSparkle(byte red, byte green, byte blue, int SparkleDelay, int SpeedDelay) {
   setAll(red,green,blue);
   
   int Pixel = random(PIXEL_COUNT);
   setPixel(Pixel,0xff,0xff,0xff);
-  FastLED.show();
+  show();
   delay(SparkleDelay);
   setPixel(Pixel,red,green,blue);
-  FastLED.show();
+  show();
   delay(SpeedDelay);
 }
 
-void LEDController::RunningLights(byte red, byte green, byte blue, int WaveDelay) {
+void LEDAnimator::RunningLights(byte red, byte green, byte blue, int WaveDelay) {
   int Position=0;
   
   for(int i=0; i<PIXEL_COUNT*2; i++)
@@ -454,20 +454,20 @@ void LEDController::RunningLights(byte red, byte green, byte blue, int WaveDelay
                    ((sin(i+Position) * 127 + 128)/255)*blue);
       }
       
-      FastLED.show();
+      show();
       delay(WaveDelay);
   }
 }
 
-void LEDController::colorWipe(byte red, byte green, byte blue, int SpeedDelay) {
+void LEDAnimator::colorWipe(byte red, byte green, byte blue, int SpeedDelay) {
   for(uint16_t i=0; i<PIXEL_COUNT; i++) {
       setPixel(i, red, green, blue);
-      FastLED.show();
+      show();
       delay(SpeedDelay);
   }
 }
 
-void LEDController::rainbowCycle(int SpeedDelay) {
+void LEDAnimator::rainbowCycle(int SpeedDelay) {
   byte *c;
   uint16_t i, j;
 
@@ -476,13 +476,13 @@ void LEDController::rainbowCycle(int SpeedDelay) {
       c = Wheel((byte)(((i * 256 / PIXEL_COUNT) + j) & 255));
       setPixel(i, *c, *(c+1), *(c+2));
     }
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
 }
 
 // used by rainbowCycle and theaterChaseRainbow
-byte * LEDController::Wheel(byte WheelPos) {
+byte * LEDAnimator::Wheel(byte WheelPos) {
   static byte c[3];
   
   if(WheelPos < 85) {
@@ -504,13 +504,13 @@ byte * LEDController::Wheel(byte WheelPos) {
   return c;
 }
 
-void LEDController::theaterChase(byte red, byte green, byte blue, int SpeedDelay) {
+void LEDAnimator::theaterChase(byte red, byte green, byte blue, int SpeedDelay) {
   for (int j=0; j<10; j++) {  //do 10 cycles of chasing
     for (int q=0; q < 3; q++) {
       for (int i=0; i < PIXEL_COUNT; i=i+3) {
         setPixel(i+q, red, green, blue);    //turn every third pixel on
       }
-      FastLED.show();
+      show();
      
       delay(SpeedDelay);
      
@@ -521,7 +521,7 @@ void LEDController::theaterChase(byte red, byte green, byte blue, int SpeedDelay
   }
 }
 
-void LEDController::theaterChaseRainbow(int SpeedDelay) {
+void LEDAnimator::theaterChaseRainbow(int SpeedDelay) {
   byte *c;
   
   for (int j=0; j < 256; j++) {     // cycle all 256 colors in the wheel
@@ -530,7 +530,7 @@ void LEDController::theaterChaseRainbow(int SpeedDelay) {
           c = Wheel( (i+j) % 255);
           setPixel(i+q, *c, *(c+1), *(c+2));    //turn every third pixel on
         }
-        FastLED.show();
+        show();
        
         delay(SpeedDelay);
        
@@ -541,7 +541,7 @@ void LEDController::theaterChaseRainbow(int SpeedDelay) {
   }
 }
 
-void LEDController::Fire(int Cooling, int Sparking, int SpeedDelay) {
+void LEDAnimator::Fire(int Cooling, int Sparking, int SpeedDelay) {
   static byte heat[PIXEL_COUNT];
   int cooldown;
   
@@ -573,11 +573,11 @@ void LEDController::Fire(int Cooling, int Sparking, int SpeedDelay) {
     setPixelHeatColor(j, heat[j] );
   }
 
-  FastLED.show();
+  show();
   delay(SpeedDelay);
 }
 
-void LEDController::setPixelHeatColor (int Pixel, byte temperature) {
+void LEDAnimator::setPixelHeatColor (int Pixel, byte temperature) {
   // Scale 'heat' down from 0-255 to 0-191
   byte t192 = round((temperature/255.0)*191);
  
@@ -595,7 +595,7 @@ void LEDController::setPixelHeatColor (int Pixel, byte temperature) {
   }
 }
 
-void LEDController::BouncingColoredBalls(int BallCount, byte colors[][3], boolean continuous) {
+void LEDAnimator::BouncingColoredBalls(int BallCount, byte colors[][3], boolean continuous) {
   float Gravity = -9.81;
   int StartHeight = 1;
   
@@ -648,12 +648,12 @@ void LEDController::BouncingColoredBalls(int BallCount, byte colors[][3], boolea
       }
     }
     
-    FastLED.show();
+    show();
     setAll(0,0,0);
   }
 }
 
-void LEDController::meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
+void LEDAnimator::meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay) {  
   setAll(0,0,0);
   
   for(int i = 0; i < PIXEL_COUNT+PIXEL_COUNT; i++) {
@@ -673,29 +673,37 @@ void LEDController::meteorRain(byte red, byte green, byte blue, byte meteorSize,
       } 
     }
    
-    FastLED.show();
+    show();
     delay(SpeedDelay);
   }
 }
 
 // used by meteorrain
-void LEDController::fadeToBlack(int ledNo, byte fadeValue) {
-   // FastLED
-   LEDs[ledNo].fadeToBlackBy( fadeValue );
+void LEDAnimator::fadeToBlack(int ledNo, byte fadeValue) {
+    // NeoPixel
+    RgbColor oldColor;
+    byte r,g,b;
+    oldColor = stripe->GetPixelColor(ledNo);
+    r=(oldColor.R<=10)? 0 : (int) oldColor.R-(oldColor.R*fadeValue/256);
+    g=(oldColor.G<=10)? 0 : (int) oldColor.G-(oldColor.G*fadeValue/256);
+    b=(oldColor.B<=10)? 0 : (int) oldColor.B-(oldColor.B*fadeValue/256);
+    setPixel(ledNo, r,g,b);
 }
 
 
 // Set a LED color (not yet visible)
-void LEDController::setPixel(int Pixel, byte red, byte green, byte blue) {
-   LEDs[Pixel].r = red;
-   LEDs[Pixel].g = green;
-   LEDs[Pixel].b = blue;
+void LEDAnimator::setPixel(int Pixel, byte red, byte green, byte blue) {
+  stripe->SetPixelColor(Pixel, RgbColor(red,green,blue));
 }
 
 // Set all LEDs to a given color and apply it (visible)
-void LEDController::setAll(byte red, byte green, byte blue) {
+void LEDAnimator::setAll(byte red, byte green, byte blue) {
   for(int i = 0; i < PIXEL_COUNT; i++ ) {
     setPixel(i, red, green, blue); 
   }
-  FastLED.show();
+  show();
+}
+
+void LEDAnimator::show(){
+  stripe->Show();
 }

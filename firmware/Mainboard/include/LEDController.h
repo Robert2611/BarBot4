@@ -1,8 +1,9 @@
 #ifndef LED_CONTROLLER_H
 #define LED_CONTROLLER_H
 
-#include "FastLED.h"
 #include "Configuration.h"
+#include "Shared.h"
+#include "NeoPixelBus.h"
 
 // Animations taken from
 // https://www.tweaking4all.com/hardware/arduino/adruino-led-strip-effects/
@@ -27,45 +28,46 @@
 #define LED_ANIMATION_BOUNCING_BALL_MULTICOLOR 17
 #define LED_ANIMATION_METEOR_RAIN 18
 
-class LEDController
+class LEDAnimator
 {
 public:
-    LEDController();
+    LEDAnimator();
     void begin();
     void update();
     void Test(int selectedEffect);
+    void show();
 
 private:
-    CRGB LEDs[PIXEL_COUNT];
+    NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>* stripe;
 
     void RGBLoop();
-    void FadeInOut(byte red, byte green, byte blue);
-    void Strobe(byte red, byte green, byte blue, int StrobeCount, int FlashDelay, int EndPause);
-    void HalloweenEyes(byte red, byte green, byte blue, int EyeWidth, int EyeSpace, boolean Fade, int Steps, int FadeDelay, int EndPause);
-    void CylonBounce(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay);
-    void NewKITT(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay);
-    void CenterToOutside(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay);
-    void OutsideToCenter(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay);
-    void LeftToRight(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay);
-    void RightToLeft(byte red, byte green, byte blue, int EyeSize, int SpeedDelay, int ReturnDelay);
-    void Twinkle(byte red, byte green, byte blue, int Count, int SpeedDelay, boolean OnlyOne);
+    void FadeInOut(uint8_t red, uint8_t green, uint8_t blue);
+    void Strobe(uint8_t red, uint8_t green, uint8_t blue, int StrobeCount, int FlashDelay, int EndPause);
+    void HalloweenEyes(uint8_t red, uint8_t green, uint8_t blue, int EyeWidth, int EyeSpace, bool Fade, int Steps, int FadeDelay, int EndPause);
+    void CylonBounce(uint8_t red, uint8_t green, uint8_t blue, int EyeSize, int SpeedDelay, int ReturnDelay);
+    void NewKITT(uint8_t red, uint8_t green, uint8_t blue, int EyeSize, int SpeedDelay, int ReturnDelay);
+    void CenterToOutside(uint8_t red, uint8_t green, uint8_t blue, int EyeSize, int SpeedDelay, int ReturnDelay);
+    void OutsideToCenter(uint8_t red, uint8_t green, uint8_t blue, int EyeSize, int SpeedDelay, int ReturnDelay);
+    void LeftToRight(uint8_t red, uint8_t green, uint8_t blue, int EyeSize, int SpeedDelay, int ReturnDelay);
+    void RightToLeft(uint8_t red, uint8_t green, uint8_t blue, int EyeSize, int SpeedDelay, int ReturnDelay);
+    void Twinkle(uint8_t red, uint8_t green, uint8_t blue, int Count, int SpeedDelay, boolean OnlyOne);
     void TwinkleRandom(int Count, int SpeedDelay, boolean OnlyOne);
-    void Sparkle(byte red, byte green, byte blue, int SpeedDelay);
-    void SnowSparkle(byte red, byte green, byte blue, int SparkleDelay, int SpeedDelay);
-    void RunningLights(byte red, byte green, byte blue, int WaveDelay);
-    void colorWipe(byte red, byte green, byte blue, int SpeedDelay);
+    void Sparkle(uint8_t red, uint8_t green, uint8_t blue, int SpeedDelay);
+    void SnowSparkle(uint8_t red, uint8_t green, uint8_t blue, int SparkleDelay, int SpeedDelay);
+    void RunningLights(uint8_t red, uint8_t green, uint8_t blue, int WaveDelay);
+    void colorWipe(uint8_t red, uint8_t green, uint8_t blue, int SpeedDelay);
     void rainbowCycle(int SpeedDelay);
-    byte * Wheel(byte WheelPos);
-    void theaterChase(byte red, byte green, byte blue, int SpeedDelay);
+    uint8_t * Wheel(uint8_t WheelPos);
+    void theaterChase(uint8_t red, uint8_t green, uint8_t blue, int SpeedDelay);
     void theaterChaseRainbow(int SpeedDelay);
     void Fire(int Cooling, int Sparking, int SpeedDelay);
-    void setPixelHeatColor (int Pixel, byte temperature);
-    void BouncingColoredBalls(int BallCount, byte colors[][3], boolean continuous);
-    void meteorRain(byte red, byte green, byte blue, byte meteorSize, byte meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);  
-    void fadeToBlack(int ledNo, byte fadeValue);
+    void setPixelHeatColor (int Pixel, uint8_t temperature);
+    void BouncingColoredBalls(int BallCount, uint8_t colors[][3], boolean continuous);
+    void meteorRain(uint8_t red, uint8_t green, uint8_t blue, uint8_t meteorSize, uint8_t meteorTrailDecay, boolean meteorRandomDecay, int SpeedDelay);  
+    void fadeToBlack(int ledNo, uint8_t fadeValue);
     void showStrip();
-    void setPixel(int Pixel, byte red, byte green, byte blue);
-    void setAll(byte red, byte green, byte blue);
+    void setPixel(int Pixel, uint8_t red, uint8_t green, uint8_t blue);
+    void setAll(uint8_t red, uint8_t green, uint8_t blue);
 };
 
 #endif
