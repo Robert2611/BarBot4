@@ -117,14 +117,6 @@ function show_page_admin_overview(data){
 
 function show_page_admin_system(data){
 	var e_admin_system = clone_from_template("t_admin_system");
-	e_admin_system.find(".restart_gui").click(function(){
-		location.reload();
-	});
-	e_admin_system.find(".restart_raspberry").click(function(){
-		system_do({'action':'reboot'});
-	});
-	e_admin_system.find(".shutdown_raspberry").click(function(){
-		system_do({'action':'shutdown'});
-	});
+	update_system_buttons(e_admin_system);
 	$("#content").append(e_admin_system);
 }

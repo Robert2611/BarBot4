@@ -46,13 +46,13 @@ body{
 	padding-right: 20px;
 }
 
-#mixprogress_container{
+.mixprogress_container{
 	width: 100%;
 	background-color: grey;
 	height: 30px;
 	position: relative;
 }
-#mixprogress_bar{
+.mixprogress_bar{
 	z-index: 0;
 	position: absolute;
 	left: 0;

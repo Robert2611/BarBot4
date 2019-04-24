@@ -97,13 +97,13 @@ def OnRequest(action, request_data):
         iid = getParameter(request_data, "ingredient", int)
         amount = getParameter(request_data, "amount", int)
         if iid == None:
-            result.update({"error": "no_id_set"})
+            #nothing to do, just return the ports and ingredients
             return result
         port_cal = db.getPortAndCalibration(iid)
         if port_cal == None:
             result.update({"error": "not_available"})
             return result
-        com.startSingleIngredient( ort_cal["port"], port_cal["calibration"] * amount)
+        com.startSingleIngredient( port_cal["port"], port_cal["calibration"] * amount)
         result.update({"error": "single_ingredient_started"})
         return result
 
@@ -216,6 +216,8 @@ com.settings = {
 }
 if not is_demo:
     com.start()
+else:
+    com.action = "idle"
 
 server = server.server(OnRequest)
 server.start()

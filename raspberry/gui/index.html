@@ -17,7 +17,6 @@
 		<script type="text/javascript" src="js/statistics.js"></script>
 		<title>Bar-Bot</title>
 		<script>
-			var demo = true;
 			$(function(){
 				//list_load();
 				load_page("listrecipes");
@@ -207,11 +206,43 @@
 		<template id="t_server_error">
 			<p class="error">Server antwortet nicht</p>
 			<br/>
-			<div class="button start_server">Server starten</div>
+			<div class="button onwhite start_server">Server starten</div>
 			<br/>
-			<div class="button restart_raspberry">Raspberry neu starten</div>
+			<div class="button onwhite restart_gui">GUI neu starten</div>
 			<br/>
-			<div class="button shutdown_raspberry">Raspberry herunterfahren</div>
+			<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
+			<br/>
+			<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
+		</template>
+		<template id="t_status_connecting">
+			<p>Verbinde...</p>
+			<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
+			<br/>
+			<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
+		</template>
+		<template id="t_status_startup">
+			<p>Starte Hardware...</p>
+			<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
+			<br/>
+			<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
+		</template>
+		<template id="t_status_cleaning">
+			<p>Reinige...</p>
+		</template>
+		<template id="t_message_place_glas">
+			<p>Bitte ein Glas auf die Plattform stellen.</p>
+		</template>
+		<template id="t_message_remove_glas">
+			<p>Bitte ein Glas auf die Plattform stellen.</p>
+		</template>
+		<template id="t_status_mixing">
+			<p>Cocktail wird gemischt: <span class="percentage"></span>%</p>
+			<div class="mixprogress_container">
+				<div class="mixprogress_bar"></div>
+			</div>
+		</template>
+		<template id="t_status_single_ingredient">
+			<p>Füge einzelne Zutat hinzu...</p>
 		</template>
 	</body>
 </html>
