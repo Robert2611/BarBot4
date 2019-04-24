@@ -26,7 +26,11 @@ def getParameter(request_data, index, converter=None):
 
 def OnRequest(action, request_data):
     if action == "status":
-        return {"status": com.action, "progress": com.progress, "message": com.message}
+        result = {"status": com.action, "message": com.message}
+        if result["status"] == "mixing":
+            result.update({"progress": com.progress})
+            result.update({"instruction": com.data["recipe"]["instruction"]})
+        return result
 
     elif action == "listrecipes":
         return {"recipes": db.getRecipes()}
@@ -44,6 +48,7 @@ def OnRequest(action, request_data):
             return {"error": "busy"}
         # get variables
         name = getParameter(request_data, "name")
+        instruction = getParameter(request_data, "instruction")
         id = getParameter(request_data, "rid", int)
         item_amounts = request_data.get("amount[]")
         item_ids = request_data.get("id[]")
@@ -66,10 +71,10 @@ def OnRequest(action, request_data):
             amount = int(item_amounts[i])
             if ingredient >= 0 and amount >= 0:
                 items.append({"ingredient": ingredient, "amount": amount})
-        if not db.recipeChanged(id, name, items):
+        if not db.recipeChanged(id, name, items, instruction):
             return {"message": "nothing_changed", "recipe": db.getRecipe(id), "ingredients": db.getAllIngredients()}
         # update database
-        new_id = db.createOrUpdateRecipe(name, id)
+        new_id = db.createOrUpdateRecipe(name, instruction, id)
         db.addRecipeItems(new_id, items)
         if id < 0:
             return {"message": "created", "recipe": db.getRecipe(new_id), "ingredients": db.getAllIngredients()}

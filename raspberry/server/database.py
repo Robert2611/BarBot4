@@ -114,7 +114,7 @@ class database(object):
     def getRecipe(self, rid):
         self.open()
         self.cursor.execute("""
-			SELECT name, id
+			SELECT name, id, instruction
 			FROM Recipes
 			WHERE successor_id IS NULL
 			AND id = :rid
@@ -131,12 +131,12 @@ class database(object):
         return recipe
 
     # returns: new recipe id
-    def createOrUpdateRecipe(self, name, old_rid=-1):
+    def createOrUpdateRecipe(self, name, instruction, old_rid=-1):
         self.open()
         self.cursor.execute("""
-			INSERT INTO Recipes ( name, successor_id )
-			VALUES ( :name, NULL )
-		""", {"name": name})
+			INSERT INTO Recipes ( name, instruction, successor_id )
+			VALUES ( :name, :instruction, NULL )
+		""", {"name": name, "instruction" : instruction})
         self.con.commit()
         new_rid = self.cursor.lastrowid
         if(old_rid >= 0):
@@ -160,10 +160,10 @@ class database(object):
         self.con.commit()
         self.close()
 
-    def recipeChanged(self, rid, name, items):
+    def recipeChanged(self, rid, name, items, instruction):
         self.open()
         self.cursor.execute("""
-			SELECT name
+			SELECT name, instruction
 			FROM Recipes
 			WHERE id = :rid
 		""", {"rid": rid})
@@ -174,6 +174,10 @@ class database(object):
             return True
         # name has changed
         elif recipe_in_database["name"] != name:
+            self.close()
+            return True
+        #instruction has changed
+        elif recipe_in_database["instruction"] != instruction:
             self.close()
             return True
         self.cursor.execute("""

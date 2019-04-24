@@ -158,6 +158,10 @@
 			<br/>
 			<input type="text" name="name"/>
 			<br/>
+			<label>Zusatzinfo: </label>
+			<br/>
+			<input type="text" name="instruction"/>
+			<br/>
 			<label>Zutaten: </label>
 			<ul class="ingredients">
 				<li class="add_ingredient button">+</li>
@@ -241,6 +245,13 @@
 				<div class="mixprogress_bar"></div>
 			</div>
 		</template>
+		<template id="t_message_mixing_done_remove_glas">
+				<p>Der Cocktail ist fertig gemischt. Du kannst ihn von der Platform nehmen.</p>
+				<div class="instruction_wrapper">
+					Zusätzliche Informationen:
+					<p class="instruction"></p>
+				</div>
+		</template>		
 		<template id="t_status_single_ingredient">
 			<p>Füge einzelne Zutat hinzu...</p>
 		</template>

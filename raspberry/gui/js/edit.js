@@ -30,6 +30,11 @@ function show_page_edit(data){
 		.focus(function(){
 			show_keyboard($(this));
 		});
+	e_edit.find('[name=instruction]')
+		.val(recipe.instruction)
+		.focus(function(){
+			show_keyboard($(this));
+		});
 	e_list = e_edit.find('ul');
 	var e_add_ingredient = e_list.find('li.add_ingredient');
 	if(recipe.items.length > 0){

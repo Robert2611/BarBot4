@@ -74,7 +74,7 @@ class com(Thread):
             self.progress = self.data["recipe_item_index"] / \
                 len(self.data["recipe"]["items"])
         self.arduino.Do("MOVETO", 0)
-        self.message = "remove_glas"
+        self.message = "mixing_done_remove_glas"
         while self.arduino.Get("GLAS") != "0":
             pass
         self.message = None

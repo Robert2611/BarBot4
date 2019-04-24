@@ -87,6 +87,7 @@ var period = 1000;
 function updater() {
 	get_bar_bot_data({ 'action': 'status' })
 		.done(function (data) {
+			console.log(data);
 			if (current_page == "server_error") {
 				//try loading the page again
 				load_page("listrecipes");
@@ -100,8 +101,14 @@ function updater() {
 			} else if (data.status == "mixing") {				
 				if (data.message == "place_glas") {
 					show_overlayer_from_template("t_message_place_glas");
-				} else if (data.message == "remove_glas") {
-					show_overlayer_from_template("t_message_remove_glas");
+				} else if(data.message == "mixing_done_remove_glas"){
+					var e_message_done = clone_from_template("t_message_mixing_done_remove_glas");			
+					if(data.instruction == undefined){
+						e_message_done.find(".instruction_wrapper").hide();
+					}else{
+						e_message_done.find(".instruction").html(data.instruction);
+					}
+					show_overlayer(e_message_done);
 				} else {
 					var e_status_mixing = clone_from_template("t_status_mixing");
 					var percent = Math.round(data.progress * 100);

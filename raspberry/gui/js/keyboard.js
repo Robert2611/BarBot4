@@ -84,12 +84,16 @@ function update_shift(){
 	}
 }
 
-function key_click(){
-	console.log(keyboard_target);
+function key_click(ev){
+	//keyboard closes on click of any child of body
+	//stop the propagation here to keep it open on key click
+	ev.stopPropagation();
+
 	if(keyboard_target == undefined)
 		return;
 	var e_key = $(this);
-	var character = e_key.html(); // If it's a lowercase letter, nothing happens to this variable
+	// If it's a lowercase letter, nothing happens to this variable
+	var character = e_key.html(); 
 
 	// Shift keys
 	if (e_key.hasClass('caps')) {
