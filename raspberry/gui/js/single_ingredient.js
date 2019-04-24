@@ -13,5 +13,8 @@ function show_page_single_ingredient(data){
 		e_select_amount.append($("<option/>", {'value':i, 'text':i}));
 	}
 	e_form.append(e_single_ingredient);
+	if(data.error != undefined){
+		e_form.find(".error").html(data.error);
+	}
 	$("#content").append(e_form);
 }

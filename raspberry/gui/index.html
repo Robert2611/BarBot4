@@ -36,8 +36,6 @@
 						var page = $(this).attr('page');
 						if( page == "new" )
 							load_page("edit", {'action':'getrecipe', 'id':-1});
-						else if( page == "single_ingredient" )
-							load_page("single_ingredient", {'action':'admin'});
 						else
 							load_page(page);
 					});
@@ -177,6 +175,7 @@
 		<!--PAGE SINGLE INGREDIENT-->
 		<template id="t_single_ingredient">
 			<h2>Nachschlag</h2>
+			<p class="error"></p>
 			<p>Ist dein Cocktail noch nicht perfekt?<br/>Hier kannst du nachhelfen.</p>
 			<select name="ingredient"></select>
 			<select name="amount"></select>

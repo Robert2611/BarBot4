@@ -90,18 +90,22 @@ def OnRequest(action, request_data):
         return {"message": "mixing_started"}
 
     elif action == "single_ingredient":
+        result = {"ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
         if com.isArduinoBusy():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         iid = getParameter(request_data, "ingredient", int)
         amount = getParameter(request_data, "amount", int)
         if iid == None:
-            return {"error": "no_id_set"}
+            result.update({"error": "no_id_set"})
+            return result
         port_cal = db.getPortAndCalibration(iid)
         if port_cal == None:
-            return {"error": "not_available"}
-        com.startSingleIngredient(
-            port_cal["port"], port_cal["calibration"] * amount)
-        return {"message": "single_ingredient_started"}
+            result.update({"error": "not_available"})
+            return result
+        com.startSingleIngredient( ort_cal["port"], port_cal["calibration"] * amount)
+        result.update({"error": "single_ingredient_started"})
+        return result
 
     elif action == "admin":
         return {"ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
