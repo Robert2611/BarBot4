@@ -181,7 +181,7 @@ ul.ingredients li{
 	flex-flow: row wrap;
 }
 
-#nav .button{
+#nav .button, #admin_nav .button{
 	padding:5px 10px;
 }
 
@@ -204,12 +204,35 @@ ul.ingredients li{
 	position:fixed;
 	right: 0px;
 	top: 0px;
-	width:50px;
-	height:50px;
-	text-decoration:none;
+	z-index:9999;
+}
+
+#admin_button{
 	background-image: url("admin.png");
 	background-repeat: no-repeat;
 	background-position: center;
+	width:50px;
+	height:50px;
+	float: right;
+	right: 0;
+}
+
+#admin_nav{
+	position: relative;
+    top: 0;
+    right: 0;
+    background: rgb(75, 75, 75);
+	width: auto;	
+	clear: both;
+	padding: 30px;
+	border-radius: 10px;
+	margin: 0 10px 0 0;
+	border: 2px solid gray;
+	display: none;
+}
+
+#admin_nav > .button{
+	display: block;
 }
 
 

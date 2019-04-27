@@ -1,259 +1,273 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html>
-	<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-		<meta name="google" content="notranslate" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
-		<link rel="stylesheet" type="text/css" href="css/main.css">
-		<link rel="stylesheet" type="text/css" href="css/keyboard.css">
-		<link rel="stylesheet" type="text/css" href="css/bar_chart.css">
-		<script type="text/javascript" src="js/JQuery.js"></script>
-		<script type="text/javascript" src="js/keyboard.js"></script>
-		<script type="text/javascript" src="js/ajax.js"></script>
-		<script type="text/javascript" src="js/listrecipes.js"></script>
-		<script type="text/javascript" src="js/edit.js"></script>
-		<script type="text/javascript" src="js/admin.js"></script>
-		<script type="text/javascript" src="js/single_ingredient.js"></script>
-		<script type="text/javascript" src="js/statistics.js"></script>
-		<title>Bar-Bot</title>
-		<script>
-			$(function(){
-				//list_load();
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<meta name="google" content="notranslate" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+	<link rel="stylesheet" type="text/css" href="css/main.css">
+	<link rel="stylesheet" type="text/css" href="css/keyboard.css">
+	<link rel="stylesheet" type="text/css" href="css/bar_chart.css">
+	<script type="text/javascript" src="js/JQuery.js"></script>
+	<script type="text/javascript" src="js/keyboard.js"></script>
+	<script type="text/javascript" src="js/ajax.js"></script>
+	<script type="text/javascript" src="js/listrecipes.js"></script>
+	<script type="text/javascript" src="js/edit.js"></script>
+	<script type="text/javascript" src="js/admin.js"></script>
+	<script type="text/javascript" src="js/single_ingredient.js"></script>
+	<script type="text/javascript" src="js/statistics.js"></script>
+	<title>Bar-Bot</title>
+	<script>
+		$(function () {
+			//list_load();
+			load_page("listrecipes");
+			updater();
+			$("#bar_bot_title").click(function (e) {
+				current_page = "";
 				load_page("listrecipes");
-				updater();
-				$("#bar_bot_title").click(function(e){
-					current_page = "";
-					load_page("listrecipes");
-				});
-				$("#admin").click(function(e){
-					//prevent the click event to be passed to the bar_bot_title
-					e.preventDefault();
-					load_page("admin_overview");
-				});
-				$("#nav").find('[page]') //find all with attribute page
-					.click(function(e){;
-						var page = $(this).attr('page');
-						if( page == "new" )
-							load_page("edit", {'action':'getrecipe', 'id':-1});
-						else
-							load_page(page);
-					});
 			});
-		</script>
-	</head>
-	<body>
-		<div id="wrapper">
-			<h1 id="bar_bot_title">Bar-Bot 3.5</h1>
-			<div id="nav">
-				<div class="button" page="listrecipes">Liste</div>
-				<div class="button" page="new">Neu</div>
-				<div class="button" page="single_ingredient">Nachschlag</div>
-				<div class="button" page="statistics">Statistik</div>
-			</div>
-			<a href="?page=admin" id="admin"></a>
-			<!--<a href="#" onclick="list_load(); return false;">Load</a>-->
-			<div id="main">
-				<div id="content">
-				</div>
+			$("#admin_button").click(function (e) {
+				//prevent the click event to be passed to the bar_bot_title
+				e.preventDefault();
+				$("#admin_nav").show();
+			});
+			$("#admin_nav [page]").click(function(){
+				var page = "admin_" + $(this).attr('page');
+				load_page(page);
+				$("#admin_nav").hide();
+			});
+			$("#nav [page]") //find all with attribute page
+				.click(function (e) {
+					var page = $(this).attr('page');
+					if (page == "new")
+						load_page("edit", { 'action': 'getrecipe', 'id': -1 });
+					else
+						load_page(page);
+				});
+		});
+	</script>
+</head>
+
+<body>
+	<div id="wrapper">
+		<h1 id="bar_bot_title">Bar-Bot 3.5</h1>
+		<div id="nav">
+			<div class="button" page="listrecipes">Liste</div>
+			<div class="button" page="new">Neu</div>
+			<div class="button" page="single_ingredient">Nachschlag</div>
+			<div class="button" page="statistics">Statistik</div>
+		</div>
+		<div href="?page=admin" id="admin">
+			<div id="admin_button"></div>
+			<div id="admin_nav">
+				<div class="button" page="overview">Übersicht</div>
+				<div class="button" page="edit_ports">Positionen</div>
+				<div class="button" page="calibrate">Kalibrierung</div>
+				<div class="button" page="clean">Reinigung</div>
+				<div class="button" page="system">System</div>
 			</div>
 		</div>
-		<div id="overlayer">
-			<div id="overlayer_content"></div>
+		<!--<a href="#" onclick="list_load(); return false;">Load</a>-->
+		<div id="main">
+			<div id="content">
+			</div>
 		</div>
-		<!--PAGE LIST-->
-		<template id="t_list">
-			<div class="cocktails">
+	</div>
+	<div id="overlayer">
+		<div id="overlayer_content"></div>
+	</div>
+	<!--PAGE LIST-->
+	<template id="t_list">
+		<div class="cocktails">
+		</div>
+	</template>
+	<template id="t_cocktail">
+		<div class="cocktail">
+			<div class="header">
+				<span></span>
+				<a class="order" title="Bestellen"></a>
 			</div>
-		</template>
-		<template id="t_cocktail">
-			<div class="cocktail">
-				<div class="header">
-					<span></span>
-					<a class="order" title="Bestellen"></a>
-				</div>
-				<ul class="ingredients"></ul>
-				<a class="edit" title="bearbeiten"></a>
-			</div>
-		</template>
-		<template id="t_cocktail_ingredient">
-			<li><span class="amount"></span> cl <span class="ingredient"></span></li>
-		</template>
-		<!--PAGE ADMIN-->
-		<template id="t_admin_clean">
-			<h2>Admin - Reinigung</h2>
-			<a class="button clean_cycle_left">Linke Hälfte</a>
-			<br/>
-			<a class="button clean_cycle_right">Rechte Hälfte</a>
-			<br/>
-			<p>Einzelne Ports reinigen.<br/><b>Achtung!</b><br/>Pumpe wird direkt aktiviert, das Glas fährt nicht zur Position.</p>
-			<div class="flexlist ports"></div>
-		</template>
-		<template id="t_admin_clean_port">
-			<div class="button port"/>
-		</template>
-		<template id="t_admin_edit_ports">
-			<h2>Admin - Ports</h2>
-			<br/>
-			<table class="ports">
-			</table>
-			</br>
-			<input type="submit" value="Ports speichern"/>
-		</template>
-		<template id="t_admin_edit_port">
+			<ul class="ingredients"></ul>
+			<a class="edit" title="bearbeiten"></a>
+		</div>
+	</template>
+	<template id="t_cocktail_ingredient">
+		<li><span class="amount"></span> cl <span class="ingredient"></span></li>
+	</template>
+	<!--PAGE ADMIN-->
+	<template id="t_admin_clean">
+		<h2>Admin - Reinigung</h2>
+		<a class="button clean_cycle_left">Linke Hälfte</a>
+		<br />
+		<a class="button clean_cycle_right">Rechte Hälfte</a>
+		<br />
+		<p>Einzelne Ports reinigen.<br /><b>Achtung!</b><br />Pumpe wird direkt aktiviert, das Glas fährt nicht zur
+			Position.</p>
+		<div class="flexlist ports"></div>
+	</template>
+	<template id="t_admin_clean_port">
+		<div class="button port" />
+	</template>
+	<template id="t_admin_edit_ports">
+		<h2>Admin - Ports</h2>
+		<br />
+		<table class="ports">
+		</table>
+		</br>
+		<input type="submit" value="Ports speichern" />
+	</template>
+	<template id="t_admin_edit_port">
+		<tr>
+			<td class="port_name" />
+			<td><select class="port_content"></select></td>
+		</tr>
+	</template>
+	<template id="t_admin_calibrate">
+		<h2>Admin - Port kalibrieren</h2>
+		<label>Port:</label>
+		<select name="port"></select>
+		<br />
+		<br />
+		<div class="button start_pump">Pumpe starten</div>
+		<br />
+		<label>Menge [cl]:</label>
+		<input type="text" name="calibration" />
+		<br />
+		<input type="submit" disabled="true" value="speichern" />
+	</template>
+	<template id="t_admin_overview">
+		<h2>Admin - Übersicht</h2>
+		<table class="ports">
 			<tr>
-				<td class="port_name"/>
-				<td><select class="port_content"></select></td>
+				<th>Position</th>
+				<th>Zutat</th>
+				<th>Kalibrierung</th>
 			</tr>
-		</template>
-		<template id="t_admin_calibrate">
-			<h2>Admin - Port kalibrieren</h2>
-			<label>Port:</label>
-			<select name="port"></select>
-			<br/>
-			<br/>
-			<div class="button start_pump">Pumpe starten</div>
-			<br/>
-			<label>Menge [cl]:</label>
-			<input type="text" name="calibration"/>
-			<br/>
-			<input type="submit" disabled="true" value="speichern"/>
-		</template>
-		<template id="t_admin_overview">
-			<h2>Admin - Übersicht</h2>
-			<div class="button" page="admin_edit_ports">Positionen</div>
-			<div class="button" page="admin_calibrate">Kalibrierung</div>
-			<div class="button" page="admin_clean">Reinigung</div>
-			<div class="button" page="admin_system">System</div>
-			<table class="ports">
-				<tr>
-					<th>Position</th>
-					<th>Zutat</th>
-					<th>Kalibrierung</th>
-				</tr>
-			</table>
-		</template>
-		<template id="t_admin_overview_port">
-			<tr>
-				<td class="port"></td>
-				<td class="ingredient"></td>
-				<td class="calibration"></td>
-			</tr>
-		</template>
-		<template id="t_admin_system">
-			<h2>Admin - System</h2>
-			<div class="button restart_gui">GUI neu starten</div>
-			<br/>
-			<br/>
-			<br/>
-			<div class="button restart_raspberry">Raspberry neu starten</div>
-			<br/>
-			<div class="button shutdown_raspberry">Raspberry herunterfahren</div>
-		</template>
-		<!--PAGE EDIT-->
-		<template id="t_edit">
-			<h2>Rezept bearbeiten</h2>
-			<input type="hidden" name="rid"/>
-			<p class="message"></p>
-			<label>Name: </label>
-			<br/>
-			<input type="text" name="name"/>
-			<br/>
-			<label>Zusatzinfo: </label>
-			<br/>
-			<input type="text" name="instruction"/>
-			<br/>
-			<label>Zutaten: </label>
-			<ul class="ingredients">
-				<li class="add_ingredient button">+</li>
-			</ul>
-			<input type="submit" name="save" value="speichern"/>
-		</template>
-		<template id="t_edit_ingredient">
-			<li>
-				<input type="hidden" name="id[]"/>
-				<select name="ingredient[]"></select>
-				<select name="amount[]"></select>
-			</li>
-		</template>
-		<!--PAGE SINGLE INGREDIENT-->
-		<template id="t_single_ingredient">
-			<h2>Nachschlag</h2>
-			<p class="error"></p>
-			<p>Ist dein Cocktail noch nicht perfekt?<br/>Hier kannst du nachhelfen.</p>
-			<select name="ingredient"></select>
-			<select name="amount"></select>
-			<br/>
-			<input type="submit" value="OK"/>
-		</template>
-		<!--PAGE STATISTICS-->
-		<template id="t_statistics">
-			<h2>Statistik</h2>
-			<p>Statistik der letzten Parties ansehen</p>
-			<label>Datum:</label> <select name="partydate"></select></br>
-			<h3>Bestellte Cocktails (<span class="total_count"></span>)</h3>
-			<div class="graph_cocktail_count bar_chart"></div>
-			<h3>Verbrauchte Zutaten (<span class="total_amount"></span> l)</h3>
-			<div class="graph_ingredients_amount"></div>
-			<h3>Bestellungen</h3>
-			<div class="graph_cocktails_by_time"></div>
-		</template>
-		<template id="t_bar_chart_row">
-			<div class="bar_chart_row">
-				<div class="bar_chart_label"></div>
-				<div class="bar_chart_bar">
-					<div class="bar_chart_bar_fill"></div>
-				</div>
-				<div class="bar_chart_value"></div>
+		</table>
+	</template>
+	<template id="t_admin_overview_port">
+		<tr>
+			<td class="port"></td>
+			<td class="ingredient"></td>
+			<td class="calibration"></td>
+		</tr>
+	</template>
+	<template id="t_admin_system">
+		<h2>Admin - System</h2>
+		<div class="button restart_gui">GUI neu starten</div>
+		<br />
+		<br />
+		<br />
+		<div class="button restart_raspberry">Raspberry neu starten</div>
+		<br />
+		<div class="button shutdown_raspberry">Raspberry herunterfahren</div>
+	</template>
+	<!--PAGE EDIT-->
+	<template id="t_edit">
+		<h2>Rezept bearbeiten</h2>
+		<input type="hidden" name="rid" />
+		<p class="message"></p>
+		<label>Name: </label>
+		<br />
+		<input type="text" name="name" />
+		<br />
+		<label>Zusatzinfo: </label>
+		<br />
+		<input type="text" name="instruction" />
+		<br />
+		<label>Zutaten: </label>
+		<ul class="ingredients">
+			<li class="add_ingredient button">+</li>
+		</ul>
+		<input type="submit" name="save" value="speichern" />
+	</template>
+	<template id="t_edit_ingredient">
+		<li>
+			<input type="hidden" name="id[]" />
+			<select name="ingredient[]"></select>
+			<select name="amount[]"></select>
+		</li>
+	</template>
+	<!--PAGE SINGLE INGREDIENT-->
+	<template id="t_single_ingredient">
+		<h2>Nachschlag</h2>
+		<p class="error"></p>
+		<p>Ist dein Cocktail noch nicht perfekt?<br />Hier kannst du nachhelfen.</p>
+		<select name="ingredient"></select>
+		<select name="amount"></select>
+		<br />
+		<input type="submit" value="OK" />
+	</template>
+	<!--PAGE STATISTICS-->
+	<template id="t_statistics">
+		<h2>Statistik</h2>
+		<p>Statistik der letzten Parties ansehen</p>
+		<label>Datum:</label> <select name="partydate"></select></br>
+		<h3>Bestellte Cocktails (<span class="total_count"></span>)</h3>
+		<div class="graph_cocktail_count bar_chart"></div>
+		<h3>Verbrauchte Zutaten (<span class="total_amount"></span> l)</h3>
+		<div class="graph_ingredients_amount"></div>
+		<h3>Bestellungen</h3>
+		<div class="graph_cocktails_by_time"></div>
+	</template>
+	<template id="t_bar_chart_row">
+		<div class="bar_chart_row">
+			<div class="bar_chart_label"></div>
+			<div class="bar_chart_bar">
+				<div class="bar_chart_bar_fill"></div>
 			</div>
-		</template>
-		<!--OVERLAYER-->
-		<template id="t_server_error">
-			<p class="error">Server antwortet nicht</p>
-			<br/>
-			<div class="button onwhite start_server">Server starten</div>
-			<br/>
-			<div class="button onwhite restart_gui">GUI neu starten</div>
-			<br/>
-			<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
-			<br/>
-			<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
-		</template>
-		<template id="t_status_connecting">
-			<p>Verbinde...</p>
-			<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
-			<br/>
-			<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
-		</template>
-		<template id="t_status_startup">
-			<p>Starte Hardware...</p>
-			<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
-			<br/>
-			<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
-		</template>
-		<template id="t_status_cleaning">
-			<p>Reinige...</p>
-		</template>
-		<template id="t_message_place_glas">
-			<p>Bitte ein Glas auf die Plattform stellen.</p>
-		</template>
-		<template id="t_message_remove_glas">
-			<p>Bitte ein Glas auf die Plattform stellen.</p>
-		</template>
-		<template id="t_status_mixing">
-			<p>Cocktail wird gemischt: <span class="percentage"></span>%</p>
-			<div class="mixprogress_container">
-				<div class="mixprogress_bar"></div>
-			</div>
-		</template>
-		<template id="t_message_mixing_done_remove_glas">
-				<p>Der Cocktail ist fertig gemischt. Du kannst ihn von der Platform nehmen.</p>
-				<div class="instruction_wrapper">
-					Zusätzliche Informationen:
-					<p class="instruction"></p>
-				</div>
-		</template>		
-		<template id="t_status_single_ingredient">
-			<p>Füge einzelne Zutat hinzu...</p>
-		</template>
-	</body>
+			<div class="bar_chart_value"></div>
+		</div>
+	</template>
+	<!--OVERLAYER-->
+	<template id="t_server_error">
+		<p class="error">Server antwortet nicht</p>
+		<br />
+		<div class="button onwhite start_server">Server starten</div>
+		<br />
+		<div class="button onwhite restart_gui">GUI neu starten</div>
+		<br />
+		<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
+		<br />
+		<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
+	</template>
+	<template id="t_status_connecting">
+		<p>Verbinde...</p>
+		<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
+		<br />
+		<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
+	</template>
+	<template id="t_status_startup">
+		<p>Starte Hardware...</p>
+		<div class="button onwhite restart_raspberry">Raspberry neu starten</div>
+		<br />
+		<div class="button onwhite shutdown_raspberry">Raspberry herunterfahren</div>
+	</template>
+	<template id="t_status_cleaning">
+		<p>Reinige...</p>
+	</template>
+	<template id="t_message_place_glas">
+		<p>Bitte ein Glas auf die Plattform stellen.</p>
+	</template>
+	<template id="t_message_remove_glas">
+		<p>Bitte ein Glas auf die Plattform stellen.</p>
+	</template>
+	<template id="t_status_mixing">
+		<p>Cocktail wird gemischt: <span class="percentage"></span>%</p>
+		<div class="mixprogress_container">
+			<div class="mixprogress_bar"></div>
+		</div>
+	</template>
+	<template id="t_message_mixing_done_remove_glas">
+		<p>Der Cocktail ist fertig gemischt. Du kannst ihn von der Platform nehmen.</p>
+		<div class="instruction_wrapper">
+			Zusätzliche Informationen:
+			<p class="instruction"></p>
+		</div>
+	</template>
+	<template id="t_status_single_ingredient">
+		<p>Füge einzelne Zutat hinzu...</p>
+	</template>
+</body>
+
 </html>
