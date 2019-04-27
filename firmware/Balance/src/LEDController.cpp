@@ -1,7 +1,7 @@
 #include "LEDController.h"
 
-const RGB LEDController::Black = {0, 0, 0};
-const RGB LEDController::White = {255, 255, 255};
+const RGB_t LEDController::Black = {0, 0, 0};
+const RGB_t LEDController::White = {255, 255, 255};
 
 LEDController::LEDController(int pin_r_, int pin_g_, int pin_b_)
 {
@@ -20,7 +20,7 @@ void LEDController::begin()
 	type = BALANCE_LED_TYPE_OFF;
 }
 
-void LEDController::setColor(RGB new_color)
+void LEDController::setColor(RGB_t new_color)
 {
 	analogWrite(pin_r, new_color.r);
 	analogWrite(pin_g, new_color.g);
@@ -69,7 +69,7 @@ void LEDController::update(bool force)
 	{
 		if (force)
 			fade_start = temp_millis;
-		RGB new_color;
+		RGB_t new_color;
 		while (temp_millis > fade_start + (period / 2))
 		{
 			//invert direction
@@ -86,7 +86,7 @@ void LEDController::update(bool force)
 	}
 }
 
-RGB LEDController::getFadedColor(RGB from, RGB to, float relative)
+RGB_t LEDController::getFadedColor(RGB_t from, RGB_t to, float relative)
 {
 	if (relative < 0)
 		relative = 0;
@@ -98,28 +98,28 @@ RGB LEDController::getFadedColor(RGB from, RGB to, float relative)
 		(byte)(from.b + (to.b - from.b) * relative)};
 }
 
-RGB LEDController::getCurrentColor()
+RGB_t LEDController::getCurrentColor()
 {
 	return current_color;
 }
 
-void LEDController::setColorA(RGB new_color)
+void LEDController::setColorA(RGB_t new_color)
 {
 	color_A = new_color;
 }
 void LEDController::setColorA(byte *raw_color)
 {
-	RGB newColor;
+	RGB_t newColor;
 	memcpy(&newColor, raw_color, 3);
 	setColorA(newColor);
 }
-void LEDController::setColorB(RGB new_color)
+void LEDController::setColorB(RGB_t new_color)
 {
 	color_B = new_color;
 }
 void LEDController::setColorB(byte *raw_color)
 {
-	RGB newColor;
+	RGB_t newColor;
 	memcpy(&newColor, raw_color, 3);
 	setColorB(newColor);
 }
