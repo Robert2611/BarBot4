@@ -11,44 +11,8 @@ StateMachine::StateMachine(BalanceBoard *_balance)
 
 	stepper = new AccelStepper(AccelStepper::DRIVER, PIN_PLATFORM_MOTOR_STEP, PIN_PLATFORM_MOTOR_DIR);
 	//leds = new LEDController(LED_R, LED_G, LED_B);
-	set_max_speed(1800);
-	set_max_accel(800);
-}
-
-void StateMachine::start_clean(int pump_index, float target_weight)
-{
-	current_action_start_millis = millis();
-	float weight = balance->getWeight() ;
-	if(weight > TOTAL_WEIGHT_MAX)
-		return;
-	weight_before_draft = weight;
-	target_draft_weight = target_weight;
-	start_pump(pump_index, PUMP_POWER_PWM);	
-	set_status(BAR_BOT_CLEANING);
-}
-
-void StateMachine::update_balance()
-{
-	//ask for new data every 3 ms to avoid blocking the bus
-	if (millis() > balance_last_check_millis + 3)
-	{
-		balance_last_check_millis = millis();
-		//check if balance has new data
-		if (balance->readData())
-		{
-			//balance class saves the data so no need to copy it here, just save when it was recieved 
-			balance_last_data_millis = millis();
-			Serial.println(balance->getWeight());
-		}
-	}
-}
-
-void StateMachine::start_draft(int pump_index, long duration)
-{
-	current_action_index = pump_index;
-	current_action_duration = duration;
-	set_status(BAR_BOT_MOVETO_DRAFT);
-	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * pump_index);
+	set_max_speed(mm_to_steps(100));
+	set_max_accel(mm_to_steps(20));
 }
 
 void StateMachine::begin()
@@ -74,68 +38,6 @@ void StateMachine::begin()
 	//TODO: Make sure stirring device is out of the way
 	if (false)
 		start_homing();
-}
-
-bool StateMachine::is_homed()
-{
-	//read two times to be sure...
-	return digitalRead(PIN_PLATFORM_MOTOR_HOME) && digitalRead(PIN_PLATFORM_MOTOR_HOME);
-}
-
-long StateMachine::mm_to_steps(float mm)
-{
-	//round to full steps to avoid stop in PLATFORM_MOTOR_MICROSTEPS
-	return (long)(PLATFORM_MOTOR_MICROSTEPS * round(PLATFORM_MOTOR_FULLSTEPS_PER_MM * mm));
-}
-
-float StateMachine::position_in_mm()
-{
-	return (float)stepper->currentPosition() / (PLATFORM_MOTOR_MICROSTEPS * PLATFORM_MOTOR_FULLSTEPS_PER_MM);
-}
-
-void StateMachine::start_homing()
-{
-	current_microstep %= PLATFORM_MOTOR_MICROSTEPS;
-	set_target_position(-2000);
-	set_status(BAR_BOT_HOMING_ROUGH);
-}
-
-void StateMachine::set_status(int new_status)
-{
-	if (new_status != status)
-	{
-		status = new_status;
-		if (onStatusChanged != NULL)
-			onStatusChanged(status);
-	}
-}
-
-void StateMachine::start_stir(long duration)
-{
-	//move to stirring position
-	current_action_duration = duration;
-	set_status(BAR_BOT_MOVETO_STIR_X);
-	set_target_position(STIRRING_POSITION);
-}
-
-void StateMachine::set_target_position(long position_in_mm)
-{
-	if (position_in_mm > PLATFORM_MOTOR_MAXPOS_MM)
-		position_in_mm = PLATFORM_MOTOR_MAXPOS_MM;
-	stepper->moveTo(mm_to_steps(position_in_mm));
-}
-
-void StateMachine::start_moveto(long position_in_mm)
-{
-	set_status(BAR_BOT_MOVETO_POS);
-	set_target_position(position_in_mm);
-}
-
-void StateMachine::start_delay(long duration)
-{
-	current_action_start_millis = millis();
-	current_action_duration = duration;
-	set_status(BAR_BOT_DELAY);
 }
 
 void StateMachine::update()
@@ -181,8 +83,10 @@ void StateMachine::update()
 
 	case BAR_BOT_MOVETO_POS:
 		if (stepper->currentPosition() == stepper->targetPosition())
+		{
 			//x-position is reached
 			set_status(BAR_BOT_IDLE);
+		}
 		else
 			stepper->run();
 		break;
@@ -241,6 +145,117 @@ void StateMachine::update()
 	//leds->update();
 }
 
+void StateMachine::update_balance()
+{
+	//ask for new data every 3 ms to avoid blocking the bus
+	if (millis() > balance_last_check_millis + 3)
+	{
+		balance_last_check_millis = millis();
+		//check if balance has new data
+		if (balance->readData())
+		{
+			//balance class saves the data so no need to copy it here, just save when it was recieved
+			balance_last_data_millis = millis();
+			Serial.println(balance->getWeight());
+		}
+	}
+}
+
+///region: getters ///
+bool StateMachine::is_homed()
+{
+	//read two times to be sure...
+	return digitalRead(PIN_PLATFORM_MOTOR_HOME) && digitalRead(PIN_PLATFORM_MOTOR_HOME);
+}
+
+long StateMachine::mm_to_steps(float mm)
+{
+	//round to full steps to avoid stop in PLATFORM_MOTOR_MICROSTEPS
+	return (long)(PLATFORM_MOTOR_MICROSTEPS * round(PLATFORM_MOTOR_FULLSTEPS_PER_MM * mm));
+}
+
+float StateMachine::position_in_mm()
+{
+	return (float)stepper->currentPosition() / (PLATFORM_MOTOR_MICROSTEPS * PLATFORM_MOTOR_FULLSTEPS_PER_MM);
+}
+///endregion: getters ///
+
+///region: actions ///
+void StateMachine::start_clean(int pump_index, float target_weight)
+{
+	current_action_start_millis = millis();
+	float weight = balance->getWeight();
+	if (weight > TOTAL_WEIGHT_MAX)
+		return;
+	weight_before_draft = weight;
+	target_draft_weight = target_weight;
+	start_pump(pump_index, PUMP_POWER_PWM);
+	//status has to be set last to avoid multi core problems
+	set_status(BAR_BOT_CLEANING);
+}
+
+void StateMachine::start_homing()
+{
+	current_microstep %= PLATFORM_MOTOR_MICROSTEPS;
+	set_target_position(-2000);
+	//status has to be set last to avoid multi core problems
+	set_status(BAR_BOT_HOMING_ROUGH);
+}
+
+void StateMachine::start_draft(int pump_index, long duration)
+{
+	current_action_index = pump_index;
+	current_action_duration = duration;
+	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * pump_index);
+	//status has to be set last to avoid multi core problems
+	set_status(BAR_BOT_MOVETO_DRAFT);
+}
+
+void StateMachine::start_stir(long duration)
+{
+	//move to stirring position
+	current_action_duration = duration;	
+	set_target_position(STIRRING_POSITION);
+	//status has to be set last to avoid multi core problems
+	set_status(BAR_BOT_MOVETO_STIR_X);
+}
+
+void StateMachine::start_delay(long duration)
+{
+	current_action_start_millis = millis();
+	current_action_duration = duration;
+	//status has to be set last to avoid multi core problems
+	set_status(BAR_BOT_DELAY);
+}
+
+void StateMachine::start_moveto(long position_in_mm)
+{
+	set_target_position(position_in_mm);
+	//status has to be set last to avoid multi core problems
+	set_status(BAR_BOT_MOVETO_POS);
+}
+///endregion: actions ///
+
+///region: setters ///
+void StateMachine::set_status(int new_status)
+{
+	if (new_status != status)
+	{
+		status = new_status;
+		if (onStatusChanged != NULL)
+			onStatusChanged(status);
+	}
+}
+
+void StateMachine::set_target_position(long position_in_mm)
+{
+	if (position_in_mm > PLATFORM_MOTOR_MAXPOS_MM)
+		position_in_mm = PLATFORM_MOTOR_MAXPOS_MM;
+	long steps = mm_to_steps(position_in_mm);
+	Serial.println(steps);
+	stepper->moveTo(steps);
+}
+
 void StateMachine::set_max_speed(long speed)
 {
 	stepper->setMaxSpeed(speed * PLATFORM_MOTOR_MICROSTEPS);
@@ -250,7 +265,9 @@ void StateMachine::set_max_accel(long accel)
 {
 	stepper->setAcceleration(accel * PLATFORM_MOTOR_MICROSTEPS);
 }
+///endregion: setters ///
 
+///region: pump ///
 void StateMachine::start_pump(int pump_index, uint32_t power_pwm)
 {
 	//no output while writing
@@ -282,3 +299,4 @@ void StateMachine::stop_pumps()
 {
 	start_pump(-1, 0);
 }
+///endregion: pump ///

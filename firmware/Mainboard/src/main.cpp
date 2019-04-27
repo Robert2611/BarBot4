@@ -104,6 +104,22 @@ void setup()
 			return state_m.status == BAR_BOT_IDLE;
 		}
 	);
+	protocol.addCommand(
+		"Move",
+		[](int param_c, char** param_v){
+			if(param_c == 1){
+				long t = atoi(param_v[0]);
+				if( t > 0 && t < 5000){
+					state_m.start_moveto(t);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](){
+			return state_m.status == BAR_BOT_IDLE;
+		}
+	);
 	Wire.begin();
 	state_m.begin();
 }
