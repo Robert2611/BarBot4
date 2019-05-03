@@ -11,7 +11,8 @@ function show_page_edit(data){
 		recipe = {"name":"", "id":-1, "items":[] };
 		e_edit.find("h2").html("Neues Rezept");
 	}
-	
+	//TODO: move messages to index.html
+
 	//message
 	e_message = e_edit.find('.message');
 	if( message == "created" ){

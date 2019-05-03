@@ -79,17 +79,19 @@ li.highlight{
 	font-weight:bold;
 }
 
-.edit::before{
+.edit::before, .remove::before{
 	content: '';
 	width: 32px;
 	height: 32px;
 	display: block;
 }
-.order::before{
-	content: '';
-	width: 64px;
-	height: 64px;
-	display: block;
+
+.remove{
+	display:block;
+	float:right;
+}
+.remove::before{
+	background-image:url("remove.png");
 }
 
 .order{
@@ -98,7 +100,12 @@ li.highlight{
 }
 .order::before{
 	background-image:url("order.png");
+	content: '';
+	width: 64px;
+	height: 64px;
+	display: block;
 }
+
 .edit{
 	display:block;
 	float:right;

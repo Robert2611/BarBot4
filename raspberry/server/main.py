@@ -25,27 +25,36 @@ def getParameter(request_data, index, converter=None):
 
 
 def OnRequest(action, request_data):
+    result = {"action": action}
+
     if action == "status":
-        result = {"status": com.action, "message": com.message}
+        result.update({"status": com.action, "message": com.message})
         if result["status"] == "mixing":
             result.update({"progress": com.progress})
             result.update({"instruction": com.data["recipe"]["instruction"]})
         return result
 
     elif action == "listrecipes":
-        return {"recipes": db.getRecipes()}
+        result.update({"recipes": db.getRecipes()})
+        return result
 
     elif action == "getrecipe":
         id = getParameter(request_data, 'id', int)
         if id == None:
-            return {"error": "no_id_set"}
+            result.update({"error": "no_id_set"})
+            return result
         elif id < 0:
-            return {"recipe": None, "ingredients": db.getAllIngredients()}
-        return {"recipe": db.getRecipe(id), "ingredients": db.getAllIngredients()}
+            result.update(
+                {"recipe": None, "ingredients": db.getAllIngredients()})
+            return result
+        result.update({"recipe": db.getRecipe(
+            id), "ingredients": db.getAllIngredients()})
+        return result
 
     elif action == "saverecipe":
         if not com.canManipulateDatabase():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         # get variables
         name = getParameter(request_data, "name")
         instruction = getParameter(request_data, "instruction")
@@ -55,15 +64,18 @@ def OnRequest(action, request_data):
         item_ingredients = request_data.get("ingredient[]")
         # check data
         if name == None or name == "":
-            return {"error": "name_empty"}
+            result.update({"error": "name_empty"})
+            return result
         if id == None:
-            return {"error": "no_id_set"}
+            result.update({"error": "no_id_set"})
+            return result
         if item_amounts == None or len(item_amounts) == 0 or \
                 item_ids == None or len(item_ids) == 0 or \
                 item_ingredients == None or len(item_ingredients) == 0 or \
                 len(item_amounts) != len(item_ingredients) or \
                 len(item_amounts) != len(item_ids):
-            return {"error": "wrong_data"}
+            result.update({"error": "wrong_data"})
+            return result
         # prepare data
         items = []
         for i in range(0, len(item_amounts)):
@@ -72,52 +84,84 @@ def OnRequest(action, request_data):
             if ingredient >= 0 and amount >= 0:
                 items.append({"ingredient": ingredient, "amount": amount})
         if not db.recipeChanged(id, name, items, instruction):
-            return {"message": "nothing_changed", "recipe": db.getRecipe(id), "ingredients": db.getAllIngredients()}
+            result.update({"message": "nothing_changed", "recipe": db.getRecipe(
+                id), "ingredients": db.getAllIngredients()})
+            return result
         # update database
         new_id = db.createOrUpdateRecipe(name, instruction, id)
         db.addRecipeItems(new_id, items)
         if id < 0:
-            return {"message": "created", "recipe": db.getRecipe(new_id), "ingredients": db.getAllIngredients()}
+            result.update({"message": "created", "recipe": db.getRecipe(
+                new_id), "ingredients": db.getAllIngredients()})
+            return result
         else:
-            return {"message": "updated", "recipe": db.getRecipe(new_id), "ingredients": db.getAllIngredients()}
+            result.update({"message": "updated", "recipe": db.getRecipe(
+                new_id), "ingredients": db.getAllIngredients()})
+            return result
+
+    elif action == "remove_recipe":
+        if not com.canManipulateDatabase():
+            result.update({"error": "busy"})
+            return result
+        id = getParameter(request_data, 'id', int)        
+        if id == None:
+            result.update({"recipes": db.getRecipes()})
+            result.update({"error": "no_id_set"})
+            return result
+        elif id < 0:
+            return result
+        db.removeRecipe(id)
+        result.update({"message": "recipe_removed"})
+        result.update({"recipes": db.getRecipes()})
+        return result
 
     elif action == "order":
         if com.isArduinoBusy():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         id = getParameter(request_data, "id", int)
         if id == None:
-            return {"error": "no_id_set"}
+            result.update({"error": "no_id_set"})
+            return result
         recipe = db.getRecipe(id)
         if recipe == None:
-            return {"error": "recipe_not_found"}
+            result.update({"error": "recipe_not_found"})
+            return result
         db.startOrder(recipe["id"])
         com.startMixing(recipe)
-        return {"message": "mixing_started"}
+        result.update({"message": "mixing_started"})
+        return result
 
     elif action == "single_ingredient":
-        result = {"ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
+        result.update({"ports": db.getIngredientOfPort(
+        ), "ingredients": db.getAllIngredients()})
         if com.isArduinoBusy():
             result.update({"error": "busy"})
             return result
         iid = getParameter(request_data, "ingredient", int)
         amount = getParameter(request_data, "amount", int)
         if iid == None:
-            #nothing to do, just return the ports and ingredients
+            # nothing to do, just return the ports and ingredients
             return result
         port_cal = db.getPortAndCalibration(iid)
         if port_cal == None:
             result.update({"error": "not_available"})
             return result
-        com.startSingleIngredient( port_cal["port"], port_cal["calibration"] * amount)
+        com.startSingleIngredient(
+            port_cal["port"], port_cal["calibration"] * amount)
         result.update({"error": "single_ingredient_started"})
         return result
 
     elif action == "admin":
-        return {"ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
+        result.update({"ports": db.getIngredientOfPort()})
+        result.update({"ingredients": db.getAllIngredients()})
+        result.update({"recipes": db.getRecipes()})
+        return result
 
     elif action == "setports":
         if not com.canManipulateDatabase():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         db_ports = db.getIngredientOfPort()
         ports = dict()
         portsOK = True
@@ -130,58 +174,73 @@ def OnRequest(action, request_data):
             else:
                 ports[port] = param
         if not portsOK:
-            return {"error": "ports_not_complete"}
+            result.update({"error": "ports_not_complete"})
+            return result
         db.setPorts(ports)
-        return {"message": "ports_set", "ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
+        result.update({"message": "ports_set", "ports": db.getIngredientOfPort(
+        ), "ingredients": db.getAllIngredients()})
+        return result
 
     elif action == "setcalibration":
         if not com.canManipulateDatabase():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         port = getParameter(request_data, "port", int)
         calibration = getParameter(request_data, "calibration", int)
         if port == None or calibration == None:
-            return {"error": "wrong_data"}
+            result.update({"error": "wrong_data"})
+            return result
         db.setCalibration(port, calibration)
-        return {"message": "calibration_set", "ports": db.getIngredientOfPort(), "ingredients": db.getAllIngredients()}
+        result.update({"message": "calibration_set", "ports": db.getIngredientOfPort(
+        ), "ingredients": db.getAllIngredients()})
+        return result
 
     elif action == "calibrate":
         if not com.canManipulateDatabase():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         port = getParameter(request_data, "port", int)
         duration = db.getIntSetting("calibrate_duration")
         com.startCleaning(port, duration)
-        return {"message": "calirate_started"}
+        result.update({"message": "calirate_started"})
+        return result
 
     elif action == "clean":
         if com.isArduinoBusy():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         port = getParameter(request_data, "port", int)
         duration = db.getIntSetting("clean_duration")
         com.startCleaning(port, duration)
-        return {"message": "clean_started"}
+        result.update({"message": "clean_started"})
+        return result
 
     elif action == "clean_cycle_left":
         if com.isArduinoBusy():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         duration = db.getIntSetting("clean_duration") * 5
         data = []
         for port in range(0, 6):
             data.append({"port": port, "duration": duration})
         com.startCleaningCycle(data)
-        return {"message": "clean_started"}
+        result.update({"message": "clean_started"})
+        return result
 
     elif action == "clean_cycle_right":
         if com.isArduinoBusy():
-            return {"error": "busy"}
+            result.update({"error": "busy"})
+            return result
         duration = db.getIntSetting("clean_duration") * 5
         data = []
         for port in range(6, 12):
             data.append({"port": port, "duration": duration})
         com.startCleaningCycle(data)
-        return {"message": "clean_started"}
+        result.update({"message": "clean_started"})
+        return result
 
     elif action == "statistics":
-        result = {"parties": db.getPartyDates()}
+        result.update({"parties": db.getPartyDates()})
         date = getParameter(request_data, "date")
         if date == None:
             date = result["parties"][0]["partydate"]

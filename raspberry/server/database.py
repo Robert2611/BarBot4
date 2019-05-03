@@ -136,7 +136,7 @@ class database(object):
         self.cursor.execute("""
 			INSERT INTO Recipes ( name, instruction, successor_id )
 			VALUES ( :name, :instruction, NULL )
-		""", {"name": name, "instruction" : instruction})
+		""", {"name": name, "instruction": instruction})
         self.con.commit()
         new_rid = self.cursor.lastrowid
         if(old_rid >= 0):
@@ -149,6 +149,16 @@ class database(object):
             self.con.commit()
         self.close()
         return new_rid
+
+    def removeRecipe(self, rid):
+        self.open()
+        self.cursor.execute("""
+            UPDATE Recipes
+            SET successor_id = -1
+            WHERE id = :rid
+        """, {"rid": rid})
+        self.con.commit()
+        self.close()
 
     def addRecipeItems(self, rid, items):
         self.open()
@@ -176,7 +186,7 @@ class database(object):
         elif recipe_in_database["name"] != name:
             self.close()
             return True
-        #instruction has changed
+        # instruction has changed
         elif recipe_in_database["instruction"] != instruction:
             self.close()
             return True
