@@ -2,12 +2,26 @@
 
 #define MAX_MSG_SIZE    60
 
-typedef bool (*CommandStart_t)(int param_c, char** param_v);
-typedef bool (*CommandDoneCondition_t)();
+
+enum class CommandType_t {
+    Set,
+    Do,
+    Get
+};
+
+enum class CommandStatus_t{
+    Running,
+    Done,
+    Error
+};
+
+typedef bool (*CommandStart_t)(int param_c, char** param_v, long *result);
+typedef CommandStatus_t (*CommandUpdate_t)(int *error_code, long *parameter);
 struct Command_t{
     const char* name;
     CommandStart_t command_start;
-    CommandDoneCondition_t done_condition;
+    CommandUpdate_t command_update;
+    CommandType_t type;
     Command_t* next;
 };
 
@@ -16,19 +30,22 @@ public:
     Protocol(Stream * str);
     void update();
     void addCommand(Command_t* command);
-    void addCommand(const char* name, CommandStart_t command_start);
-    void addCommand(const char* name, CommandStart_t command_start, CommandDoneCondition_t done_condition);
+    void addSetCommand(const char* name, CommandStart_t command_start);
+    void addGetCommand(const char* name, CommandStart_t command_start);
+    void addDoCommand(const char* name, CommandStart_t command_start, CommandUpdate_t command_update);
 private:
     Stream * stream;
     uint8_t msg[MAX_MSG_SIZE];
     uint8_t *msg_ptr;
     Command_t* first_command;
     void process();
-    void onCommand(char * command, int param_c, char ** param_v);
-    void sendNAK(char * command);
-    void sendACK(char * command);
+    void onCommand(const char * command, int param_c, char ** param_v);
+    void sendNAK(const char * command);
+    void sendACK(const char * command);
     void sendDone(const char * command);
-    void sendLink();
+    void sendResult(const char * command, long value);
+    void sendError(const char * command, int error_code, long parameter);
+    void sendLink();    
     Command_t* running_command;
 };
 

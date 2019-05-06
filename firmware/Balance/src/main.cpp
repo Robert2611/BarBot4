@@ -7,8 +7,8 @@
 
 #ifdef __AVR_ATmega328P__
 //arduino nano
-#define BALANCE_PIN_DATA 4
-#define BALANCE_PIN_CLOCK 5
+#define BALANCE_PIN_DATA A2
+#define BALANCE_PIN_CLOCK A3
 #define BALANCE_GAIN 128
 #define LED_PIN_R 9
 #define LED_PIN_G 10
@@ -136,6 +136,9 @@ void setup()
   balance.begin(BALANCE_PIN_DATA, BALANCE_PIN_CLOCK, BALANCE_GAIN);
   //initialize filter
   butterworth.calculateCoefficients((float)FILTER_CUTOFF_FREQUENCY / BALANCE_SAMPLING_RATE);
+  //disable pullups for i2c
+  digitalWrite(SCL, LOW);
+  digitalWrite(SDA, LOW);
   //start i2c communication
   Wire.begin(BALANCE_BOARD_ADDRESS);
   Wire.onReceive(recieved);

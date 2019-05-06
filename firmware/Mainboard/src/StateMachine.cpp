@@ -4,7 +4,7 @@ StateMachine::StateMachine(BalanceBoard *_balance)
 {
 	this->balance = _balance;
 	startup = true;
-	status = BAR_BOT_IDLE;
+	status = BarBotStatus_t::Idle;
 	current_action_start_millis = 0;
 	current_action_duration = 0;
 	current_action_index = 0;
@@ -45,8 +45,14 @@ void StateMachine::update()
 	update_balance();
 	switch (status)
 	{
+	case BarBotStatus_t::Idle:
+	case BarBotStatus_t::Error:
+	case BarBotStatus_t::ErrorIngredientEmpty:
+		//nothing to do here
+		break;
+		
 	/** HOMING START **/
-	case BAR_BOT_HOMING_ROUGH:
+	case BarBotStatus_t::HomingRough:
 		if (!is_homed())
 		{
 			stepper->run();
@@ -54,14 +60,14 @@ void StateMachine::update()
 		}
 		else
 		{
-			set_status(BAR_BOT_HOMING_FINE);
+			set_status(BarBotStatus_t::HomingFine);
 			stepper->setCurrentPosition(0);
 			stepper->setSpeed(PLATFORM_MOTOR_HOMING_SPEED * PLATFORM_MOTOR_MICROSTEPS);
 			set_target_position(100);
 		}
 		break;
 
-	case BAR_BOT_HOMING_FINE:
+	case BarBotStatus_t::HomingFine:
 		//move to fulls step position, so pos = 0 is full step!
 		if (is_homed() || (current_microstep % PLATFORM_MOTOR_MICROSTEPS != 0))
 		{
@@ -73,7 +79,7 @@ void StateMachine::update()
 			stepper->setCurrentPosition(0);
 			stepper->setSpeed(0);
 			set_target_position(0);
-			set_status(BAR_BOT_IDLE);
+			set_status(BarBotStatus_t::Idle);
 			if (startup)
 				startup = false;
 		}
@@ -81,26 +87,26 @@ void StateMachine::update()
 
 		/** HOMING END **/
 
-	case BAR_BOT_MOVETO_POS:
+	case BarBotStatus_t::MoveToPos:
 		if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			//x-position is reached
-			set_status(BAR_BOT_IDLE);
+			set_status(BarBotStatus_t::Idle);
 		}
 		else
 			stepper->run();
 		break;
 
-	case BAR_BOT_DELAY:
+	case BarBotStatus_t::Delay:
 		if (millis() > (unsigned long)(current_action_start_millis + current_action_duration))
-			set_status(BAR_BOT_IDLE);
+			set_status(BarBotStatus_t::Idle);
 		break;
 
-	case BAR_BOT_MOVETO_DRAFT:
+	case BarBotStatus_t::MoveToDraft:
 		if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			//x-position is reached
-			set_status(BAR_BOT_DRAFTING);
+			set_status(BarBotStatus_t::Drafting);
 			current_action_start_millis = millis();
 			start_pump(current_action_index, PUMP_POWER_PWM);
 		}
@@ -110,23 +116,23 @@ void StateMachine::update()
 		}
 		break;
 
-	case BAR_BOT_DRAFTING:
+	case BarBotStatus_t::Drafting:
 		if (millis() > (unsigned long)(current_action_start_millis + current_action_duration))
 		{
 			stop_pumps();
-			set_status(BAR_BOT_IDLE);
+			set_status(BarBotStatus_t::Idle);
 		}
 		break;
 
-	case BAR_BOT_CLEANING:
+	case BarBotStatus_t::Cleaning:
 		if (balance->getWeight() >= weight_before_draft + target_draft_weight)
 		{
 			stop_pumps();
-			set_status(BAR_BOT_IDLE);
+			set_status(BarBotStatus_t::Idle);
 		}
 		break;
 
-	case BAR_BOT_MOVETO_STIR_X:
+	case BarBotStatus_t::MoveToStir:
 		if (stepper->currentPosition() == stepper->targetPosition())
 			//x-position is reached
 			yield();
@@ -134,7 +140,7 @@ void StateMachine::update()
 			stepper->run();
 		break;
 
-	case BAR_BOT_STIRING:
+	case BarBotStatus_t::Stirring:
 		//draft-duration is interpreted as stirring duration
 		if (millis() > (unsigned long)(current_action_start_millis + current_action_duration))
 		{
@@ -153,10 +159,12 @@ void StateMachine::update_balance()
 		balance_last_check_millis = millis();
 		//check if balance has new data
 		if (balance->readData())
-		{
-			//balance class saves the data so no need to copy it here, just save when it was recieved
+		{			
 			balance_last_data_millis = millis();
-			Serial.println(balance->getWeight());
+			//balance class saves the data so no need to copy it here
+
+			//print the recieved weight on serial if debug was defined
+			Serial.println(balance->getWeight());			
 		}
 	}
 }
@@ -191,7 +199,7 @@ void StateMachine::start_clean(int pump_index, float target_weight)
 	target_draft_weight = target_weight;
 	start_pump(pump_index, PUMP_POWER_PWM);
 	//status has to be set last to avoid multi core problems
-	set_status(BAR_BOT_CLEANING);
+	set_status(BarBotStatus_t::Cleaning);
 }
 
 void StateMachine::start_homing()
@@ -199,7 +207,7 @@ void StateMachine::start_homing()
 	current_microstep %= PLATFORM_MOTOR_MICROSTEPS;
 	set_target_position(-2000);
 	//status has to be set last to avoid multi core problems
-	set_status(BAR_BOT_HOMING_ROUGH);
+	set_status(BarBotStatus_t::HomingRough);
 }
 
 void StateMachine::start_draft(int pump_index, long duration)
@@ -208,7 +216,7 @@ void StateMachine::start_draft(int pump_index, long duration)
 	current_action_duration = duration;
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * pump_index);
 	//status has to be set last to avoid multi core problems
-	set_status(BAR_BOT_MOVETO_DRAFT);
+	set_status(BarBotStatus_t::Drafting);
 }
 
 void StateMachine::start_stir(long duration)
@@ -217,7 +225,7 @@ void StateMachine::start_stir(long duration)
 	current_action_duration = duration;	
 	set_target_position(STIRRING_POSITION);
 	//status has to be set last to avoid multi core problems
-	set_status(BAR_BOT_MOVETO_STIR_X);
+	set_status(BarBotStatus_t::MoveToStir);
 }
 
 void StateMachine::start_delay(long duration)
@@ -225,25 +233,31 @@ void StateMachine::start_delay(long duration)
 	current_action_start_millis = millis();
 	current_action_duration = duration;
 	//status has to be set last to avoid multi core problems
-	set_status(BAR_BOT_DELAY);
+	set_status(BarBotStatus_t::Delay);
 }
 
 void StateMachine::start_moveto(long position_in_mm)
 {
 	set_target_position(position_in_mm);
 	//status has to be set last to avoid multi core problems
-	set_status(BAR_BOT_MOVETO_POS);
+	set_status(BarBotStatus_t::MoveToPos);
 }
 ///endregion: actions ///
 
 ///region: setters ///
-void StateMachine::set_status(int new_status)
+void StateMachine::set_status(BarBotStatus_t new_status)
 {
 	if (new_status != status)
 	{
 		status = new_status;
 		if (onStatusChanged != NULL)
 			onStatusChanged(status);
+	}
+}
+
+void StateMachine::reset_error(){
+	if(status > BarBotStatus_t::Error){
+		set_status(BarBotStatus_t::Idle);
 	}
 }
 

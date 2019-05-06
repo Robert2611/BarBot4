@@ -6,28 +6,25 @@
 #include "Configuration.h"
 #include "BalanceBoard.h"
 
-
-
-
-
-//STATUS
-#define BAR_BOT_IDLE              0
-#define BAR_BOT_HOMING_ROUGH      1
-#define BAR_BOT_HOMING_RETRACT    2
-#define BAR_BOT_HOMING_FINE       3
-#define BAR_BOT_MOVETO_DRAFT      4
-#define BAR_BOT_DRAFTING          5
-#define BAR_BOT_STIRING           8
-#define BAR_BOT_CLEANING          10
-#define BAR_BOT_MOVETO_STIR_X     11
-#define BAR_BOT_MOVETO_POS        12
-#define BAR_BOT_DELAY             13
-#define BAR_BOT_ERROR             255
-
+enum BarBotStatus_t{
+	Idle,
+	HomingRough,
+	HomingRetract,
+	HomingFine,
+	MoveToDraft,
+	Drafting,
+	Stirring,
+	Cleaning,
+	MoveToStir,
+	MoveToPos,
+	Delay,
+	Error,
+	ErrorIngredientEmpty
+};
 
 
 extern "C" {
-typedef void (*BarBotStatusChangedHandler) (int);
+typedef void (*BarBotStatusChangedHandler) (BarBotStatus_t);
 };
 
 class StateMachine {
@@ -35,7 +32,7 @@ public:
 	StateMachine(BalanceBoard* _balance);
 	void begin();
 
-	int status;
+	BarBotStatus_t status;
 	long current_action_start_millis;
 	long current_action_duration;
 	byte current_action_index;
@@ -57,12 +54,14 @@ public:
 	void set_max_speed(long speed);
 	void set_max_accel(long accel);
 
+	void reset_error();
+
 private:
 	void update_balance();
 	bool is_homed();
 	void start_pump(int pump_index, uint32_t power_pwm);
 	void stop_pumps();
-	void set_status(int new_status);
+	void set_status(BarBotStatus_t new_status);
 	float get_current_ingredient_position_in_mm();
 	void set_target_position(long pos_in_mm);
 	long mm_to_steps(float mm);
