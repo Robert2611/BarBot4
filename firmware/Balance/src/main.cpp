@@ -4,6 +4,7 @@
 #include "Wire.h"
 #include "Shared.h"
 #include "LEDController.h"
+#include "WireProtocol.h"
 
 #ifdef __AVR_ATmega328P__
 //arduino nano
@@ -41,6 +42,7 @@ float raw_value, filtered_value;
 
 void commandRecieved(int parameters_count)
 {
+
   switch (i2c_command)
   {
   case BALANCE_CMDLED_SET_COLOR_A:
@@ -94,12 +96,12 @@ void request()
   break;
   case BALANCE_CMDBALANCE_GET_DATA_RAW:
   {
-    I2C_SEND_FLOAT(raw_value);
+    WireProtocol::sendFloat(raw_value);
   }
   break;
   case BALANCE_CMDBALANCE_GET_DATA:
   {
-    I2C_SEND_FLOAT(filtered_value);
+   WireProtocol::sendFloat(filtered_value);
   }
   break;
   //no register set or unknown register
@@ -117,9 +119,12 @@ void request()
 
 void recieved(int count)
 {
+  Serial.println(count);
   //continue only if command byte was set
   if (count < 1)
+  {
     return;
+  }
   //save the command byte
   i2c_command = Wire.read();
   //handle messages that are only setters
@@ -136,11 +141,11 @@ void setup()
   balance.begin(BALANCE_PIN_DATA, BALANCE_PIN_CLOCK, BALANCE_GAIN);
   //initialize filter
   butterworth.calculateCoefficients((float)FILTER_CUTOFF_FREQUENCY / BALANCE_SAMPLING_RATE);
+  //start i2c communication
+  Wire.begin(BALANCE_BOARD_ADDRESS);
   //disable pullups for i2c
   digitalWrite(SCL, LOW);
   digitalWrite(SDA, LOW);
-  //start i2c communication
-  Wire.begin(BALANCE_BOARD_ADDRESS);
   Wire.onReceive(recieved);
   Wire.onRequest(request);
   //start the LED Controller
@@ -150,9 +155,13 @@ void setup()
   LEDC.setPeriod(1000);
   LEDC.setType(BALANCE_LED_TYPE_BLINK);
 }
-
+unsigned long last_millis;
 void loop()
 {
+  if(millis() > last_millis+100){
+    last_millis = millis();
+    Serial.println(millis());
+  }
   //get data from HX711 if it has new
   if (balance.is_ready())
   {

@@ -9,19 +9,19 @@ BalanceBoard::BalanceBoard()
 
 void BalanceBoard::LEDSetType(byte type)
 {
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TYPE, &type, 1);
+	WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TYPE, &type, 1);
 }
 void BalanceBoard::LEDSetColorA(RGB_t color)
 {
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_A, (byte *)&color, 3);
+	WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_A, (byte *)&color, 3);
 }
 void BalanceBoard::LEDSetColorB(RGB_t color)
 {
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_B, (byte *)&color, 3);
+	WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_COLOR_B, (byte *)&color, 3);
 }
 void BalanceBoard::LEDSetPeriod(unsigned int time)
 {
-	I2C_SEND_COMMAND(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TIME, (byte *)&time, sizeof(time));
+	WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMDLED_SET_TIME, (byte *)&time, sizeof(time));
 }
 
 void BalanceBoard::LEDContinous(RGB_t color)
@@ -63,7 +63,7 @@ void BalanceBoard::LEDFade(RGB_t colorA, unsigned int period)
 bool BalanceBoard::hasNewData()
 {
 	bool has_data;
-	bool success = I2C_GET_BOOL(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_HAS_NEW_DATA, &has_data);
+	bool success = WireProtocol::getBool(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_HAS_NEW_DATA, &has_data);
 	return success && has_data;
 }
 
@@ -82,10 +82,13 @@ bool BalanceBoard::readData()
 	if (!hasNewData())
 		return false;
 	float data;
-	bool success = I2C_GET_FLOAT(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_GET_DATA, &data);
-	if (success)
+	bool success = WireProtocol::getFloat(BALANCE_BOARD_ADDRESS, BALANCE_CMDBALANCE_GET_DATA, &data);
+	//only safe the data if it is valid and not higher than it can possibly be (24 bit of the HX711)
+	if (success && !isnan(data) && data < (2<<24) ){
 		raw_data = data;
-	return success;
+		return true;
+	}
+	return false;
 }
 
 float BalanceBoard::getWeight()

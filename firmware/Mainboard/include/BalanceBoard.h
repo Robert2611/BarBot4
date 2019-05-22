@@ -1,6 +1,7 @@
 #ifndef BALANCE_BOARD_H
 #define BALANCE_BOARD_H
 #include "Shared.h"
+#include "WireProtocol.h"
 
 class BalanceBoard
 {
