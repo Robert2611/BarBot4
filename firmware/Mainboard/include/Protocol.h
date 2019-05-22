@@ -1,7 +1,7 @@
 #include "Arduino.h"
 
 #define MAX_MSG_SIZE    60
-
+#define LINK_TIME       300
 
 enum class CommandType_t {
     Set,
@@ -47,5 +47,6 @@ private:
     void sendError(const char * command, int error_code, long parameter);
     void sendLink();    
     Command_t* running_command;
+    unsigned long last_send_millis; 
 };
 

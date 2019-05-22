@@ -5,6 +5,8 @@ Protocol::Protocol(Stream *str)
     stream = str;
     // init the msg ptr
     msg_ptr = msg;
+    last_send_millis = millis();
+    sendLink();
 }
 
 void Protocol::update()
@@ -63,6 +65,10 @@ void Protocol::update()
             *msg_ptr++ = c;
             break;
         }
+    }
+
+    if(millis() > last_send_millis + LINK_TIME){
+        sendLink();
     }
 }
 
@@ -193,18 +199,22 @@ void Protocol::sendNAK(const char *command)
 {
     stream->print("NAK ");
     stream->println(command);
+    last_send_millis = millis();
 }
 
 void Protocol::sendACK(const char *command)
 {
     stream->print("ACK ");
     stream->println(command);
+    last_send_millis = millis();
+    last_send_millis = millis();
 }
 
 void Protocol::sendDone(const char *command)
 {
     stream->print("DONE ");
     stream->println(command);
+    last_send_millis = millis();
 }
 
 void Protocol::sendResult(const char * command, long value){
@@ -212,6 +222,7 @@ void Protocol::sendResult(const char * command, long value){
     stream->print(command);
     stream->print(" ");
     stream->println(value);
+    last_send_millis = millis();
 }
 
 void Protocol::sendError(const char *command, int error_code, long parameter = 0)
@@ -222,10 +233,12 @@ void Protocol::sendError(const char *command, int error_code, long parameter = 0
     stream->print(error_code);
     stream->print(" ");
     stream->println(parameter);
+    last_send_millis = millis();
 }
 
 void Protocol::sendLink()
 {
     stream->println("LINK");
+    last_send_millis = millis();
 }
 
