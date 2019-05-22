@@ -6,33 +6,32 @@ StateMachine::StateMachine(BalanceBoard *_balance)
 	startup = true;
 	status = BarBotStatus_t::Idle;
 	current_action_start_millis = 0;
-	current_action_duration = 0;
-	current_action_index = 0;
 
 	stepper = new AccelStepper(AccelStepper::DRIVER, PIN_PLATFORM_MOTOR_STEP, PIN_PLATFORM_MOTOR_DIR);
+	//invert dir pin
+	stepper->setPinsInverted(true);
 	//leds = new LEDController(LED_R, LED_G, LED_B);
-	set_max_speed(mm_to_steps(100));
-	set_max_accel(mm_to_steps(20));
+	set_max_speed(100);
+	set_max_accel(20);
 }
 
 void StateMachine::begin()
 {
-	pinMode(PIN_PLATFORM_MOTOR_HOME, INPUT_PULLUP);
+	pinMode(PIN_PLATFORM_MOTOR_HOME, INPUT_PULLDOWN);
+	pinMode(PIN_PLATFORM_MOTOR_EN, OUTPUT);
+	//enable motor
+	digitalWrite(PIN_PLATFORM_MOTOR_EN, LOW);
 
 	pinMode(PIN_PUMP_SERIAL_DATA, OUTPUT);
 	pinMode(PIN_PUMP_NOT_ENABLED, OUTPUT);
 	pinMode(PIN_PUMP_SERIAL_RCLK, OUTPUT);
 	pinMode(PIN_PUMP_SERIAL_SCLK, OUTPUT);
 
-	//initialize PWM chanel for the pump
+	//initialize PWM for the pump on channel 0 with 10 bit resolution and 5kHz
 	ledcSetup(LEDC_CHANNEL_PUMP, 5000, 10);
 	ledcAttachPin(PIN_PUMP_NOT_ENABLED, LEDC_CHANNEL_PUMP);
 
 	stop_pumps();
-
-	//stepper->setPinsInverted(true, true); //invert (dir?,step?,enable?)
-	//stepper->setMaxSpeed(options->max_speed * PLATFORM_MOTOR_MICROSTEPS);
-	//stepper->setAcceleration(options->max_accel * PLATFORM_MOTOR_MICROSTEPS);
 
 	//leds->begin();
 	//TODO: Make sure stirring device is out of the way
@@ -42,15 +41,18 @@ void StateMachine::begin()
 
 void StateMachine::update()
 {
-	update_balance();
 	switch (status)
 	{
 	case BarBotStatus_t::Idle:
-	case BarBotStatus_t::Error:
-	case BarBotStatus_t::ErrorIngredientEmpty:
-		//nothing to do here
+		update_balance();
 		break;
 		
+	case BarBotStatus_t::Error:
+	case BarBotStatus_t::ErrorIngredientEmpty:
+	case BarBotStatus_t::ErrorCommunicationToBalance:
+		//nothing to do here
+		break;
+
 	/** HOMING START **/
 	case BarBotStatus_t::HomingRough:
 		if (!is_homed())
@@ -60,10 +62,10 @@ void StateMachine::update()
 		}
 		else
 		{
-			set_status(BarBotStatus_t::HomingFine);
 			stepper->setCurrentPosition(0);
 			stepper->setSpeed(PLATFORM_MOTOR_HOMING_SPEED * PLATFORM_MOTOR_MICROSTEPS);
 			set_target_position(100);
+			set_status(BarBotStatus_t::HomingFine);
 		}
 		break;
 
@@ -98,17 +100,17 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::Delay:
-		if (millis() > (unsigned long)(current_action_start_millis + current_action_duration))
+		if (millis() > (unsigned long)(current_action_start_millis + delay_time))
 			set_status(BarBotStatus_t::Idle);
 		break;
 
 	case BarBotStatus_t::MoveToDraft:
 		if (stepper->currentPosition() == stepper->targetPosition())
 		{
-			//x-position is reached
-			set_status(BarBotStatus_t::Drafting);
+			//draft position is reached
 			current_action_start_millis = millis();
-			start_pump(current_action_index, PUMP_POWER_PWM);
+			start_pump(pump_index, PUMP_POWER_PWM);
+			set_status(BarBotStatus_t::Drafting);
 		}
 		else
 		{
@@ -117,15 +119,40 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::Drafting:
-		if (millis() > (unsigned long)(current_action_start_millis + current_action_duration))
-		{
-			stop_pumps();
-			set_status(BarBotStatus_t::Idle);
+		if(update_balance()){
+			Serial.println(get_last_draft_remaining_weight());
+			if (balance->getWeight() > target_draft_weight)
+			{
+				//success
+				stop_pumps();			
+				set_status(BarBotStatus_t::Idle);
+			}
 		}
+		else if(millis() > balance_last_check_millis + DRAFT_TIMOUT_MILLIS){
+			//error
+			stop_pumps();
+			set_status(BarBotStatus_t::ErrorCommunicationToBalance);
+		}
+		//check for timeout
+		else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS){
+			Serial.println("Check");
+			if(balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT){
+				//error
+				stop_pumps();
+				set_status(BarBotStatus_t::ErrorIngredientEmpty);
+			}
+			else
+			{
+				//reset the timeout
+				draft_timeout_last_check_millis = millis();
+				draft_timeout_last_weight = balance->getWeight();
+			}
+		}
+		//else just wait
 		break;
 
 	case BarBotStatus_t::Cleaning:
-		if (balance->getWeight() >= weight_before_draft + target_draft_weight)
+		if (millis() > current_action_start_millis + current_action_duration)
 		{
 			stop_pumps();
 			set_status(BarBotStatus_t::Idle);
@@ -142,7 +169,7 @@ void StateMachine::update()
 
 	case BarBotStatus_t::Stirring:
 		//draft-duration is interpreted as stirring duration
-		if (millis() > (unsigned long)(current_action_start_millis + current_action_duration))
+		if (millis() > (unsigned long)(current_action_start_millis + stirring_time))
 		{
 			//stop stirring
 		}
@@ -151,7 +178,7 @@ void StateMachine::update()
 	//leds->update();
 }
 
-void StateMachine::update_balance()
+bool StateMachine::update_balance()
 {
 	//ask for new data every 3 ms to avoid blocking the bus
 	if (millis() > balance_last_check_millis + 3)
@@ -159,14 +186,15 @@ void StateMachine::update_balance()
 		balance_last_check_millis = millis();
 		//check if balance has new data
 		if (balance->readData())
-		{			
+		{
 			balance_last_data_millis = millis();
+			return true;
 			//balance class saves the data so no need to copy it here
-
-			//print the recieved weight on serial if debug was defined
-			Serial.println(balance->getWeight());			
+			
+			//Serial.println(balance->getWeight());
 		}
 	}
+	return false;
 }
 
 ///region: getters ///
@@ -186,18 +214,19 @@ float StateMachine::position_in_mm()
 {
 	return (float)stepper->currentPosition() / (PLATFORM_MOTOR_MICROSTEPS * PLATFORM_MOTOR_FULLSTEPS_PER_MM);
 }
+
+float StateMachine::get_last_draft_remaining_weight()
+{
+	return target_draft_weight - balance->getWeight();
+}
 ///endregion: getters ///
 
 ///region: actions ///
-void StateMachine::start_clean(int pump_index, float target_weight)
+void StateMachine::start_clean(int _pump_index, unsigned long _draft_time_millis)
 {
 	current_action_start_millis = millis();
-	float weight = balance->getWeight();
-	if (weight > TOTAL_WEIGHT_MAX)
-		return;
-	weight_before_draft = weight;
-	target_draft_weight = target_weight;
-	start_pump(pump_index, PUMP_POWER_PWM);
+	current_action_duration = _draft_time_millis;
+	start_pump(_pump_index, PUMP_POWER_PWM);
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::Cleaning);
 }
@@ -210,11 +239,18 @@ void StateMachine::start_homing()
 	set_status(BarBotStatus_t::HomingRough);
 }
 
-void StateMachine::start_draft(int pump_index, long duration)
+void StateMachine::start_draft(int _pump_index, float target_weight)
 {
-	current_action_index = pump_index;
-	current_action_duration = duration;
-	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * pump_index);
+	pump_index = _pump_index;
+	weight_before_draft = balance->getWeight();
+	target_draft_weight = weight_before_draft + target_weight;
+	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
+
+	draft_timeout_last_check_millis = millis();
+	draft_timeout_last_weight = balance->getWeight();
+
+	start_pump(pump_index, PUMP_POWER_PWM);
+
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::Drafting);
 }
@@ -222,7 +258,7 @@ void StateMachine::start_draft(int pump_index, long duration)
 void StateMachine::start_stir(long duration)
 {
 	//move to stirring position
-	current_action_duration = duration;	
+	stirring_time = duration;
 	set_target_position(STIRRING_POSITION);
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::MoveToStir);
@@ -231,7 +267,7 @@ void StateMachine::start_stir(long duration)
 void StateMachine::start_delay(long duration)
 {
 	current_action_start_millis = millis();
-	current_action_duration = duration;
+	delay_time = duration;
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::Delay);
 }
@@ -255,8 +291,10 @@ void StateMachine::set_status(BarBotStatus_t new_status)
 	}
 }
 
-void StateMachine::reset_error(){
-	if(status > BarBotStatus_t::Error){
+void StateMachine::reset_error()
+{
+	if (status > BarBotStatus_t::Error)
+	{
 		set_status(BarBotStatus_t::Idle);
 	}
 }
@@ -266,47 +304,42 @@ void StateMachine::set_target_position(long position_in_mm)
 	if (position_in_mm > PLATFORM_MOTOR_MAXPOS_MM)
 		position_in_mm = PLATFORM_MOTOR_MAXPOS_MM;
 	long steps = mm_to_steps(position_in_mm);
-	Serial.println(steps);
 	stepper->moveTo(steps);
 }
 
-void StateMachine::set_max_speed(long speed)
+void StateMachine::set_max_speed(float speed)
 {
-	stepper->setMaxSpeed(speed * PLATFORM_MOTOR_MICROSTEPS);
+	stepper->setMaxSpeed(mm_to_steps(speed));
 }
 
-void StateMachine::set_max_accel(long accel)
+void StateMachine::set_max_accel(float accel)
 {
-	stepper->setAcceleration(accel * PLATFORM_MOTOR_MICROSTEPS);
+	stepper->setAcceleration(mm_to_steps(accel));
 }
 ///endregion: setters ///
 
 ///region: pump ///
-void StateMachine::start_pump(int pump_index, uint32_t power_pwm)
+void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 {
-	//no output while writing
-	ledcWrite(LEDC_CHANNEL_PUMP, 0);
+	//disable output
+	ledcWrite(LEDC_CHANNEL_PUMP, 1024);
 
 	//write serial data to pump board
 	digitalWrite(PIN_PUMP_SERIAL_RCLK, LOW);
-	int inverted_index = 11 - pump_index;
-	for (int byte_index = 1; byte_index >= 0; byte_index--)
+	//each shift register has one byte, we have to shift in the data in reverse order 
+	for (int i = 7; i >=0; i--)
 	{
-		for (int i = 0; i < 8; i++)
-		{
-			byte bit_index = byte_index * 8 + i;
-			digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
-			digitalWrite(PIN_PUMP_SERIAL_DATA, bit_index == inverted_index);
-			digitalWrite(PIN_PUMP_SERIAL_SCLK, HIGH);
-			digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
-		}
+		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
+		digitalWrite(PIN_PUMP_SERIAL_DATA, i == _pump_index);
+		digitalWrite(PIN_PUMP_SERIAL_SCLK, HIGH);
+		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
 	}
 	digitalWrite(PIN_PUMP_SERIAL_RCLK, HIGH);
 	digitalWrite(PIN_PUMP_SERIAL_DATA, LOW);
 	delay(50);
 	//inverted output, because the enabled pin low active
-	if (pump_index >= 0 && pump_index < DRAFT_PORTS_COUNT && power_pwm > 0)
-		ledcWrite(LEDC_CHANNEL_PUMP, power_pwm);
+	if (_pump_index >= 0 && _pump_index < DRAFT_PORTS_COUNT && power_pwm > 0)
+		ledcWrite(LEDC_CHANNEL_PUMP, 1024 - power_pwm);
 }
 
 void StateMachine::stop_pumps()

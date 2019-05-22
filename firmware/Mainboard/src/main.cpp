@@ -25,7 +25,6 @@ StateMachine state_m(&balance);
 Protocol protocol(&SerialBT);
 LEDAnimator LEDContr;
 
-
 void DoBluetoothTask(void *parameters)
 {
 	for (;;)
@@ -52,7 +51,7 @@ void setup()
 #endif
 	LEDContr.begin();
 	//Bluetooth device name
-	SerialBT.begin("Bar Bot 4");
+	SerialBT.begin("Bar Bot 4.0");
 #ifdef SERIAL_DEBUG
 	Serial.println("Bluetooth started");
 #endif
@@ -69,103 +68,150 @@ void setup()
 	//start LED task with high priority 1 on core 0
 	xTaskCreatePinnedToCore(DoLEDTask, //Task function
 							"LEDTask", //Task name
-							10000,	   //stack depth
-							NULL,	   //parameters
+							10000,	 //stack depth
+							NULL,	  //parameters
 							0,		   //priority
 							&LEDTask,  //out: task handle
 							0);		   //core
-	balance.setCalibration(PUMP_CALIBRATION);
-	balance.setOffset(PUMP_OFFSET);
+	balance.setCalibration(BALANCE_CALIBRATION);
+	balance.setOffset(BALANCE_OFFSET);
 
 	//test command that just returns done after a defined time
 	protocol.addDoCommand(
 		"Delay",
-		[](int param_c, char** param_v, long *result){
-			if(param_c == 1){
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
 				long t = atoi(param_v[0]);
-				if( t > 0 && t < 5000){
+				if (t > 0 && t < 5000)
+				{
 					state_m.start_delay(t);
 					return true;
 				}
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter){
-			if(state_m.status > BarBotStatus_t::Error){
-				(*error_code) = state_m.status;
-				state_m.reset_error();
-				return CommandStatus_t::Error;
-			}
-		}
-	);
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
 	protocol.addDoCommand(
-		"Pump",
-		[](int param_c, char** param_v, long *result){
-			if(param_c == 1){
-				long t = atoi(param_v[0]);
-				if( t > 0 && t < 5000){
-					state_m.start_clean(0, t);
+		"Draft",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 2)
+			{
+				long i = atoi(param_v[0]);
+				long w = atoi(param_v[1]);
+				if (i >= 0 && i < DRAFT_PORTS_COUNT && w > 0 && w < 400)
+				{
+					state_m.start_draft(i, w);
 					return true;
 				}
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter){
-			if(state_m.status > BarBotStatus_t::Error){
-				(*error_code)= state_m.status;
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = state_m.get_last_draft_remaining_weight();
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-		}
-	);
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Pump",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 2)
+			{
+				long index = atoi(param_v[0]);
+				long time = atoi(param_v[1]);
+				if (index >= 0 && index < DRAFT_PORTS_COUNT && time > 100 && time < 4000)
+				{
+					state_m.start_clean(index, time);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Home",
+		[](int param_c, char **param_v, long *result) {
+			if (state_m.status == Idle)
+			{
+				state_m.start_homing();
+				return true;
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
 	protocol.addDoCommand(
 		"Move",
-		[](int param_c, char** param_v, long *result){
-			if(param_c == 1){
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
 				long t = atoi(param_v[0]);
-				if( t > 0 && t < 5000){
+				if (t >= 0 && t < 5000)
+				{
 					state_m.start_moveto(t);
 					return true;
 				}
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter){
-			if(state_m.status > BarBotStatus_t::Error){
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
 				(*error_code) = state_m.status;
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-		}
-	);
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
 	protocol.addSetCommand(
 		"SetSomething",
-		[](int param_c, char** param_v, long *result){
-			if(param_c == 1){
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
 				long t = atoi(param_v[0]);
-				if( t > 0 && t < 5000){
+				if (t > 0 && t < 5000)
+				{
 					//Set some values here!
 					return true;
 				}
 			}
 			return false;
-		}
-	);
+		});
 	protocol.addGetCommand(
-		"GetSomething",
-		[](int param_c, char** param_v, long *result){
-			if(param_c == 1){
-				long t = atoi(param_v[0]);
-				if( t > 0 && t < 5000){
-					//Set return values here!
-					(*result) = 100;
-					return true;
-				}
-			}
-			return false;
-		}
-	);
+		"GetWeight",
+		[](int param_c, char **param_v, long *result) {
+			(*result) = balance.getWeight();
+			return true;
+		});
 	Wire.begin();
+	//disable pullups for i2c
+	digitalWrite(SCL, LOW);
+	digitalWrite(SDA, LOW);
 	state_m.begin();
 }
 

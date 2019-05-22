@@ -6,10 +6,10 @@
 #include "Configuration.h"
 #include "BalanceBoard.h"
 
-enum BarBotStatus_t{
+enum BarBotStatus_t
+{
 	Idle,
 	HomingRough,
-	HomingRetract,
 	HomingFine,
 	MoveToDraft,
 	Drafting,
@@ -19,23 +19,23 @@ enum BarBotStatus_t{
 	MoveToPos,
 	Delay,
 	Error,
-	ErrorIngredientEmpty
+	ErrorIngredientEmpty,
+	ErrorCommunicationToBalance
 };
 
-
-extern "C" {
-typedef void (*BarBotStatusChangedHandler) (BarBotStatus_t);
+extern "C"
+{
+	typedef void (*BarBotStatusChangedHandler)(BarBotStatus_t);
 };
 
-class StateMachine {
+class StateMachine
+{
 public:
-	StateMachine(BalanceBoard* _balance);
+	StateMachine(BalanceBoard *_balance);
 	void begin();
 
 	BarBotStatus_t status;
-	long current_action_start_millis;
-	long current_action_duration;
-	byte current_action_index;
+	byte pump_index;
 
 	BarBotStatusChangedHandler onStatusChanged;
 	AccelStepper *stepper;
@@ -45,19 +45,21 @@ public:
 	void update();
 
 	void start_homing();
-	void start_clean(int pump_index, float target_weight);
-	void start_draft(int pump_index, long duration);
+	void start_clean(int _pump_index, unsigned long _draft_time_millis);
+	void start_draft(int _pump_index, float _draft_weight);
 	void start_stir(long duration);
 	void start_moveto(long position_in_mm);
 	void start_delay(long duration);
 
-	void set_max_speed(long speed);
-	void set_max_accel(long accel);
+	void set_max_speed(float speed);
+	void set_max_accel(float accel);
 
 	void reset_error();
 
+	float get_last_draft_remaining_weight();
+
 private:
-	void update_balance();
+	bool update_balance();
 	bool is_homed();
 	void start_pump(int pump_index, uint32_t power_pwm);
 	void stop_pumps();
@@ -67,10 +69,20 @@ private:
 	long mm_to_steps(float mm);
 	int current_microstep;
 	bool startup;
-	BalanceBoard* balance;
-	float weight_before_draft;
-	float target_draft_weight;
+	BalanceBoard *balance;
+
 	unsigned long balance_last_check_millis;
 	unsigned long balance_last_data_millis;
+	unsigned long current_action_start_millis;
+	unsigned long current_action_duration;
+
+	long stirring_time;
+	long delay_time;
+	float weight_glas;
+	float weight_before_draft;
+	float target_draft_weight;
+	unsigned long draft_timeout_last_check_millis;
+	float draft_timeout_last_weight;
+
 };
 #endif // ifndef BAR_BOT_H
