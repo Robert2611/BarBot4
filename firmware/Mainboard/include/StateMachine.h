@@ -58,6 +58,8 @@ public:
 
 	float get_last_draft_remaining_weight();
 
+	bool is_started();
+
 private:
 	bool update_balance();
 	bool is_homed();

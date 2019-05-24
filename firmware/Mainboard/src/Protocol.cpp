@@ -11,25 +11,25 @@ Protocol::Protocol(Stream *str)
 
 void Protocol::update()
 {
-    //a long running command is being executed 
+    //a long running command is being executed
     if (running_command != 0)
-    {        
+    {
         int error_code;
         long parameter;
         //check if command is done or has an error. If so, notify master and stop the command
-        switch(running_command->command_update(&error_code,&parameter))
+        switch (running_command->command_update(&error_code, &parameter))
         {
-            case CommandStatus_t::Done:
-                sendDone(running_command->name);
-                running_command = 0;
-                break;
-            case CommandStatus_t::Error:
-                sendError(running_command->name, error_code, parameter);
-                running_command = 0;
-                break;
-            case CommandStatus_t::Running:
-                //nothing to do here
-                break;
+        case CommandStatus_t::Done:
+            sendDone(running_command->name);
+            running_command = 0;
+            break;
+        case CommandStatus_t::Error:
+            sendError(running_command->name, error_code, parameter);
+            running_command = 0;
+            break;
+        case CommandStatus_t::Running:
+            //nothing to do here
+            break;
         }
     }
     //handle incomming characters
@@ -67,7 +67,8 @@ void Protocol::update()
         }
     }
 
-    if(millis() > last_send_millis + LINK_TIME){
+    if (millis() > last_send_millis + LINK_TIME)
+    {
         sendLink();
     }
 }
@@ -115,25 +116,25 @@ void Protocol::onCommand(const char *command, int param_c, char **param_v)
             //start command ran sucessfully
             if (success)
             {
-                switch(cmd->type)
+                switch (cmd->type)
                 {
-                    case CommandType_t::Get:
-                        sendResult(cmd->name, result);
-                        return;
-                    case CommandType_t::Set:
-                        sendACK(command);
-                        return;
-                    case CommandType_t::Do:
-                        sendACK(command);
-                        //tell main loop that it has to look for stop condition
-                        if (cmd->command_update != 0)
-                            running_command = cmd;
-                        return;
-                    default:
-                        return;
+                case CommandType_t::Get:
+                    sendResult(cmd->name, result);
+                    return;
+                case CommandType_t::Set:
+                    sendACK(command);
+                    return;
+                case CommandType_t::Do:
+                    sendACK(command);
+                    //tell main loop that it has to look for stop condition
+                    if (cmd->command_update != 0)
+                        running_command = cmd;
+                    return;
+                default:
+                    return;
                 }
             }
-            //some problem in the command start 
+            //some problem in the command start
             else
             {
                 sendNAK(command);
@@ -191,8 +192,6 @@ void Protocol::addDoCommand(const char *_name, CommandStart_t _command_start, Co
     addCommand(cmd);
 }
 
-
-
 //Communication
 
 void Protocol::sendNAK(const char *command)
@@ -217,7 +216,8 @@ void Protocol::sendDone(const char *command)
     last_send_millis = millis();
 }
 
-void Protocol::sendResult(const char * command, long value){
+void Protocol::sendResult(const char *command, long value)
+{
     stream->print("ACK ");
     stream->print(command);
     stream->print(" ");
@@ -238,7 +238,10 @@ void Protocol::sendError(const char *command, int error_code, long parameter = 0
 
 void Protocol::sendLink()
 {
-    stream->println("LINK");
+    stream->print("STATUS ");
+    if (running_command != 0)
+        stream->println(running_command->name);
+    else
+        stream->println("IDLE");
     last_send_millis = millis();
 }
-

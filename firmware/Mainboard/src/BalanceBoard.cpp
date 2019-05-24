@@ -93,5 +93,5 @@ bool BalanceBoard::readData()
 
 float BalanceBoard::getWeight()
 {
-	return (raw_data - offset) * calibration;
+	return ((float)(raw_data - offset)) / calibration;
 }

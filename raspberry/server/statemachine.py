@@ -4,37 +4,38 @@ import threading
 import os
 
 from threading import Thread
-from arduino import Arduino
-from arduino import MessageTypes
+from protocol import Protocol
+from protocol import MessageTypes
 
 
-class com(Thread):
+class StateMachine(Thread):
     def __init__(self, OnMixingFinishedHandler, port, baudrate):
         Thread.__init__(self)
         self.abort = False
         self.data = None
         self.OnMixingFinished = OnMixingFinishedHandler
         self.action = "connecting"
-        self.arduino = Arduino(port, baudrate, 1)  # '/dev/ttyAMA0'
+        self.protocol = Protocol(port, baudrate, 1)  # '/dev/ttyAMA0'
         self.message = None
         self.progress = None
-        self.settings = None
+        self.rainbow_duration = 10
+        self.max_speed = 100
+        self.max_accel = 100
 
     # main loop, runs the whole time
     def run(self):
         while not self.abort:
             if self.action == "connecting":
-                if self.arduino.Connect():
+                if self.protocol.Connect():
                     self.action = "startup"
                 else:
                     time.sleep(1)
             elif self.action == "startup":
-                if self.arduino.ReadMessage().type == MessageTypes.IDLE:
+                if self.protocol.ReadMessage().type == MessageTypes.STATUS:
                     # start the LED rainbow
-                    self.arduino.Set(
-                        "rainbow", self.settings["rainbow_duration"])
-                    self.arduino.Set("maxs", self.settings["max_speed"])
-                    self.arduino.Set("maxa", self.settings["max_accel"])
+                    self.protocol.Set("SetRBDuration", self.rainbow_duration)
+                    self.protocol.Set("SetSpeed", self.max_speed)
+                    self.protocol.Set("SetAccel", self.max_accel)
                     self.action = "idle"
             elif self.action == "mixing":
                 self.doMixing()
@@ -43,13 +44,16 @@ class com(Thread):
             elif self.action == "cleaning_cycle":
                 self.doCleaningCycle()
             elif self.action == "single_ingredient":
-                self.doCleaningCycle()
+                self.doSingleIngredient()
             else:
                 # elif self.action == idle:
-                message = self.arduino.ReadMessage()
-                if message.type != MessageTypes.IDLE:
+                #update as long as there is data to be read
+                while True:
+                    if not self.protocol.Update():
+                        break
+                if not self.protocol.isConnected:
                     self.action = "connecting"
-        self.arduino.Close()
+        self.protocol.Close()
 
     def isArduinoBusy(self):
         return self.action != "idle"
@@ -61,21 +65,20 @@ class com(Thread):
 
     def doMixing(self):
         self.message = "place_glas"
-        while self.arduino.Get("GLAS") != "1":
+        while self.protocol.Get("HasGlas") != "1":
             pass
         self.message = None
         for item in self.data["recipe"]["items"]:
             if item["port"] == 12:
-                self.arduino.Do("STIR", item["amount"] * 1000)
+                self.protocol.Do("Stir", item["amount"] * 1000)
             else:
-                self.arduino.Do(
-                    "DRAFT", item["port"], item["amount"] * item["calibration"])
+                self.protocol.Do("Draft", item["port"], item["amount"] * item["calibration"])
             self.data["recipe_item_index"] += 1
             self.progress = self.data["recipe_item_index"] / \
                 len(self.data["recipe"]["items"])
-        self.arduino.Do("MOVETO", 0)
+        self.protocol.Do("Move", 0)
         self.message = "mixing_done_remove_glas"
-        while self.arduino.Get("GLAS") != "0":
+        while self.protocol.Get("HasGlas") != "0":
             pass
         self.message = None
         self.OnMixingFinished(self.data["recipe"]["id"])
@@ -83,16 +86,25 @@ class com(Thread):
 
     def doCleaningCycle(self):
         self.message = "place_glas"
-        while self.arduino.Get("GLAS") != "1":
+        while self.protocol.Get("HasGlas") != "1":
             pass
         self.message = None
         for item in self.data:
-            self.arduino.Do("DRAFT", item["port"], item["duration"])
-        self.arduino.Do("MOVETO", 0)
+            self.protocol.Do("Draft", item["port"], item["duration"])
+        self.protocol.Do("Move", 0)
         self.action = "idle"
 
     def doCleaning(self):
-        self.arduino.Do("DRAFT", self.data["port"], self.data["duration"])
+        self.protocol.Do("Pump", self.data["port"], self.data["duration"])
+        self.action = "idle"
+
+    def doSingleIngredient(self):
+        self.message = "place_glas"
+        while self.protocol.Get("HasGlas") != "1":
+            pass
+        self.message = None
+        self.protocol.Do("Draft", self.data["port"], self.data["amount"] * self.data["calibration"])
+        self.protocol.Do("Move", 0)
         self.action = "idle"
 
     # start commands
@@ -101,8 +113,8 @@ class com(Thread):
         self.data = {"recipe": recipe, "recipe_item_index": 0}
         self.action = "mixing"
 
-    def startSingleIngredient(self, port, duration):
-        self.data = [{"port": port, "duration": duration}]
+    def startSingleIngredient(self, recipe_item):
+        self.data = recipe_item
         self.action = "single_ingredient"
 
     def startCleaning(self, port, duration):

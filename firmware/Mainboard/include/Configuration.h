@@ -5,9 +5,9 @@
 #define PLATFORM_MOTOR_HOMING_SPEED         10000
 
 #define PUMP_DISTANCE                       50
-#define FIRST_PUMP_POSITION                 50
+#define FIRST_PUMP_POSITION                 75
 #define STIRRING_POSITION                   (FIRST_PUMP_POSITION + 11 * PUMP_DISTANCE + 75)
-#define PLATFORM_MOTOR_MAXPOS_MM            1200
+#define PLATFORM_MOTOR_MAXPOS_MM            900
 
 #define PLATFORM_MOTOR_MICROSTEPS           4
 #define PLATFORM_MOTOR_FULLSTEPS_PER_MM     200.0 / ( 20.0 * 2.0 )
@@ -26,10 +26,9 @@
 #define PIN_PUMP_SERIAL_SCLK                (33)
 // PINS END //
 
-#define BALANCE_OFFSET                      -92690.20
-#define BALANCE_CALIBRATION                 -0.000929969633927
+#define BALANCE_OFFSET                      -92690
+#define BALANCE_CALIBRATION                 -1075
 #define GLASS_WEIGHT_MIN                    300
-#define GLASS_WEIGHT_MAX                    500
 #define TOTAL_WEIGHT_MAX                    800
 
 #define LEDC_CHANNEL_PUMP                   0

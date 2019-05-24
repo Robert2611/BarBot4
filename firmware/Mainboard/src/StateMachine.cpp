@@ -35,8 +35,7 @@ void StateMachine::begin()
 
 	//leds->begin();
 	//TODO: Make sure stirring device is out of the way
-	if (false)
-		start_homing();
+	start_homing();
 }
 
 void StateMachine::update()
@@ -46,7 +45,7 @@ void StateMachine::update()
 	case BarBotStatus_t::Idle:
 		update_balance();
 		break;
-		
+
 	case BarBotStatus_t::Error:
 	case BarBotStatus_t::ErrorIngredientEmpty:
 	case BarBotStatus_t::ErrorCommunicationToBalance:
@@ -108,7 +107,9 @@ void StateMachine::update()
 		if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			//draft position is reached
-			current_action_start_millis = millis();
+			draft_timeout_last_check_millis = millis();
+			//this is an old value!
+			draft_timeout_last_weight = balance->getWeight();
 			start_pump(pump_index, PUMP_POWER_PWM);
 			set_status(BarBotStatus_t::Drafting);
 		}
@@ -119,24 +120,28 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::Drafting:
-		if(update_balance()){
+		if (update_balance())
+		{
 			Serial.println(get_last_draft_remaining_weight());
 			if (balance->getWeight() > target_draft_weight)
 			{
 				//success
-				stop_pumps();			
+				stop_pumps();
 				set_status(BarBotStatus_t::Idle);
 			}
 		}
-		else if(millis() > balance_last_check_millis + DRAFT_TIMOUT_MILLIS){
+		else if (millis() > balance_last_check_millis + DRAFT_TIMOUT_MILLIS)
+		{
 			//error
 			stop_pumps();
 			set_status(BarBotStatus_t::ErrorCommunicationToBalance);
 		}
 		//check for timeout
-		else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS){
+		else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS)
+		{
 			Serial.println("Check");
-			if(balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT){
+			if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT)
+			{
 				//error
 				stop_pumps();
 				set_status(BarBotStatus_t::ErrorIngredientEmpty);
@@ -190,7 +195,7 @@ bool StateMachine::update_balance()
 			balance_last_data_millis = millis();
 			return true;
 			//balance class saves the data so no need to copy it here
-			
+
 			//Serial.println(balance->getWeight());
 		}
 	}
@@ -202,6 +207,11 @@ bool StateMachine::is_homed()
 {
 	//read two times to be sure...
 	return digitalRead(PIN_PLATFORM_MOTOR_HOME) && digitalRead(PIN_PLATFORM_MOTOR_HOME);
+}
+
+bool StateMachine::is_started()
+{
+	return !startup;
 }
 
 long StateMachine::mm_to_steps(float mm)
@@ -246,13 +256,8 @@ void StateMachine::start_draft(int _pump_index, float target_weight)
 	target_draft_weight = weight_before_draft + target_weight;
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
 
-	draft_timeout_last_check_millis = millis();
-	draft_timeout_last_weight = balance->getWeight();
-
-	start_pump(pump_index, PUMP_POWER_PWM);
-
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::Drafting);
+	set_status(BarBotStatus_t::MoveToDraft);
 }
 
 void StateMachine::start_stir(long duration)
@@ -326,8 +331,8 @@ void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 
 	//write serial data to pump board
 	digitalWrite(PIN_PUMP_SERIAL_RCLK, LOW);
-	//each shift register has one byte, we have to shift in the data in reverse order 
-	for (int i = 7; i >=0; i--)
+	//each shift register has one byte, we have to shift in the data in reverse order
+	for (int i = 7; i >= 0; i--)
 	{
 		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
 		digitalWrite(PIN_PUMP_SERIAL_DATA, i == _pump_index);

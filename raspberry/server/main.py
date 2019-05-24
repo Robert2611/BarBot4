@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import com
+import statemachine
 import database
 import server
 import os
@@ -28,10 +28,10 @@ def OnRequest(action, request_data):
     result = {"action": action}
 
     if action == "status":
-        result.update({"status": com.action, "message": com.message})
+        result.update({"status": bot.action, "message": bot.message})
         if result["status"] == "mixing":
-            result.update({"progress": com.progress})
-            result.update({"instruction": com.data["recipe"]["instruction"]})
+            result.update({"progress": bot.progress})
+            result.update({"instruction": bot.data["recipe"]["instruction"]})
         return result
 
     elif action == "listrecipes":
@@ -52,7 +52,7 @@ def OnRequest(action, request_data):
         return result
 
     elif action == "saverecipe":
-        if not com.canManipulateDatabase():
+        if not bot.canManipulateDatabase():
             result.update({"error": "busy"})
             return result
         # get variables
@@ -100,7 +100,7 @@ def OnRequest(action, request_data):
             return result
 
     elif action == "remove_recipe":
-        if not com.canManipulateDatabase():
+        if not bot.canManipulateDatabase():
             result.update({"error": "busy"})
             return result
         id = getParameter(request_data, 'id', int)        
@@ -116,7 +116,7 @@ def OnRequest(action, request_data):
         return result
 
     elif action == "order":
-        if com.isArduinoBusy():
+        if bot.isArduinoBusy():
             result.update({"error": "busy"})
             return result
         id = getParameter(request_data, "id", int)
@@ -128,14 +128,14 @@ def OnRequest(action, request_data):
             result.update({"error": "recipe_not_found"})
             return result
         db.startOrder(recipe["id"])
-        com.startMixing(recipe)
+        bot.startMixing(recipe)
         result.update({"message": "mixing_started"})
         return result
 
     elif action == "single_ingredient":
         result.update({"ports": db.getIngredientOfPort(
         ), "ingredients": db.getAllIngredients()})
-        if com.isArduinoBusy():
+        if bot.isArduinoBusy():
             result.update({"error": "busy"})
             return result
         iid = getParameter(request_data, "ingredient", int)
@@ -147,8 +147,9 @@ def OnRequest(action, request_data):
         if port_cal == None:
             result.update({"error": "not_available"})
             return result
-        com.startSingleIngredient(
-            port_cal["port"], port_cal["calibration"] * amount)
+        item = port_cal
+        item["amount"] = amount
+        bot.startSingleIngredient(item)
         result.update({"error": "single_ingredient_started"})
         return result
 
@@ -159,7 +160,7 @@ def OnRequest(action, request_data):
         return result
 
     elif action == "setports":
-        if not com.canManipulateDatabase():
+        if not bot.canManipulateDatabase():
             result.update({"error": "busy"})
             return result
         db_ports = db.getIngredientOfPort()
@@ -182,7 +183,7 @@ def OnRequest(action, request_data):
         return result
 
     elif action == "setcalibration":
-        if not com.canManipulateDatabase():
+        if not bot.canManipulateDatabase():
             result.update({"error": "busy"})
             return result
         port = getParameter(request_data, "port", int)
@@ -196,46 +197,46 @@ def OnRequest(action, request_data):
         return result
 
     elif action == "calibrate":
-        if not com.canManipulateDatabase():
+        if not bot.canManipulateDatabase():
             result.update({"error": "busy"})
             return result
         port = getParameter(request_data, "port", int)
         duration = db.getIntSetting("calibrate_duration")
-        com.startCleaning(port, duration)
+        bot.startCleaning(port, duration)
         result.update({"message": "calirate_started"})
         return result
 
     elif action == "clean":
-        if com.isArduinoBusy():
+        if bot.isArduinoBusy():
             result.update({"error": "busy"})
             return result
         port = getParameter(request_data, "port", int)
         duration = db.getIntSetting("clean_duration")
-        com.startCleaning(port, duration)
+        bot.startCleaning(port, duration)
         result.update({"message": "clean_started"})
         return result
 
     elif action == "clean_cycle_left":
-        if com.isArduinoBusy():
+        if bot.isArduinoBusy():
             result.update({"error": "busy"})
             return result
         duration = db.getIntSetting("clean_duration") * 5
         data = []
         for port in range(0, 6):
             data.append({"port": port, "duration": duration})
-        com.startCleaningCycle(data)
+        bot.startCleaningCycle(data)
         result.update({"message": "clean_started"})
         return result
 
     elif action == "clean_cycle_right":
-        if com.isArduinoBusy():
+        if bot.isArduinoBusy():
             result.update({"error": "busy"})
             return result
         duration = db.getIntSetting("clean_duration") * 5
         data = []
         for port in range(6, 12):
             data.append({"port": port, "duration": duration})
-        com.startCleaningCycle(data)
+        bot.startCleaningCycle(data)
         result.update({"message": "clean_started"})
         return result
 
@@ -271,17 +272,15 @@ filename = os.path.join(dirname, '../bar_bot.sqlite')
 db = database.database(filename)
 db.clearOrders()
 
-com = com.com(OnMixingFinished, db.getStrSetting(
+bot = statemachine.StateMachine(OnMixingFinished, db.getStrSetting(
     "arduino_port"), db.getStrSetting("arduino_baud"))
-com.settings = {
-    "rainbow_duration": db.getIntSetting("rainbow_duration"),
-    "max_speed": db.getIntSetting("max_speed"),
-    "max_accel": db.getIntSetting("max_accel")
-}
+bot.rainbow_duration = db.getIntSetting("rainbow_duration")
+bot.max_speed = db.getIntSetting("max_speed")
+bot.max_accel = db.getIntSetting("max_accel")
 if not is_demo:
-    com.start()
+    bot.start()
 else:
-    com.action = "idle"
+    bot.action = "idle"
 
 server = server.server(OnRequest)
 server.start()
@@ -292,7 +291,7 @@ if is_demo:
 
 try:
     if not is_demo:
-        com.join()
+        bot.join()
     server.join()
 except KeyboardInterrupt:
     raise
