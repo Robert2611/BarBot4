@@ -6,23 +6,11 @@
 #include "LEDController.h"
 #include "WireProtocol.h"
 
-#ifdef __AVR_ATmega328P__
 //arduino nano
 #define BALANCE_PIN_DATA A2
 #define BALANCE_PIN_CLOCK A3
 #define BALANCE_GAIN 128
-#define LED_PIN_R 9
-#define LED_PIN_G 10
-#define LED_PIN_B 11
-#else
-//atmega48
-#define BALANCE_PIN_DATA 1
-#define BALANCE_PIN_CLOCK 0
-#define BALANCE_GAIN 128
-#define LED_PIN_R 6
-#define LED_PIN_G 5
-#define LED_PIN_B 3
-#endif
+#define LED_DATA_PIN A0
 
 #define SERIAL_DEBUG
 
@@ -33,7 +21,7 @@
 //instatiate classes
 HX711 balance;
 Butterworth butterworth;
-LEDController LEDC(LED_PIN_R, LED_PIN_G, LED_PIN_B);
+LEDController LEDC(LED_DATA_PIN);
 
 //variables
 bool new_data = false;
@@ -45,40 +33,13 @@ void commandRecieved(int parameters_count)
 
   switch (i2c_command)
   {
-  case BALANCE_CMDLED_SET_COLOR_A:
-  {
-    if (parameters_count != 3)
-      break;
-    byte data[3];
-    Wire.readBytes(data, 3);
-    LEDC.setColorA(data);
-  }
-  break;
-  case BALANCE_CMDLED_SET_COLOR_B:
-  {
-    if (parameters_count != 3)
-      break;
-    byte data[3];
-    Wire.readBytes(data, 3);
-    LEDC.setColorB(data);
-  }
-  break;
-  case BALANCE_CMDLED_SET_TYPE:
+  case BALANCE_CMD_SET_LED_TYPE:
   {
     if (parameters_count != 1)
       break;
     byte data;
     data = Wire.read();
     LEDC.setType(data);
-  }
-  case BALANCE_CMDLED_SET_TIME:
-  {
-    byte s = sizeof(unsigned int);
-    if (parameters_count != s)
-      break;
-    byte data[s];
-    Wire.readBytes(data, s);
-    LEDC.setPeriod((unsigned int)data);
   }
   break;
   }
@@ -88,20 +49,20 @@ void request()
 {
   switch (i2c_command)
   {
-  case BALANCE_CMDBALANCE_HAS_NEW_DATA:
+  case BALANCE_CMD_HAS_NEW_DATA:
   {
     Wire.write(new_data);
     new_data = false;
   }
   break;
-  case BALANCE_CMDBALANCE_GET_DATA_RAW:
+  case BALANCE_CMD_GET_DATA_RAW:
   {
     WireProtocol::sendFloat(raw_value);
   }
   break;
-  case BALANCE_CMDBALANCE_GET_DATA:
+  case BALANCE_CMD_GET_DATA:
   {
-   WireProtocol::sendFloat(filtered_value);
+    WireProtocol::sendFloat(filtered_value);
   }
   break;
   //no register set or unknown register
@@ -116,10 +77,8 @@ void request()
   }
 }
 
-
 void recieved(int count)
 {
-  Serial.println(count);
   //continue only if command byte was set
   if (count < 1)
   {
@@ -150,18 +109,11 @@ void setup()
   Wire.onRequest(request);
   //start the LED Controller
   LEDC.begin();
-  LEDC.setColorA({255, 0, 0});
-  LEDC.setColorB({0, 255, 0});
-  LEDC.setPeriod(1000);
   LEDC.setType(BALANCE_LED_TYPE_BLINK);
 }
 unsigned long last_millis;
 void loop()
 {
-  if(millis() > last_millis+100){
-    last_millis = millis();
-    Serial.println(millis());
-  }
   //get data from HX711 if it has new
   if (balance.is_ready())
   {

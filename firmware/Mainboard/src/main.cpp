@@ -238,6 +238,21 @@ void addCommands(){
 			return true;
 		}
 	);
+	protocol.addSetCommand(
+		"SetPlatformLED",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a >= 0 && a < 10)
+				{
+					state_m.start_setBalanceLED(a);
+					return true;
+				}
+			}
+			return false;
+		}
+	);
 }
 
 void setup()

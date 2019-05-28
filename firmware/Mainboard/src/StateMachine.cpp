@@ -179,6 +179,10 @@ void StateMachine::update()
 			//stop stirring
 		}
 		break;
+	case BarBotStatus_t::SetBalanceLED:
+		balance->setLEDType(balance_LED_type);
+		set_status(BarBotStatus_t::Idle);
+		break;
 	}
 	//leds->update();
 }
@@ -192,11 +196,10 @@ bool StateMachine::update_balance()
 		//check if balance has new data
 		if (balance->readData())
 		{
-			balance_last_data_millis = millis();
-			return true;
 			//balance class saves the data so no need to copy it here
-
-			//Serial.println(balance->getWeight());
+			balance_last_data_millis = millis();
+			Serial.println(balance->getWeight());
+			return true;
 		}
 	}
 	return false;
@@ -283,6 +286,13 @@ void StateMachine::start_moveto(long position_in_mm)
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::MoveToPos);
 }
+
+void StateMachine::start_setBalanceLED(byte type){
+	balance_LED_type = type;
+	//status has to be set last to avoid multi core problems
+	set_status(BarBotStatus_t::SetBalanceLED);
+}
+
 ///endregion: actions ///
 
 ///region: setters ///

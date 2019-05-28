@@ -18,6 +18,7 @@ enum BarBotStatus_t
 	MoveToStir,
 	MoveToPos,
 	Delay,
+	SetBalanceLED,
 	Error,
 	ErrorIngredientEmpty,
 	ErrorCommunicationToBalance
@@ -50,6 +51,7 @@ public:
 	void start_stir(long duration);
 	void start_moveto(long position_in_mm);
 	void start_delay(long duration);
+	void start_setBalanceLED(byte type);
 
 	void set_max_speed(float speed);
 	void set_max_accel(float accel);
@@ -69,6 +71,7 @@ private:
 	float get_current_ingredient_position_in_mm();
 	void set_target_position(long pos_in_mm);
 	long mm_to_steps(float mm);
+	byte balance_LED_type;
 	int current_microstep;
 	bool startup;
 	BalanceBoard *balance;

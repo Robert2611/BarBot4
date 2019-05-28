@@ -1,31 +1,23 @@
 #include "LEDController.h"
 
-const RGB_t LEDController::Black = {0, 0, 0};
-const RGB_t LEDController::White = {255, 255, 255};
-
-LEDController::LEDController(int pin_r_, int pin_g_, int pin_b_)
+LEDController::LEDController(int data_pin_)
 {
-	pin_r = pin_r_;
-	pin_g = pin_g_;
-	pin_b = pin_b_;
+	data_pin = data_pin_;
+	//initialize with all LEDs off
 	type = BALANCE_LED_TYPE_OFF;
 	period = 1000;
 }
 
 void LEDController::begin()
 {
-	pinMode(pin_r, OUTPUT);
-	pinMode(pin_g, OUTPUT);
-	pinMode(pin_b, OUTPUT);
+	stripe = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(BALANCE_LED_PIXEL_COUNT, data_pin);
 	type = BALANCE_LED_TYPE_OFF;
 }
 
-void LEDController::setColor(RGB_t new_color)
+void LEDController::setColor(RgbColor new_color)
 {
-	analogWrite(pin_r, new_color.r);
-	analogWrite(pin_g, new_color.g);
-	analogWrite(pin_b, new_color.b);
-	current_color = new_color;
+	stripe->ClearTo(new_color);
+	stripe->Show();
 }
 
 void LEDController::update(bool force)
@@ -39,7 +31,7 @@ void LEDController::update(bool force)
 	{
 		if (force)
 		{
-			setColor(color_A);
+			setColor({255, 0, 0});
 		}
 	}
 	break;
@@ -47,7 +39,7 @@ void LEDController::update(bool force)
 	case BALANCE_LED_TYPE_OFF:
 	{
 		if (force)
-			setColor(Black);
+			setColor({0, 0, 0});
 	}
 	break;
 
@@ -55,11 +47,12 @@ void LEDController::update(bool force)
 	{
 		if (temp_millis >= last_change + (period / 2) || force)
 		{
-			if (even)
-				setColor(color_A);
+			//blink green
+			if (frame == 1)
+				setColor({0, 255, 0});
 			else
-				setColor(color_B);
-			even = !even;
+				setColor({0, 0, 0});
+			frame = frame ? 0 : 1;
 			last_change = temp_millis;
 		}
 	}
@@ -67,9 +60,24 @@ void LEDController::update(bool force)
 
 	case BALANCE_LED_TYPE_FADE:
 	{
-		if (force)
-			fade_start = temp_millis;
-		RGB_t new_color;
+
+		if (force || temp_millis > frame_start_millis + 100)
+		{
+			if (!force)
+				frame++;
+			if (frame >= 3)
+				frame = 0;
+			frame_start_millis = temp_millis;
+			for (int i = 0; i < BALANCE_LED_PIXEL_COUNT; i++)
+			{
+				RgbColor color = {0, 0, 0};
+				if ((i + frame) % 3 == 0)
+					color = {0, 0, 255};
+				stripe->SetPixelColor(i, color);
+			}
+			stripe->Show();
+		}
+		/* 		RGB_t new_color;
 		while (temp_millis > fade_start + (period / 2))
 		{
 			//invert direction
@@ -80,13 +88,13 @@ void LEDController::update(bool force)
 			new_color = getFadedColor(color_A, color_B, (float)(temp_millis - fade_start) / (period / 2));
 		else
 			new_color = getFadedColor(color_B, color_A, (float)(temp_millis - fade_start) / (period / 2));
-		setColor(new_color);
+		setColor(new_color); */
 	}
 	break;
 	}
 }
 
-RGB_t LEDController::getFadedColor(RGB_t from, RGB_t to, float relative)
+/* RGB_t LEDController::getFadedColor(RGB_t from, RGB_t to, float relative)
 {
 	if (relative < 0)
 		relative = 0;
@@ -96,41 +104,12 @@ RGB_t LEDController::getFadedColor(RGB_t from, RGB_t to, float relative)
 		(byte)(from.r + (to.r - from.r) * relative),
 		(byte)(from.g + (to.g - from.g) * relative),
 		(byte)(from.b + (to.b - from.b) * relative)};
-}
-
-RGB_t LEDController::getCurrentColor()
-{
-	return current_color;
-}
-
-void LEDController::setColorA(RGB_t new_color)
-{
-	color_A = new_color;
-}
-void LEDController::setColorA(byte *raw_color)
-{
-	RGB_t newColor;
-	memcpy(&newColor, raw_color, 3);
-	setColorA(newColor);
-}
-void LEDController::setColorB(RGB_t new_color)
-{
-	color_B = new_color;
-}
-void LEDController::setColorB(byte *raw_color)
-{
-	RGB_t newColor;
-	memcpy(&newColor, raw_color, 3);
-	setColorB(newColor);
-}
+} */
 
 void LEDController::setType(byte new_type)
 {
 	type = new_type;
+	frame = 0;
+	//update calling with force attribute
 	update(true);
-}
-
-void LEDController::setPeriod(unsigned int new_period)
-{
-	period = new_period;
 }
