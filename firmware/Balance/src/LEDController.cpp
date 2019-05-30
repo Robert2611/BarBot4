@@ -3,21 +3,15 @@
 LEDController::LEDController(int data_pin_)
 {
 	data_pin = data_pin_;
-	//initialize with all LEDs off
+	//initialize as off state
 	type = BALANCE_LED_TYPE_OFF;
-	period = 1000;
 }
 
 void LEDController::begin()
 {
 	stripe = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(BALANCE_LED_PIXEL_COUNT, data_pin);
-	type = BALANCE_LED_TYPE_OFF;
-}
-
-void LEDController::setColor(RgbColor new_color)
-{
-	stripe->ClearTo(new_color);
-	stripe->Show();
+	//force writing the state
+	setType(BALANCE_LED_TYPE_OFF);
 }
 
 void LEDController::update(bool force)
@@ -31,7 +25,8 @@ void LEDController::update(bool force)
 	{
 		if (force)
 		{
-			setColor({255, 0, 0});
+			stripe->ClearTo({255, 0, 0});
+			stripe->Show();
 		}
 	}
 	break;
@@ -39,28 +34,32 @@ void LEDController::update(bool force)
 	case BALANCE_LED_TYPE_OFF:
 	{
 		if (force)
-			setColor({0, 0, 0});
+		{
+			stripe->ClearTo({0, 0, 0});
+			stripe->Show();
+		}
 	}
 	break;
 
 	case BALANCE_LED_TYPE_BLINK:
 	{
-		if (temp_millis >= last_change + (period / 2) || force)
+		if (force || temp_millis >= last_change + 1000)
 		{
 			//blink green
 			if (frame == 1)
-				setColor({0, 255, 0});
+				stripe->ClearTo({255, 0, 0});
 			else
-				setColor({0, 0, 0});
-			frame = frame ? 0 : 1;
+				stripe->ClearTo({0, 0, 0});
+
+			stripe->Show();
+			frame = !frame;
 			last_change = temp_millis;
 		}
 	}
 	break;
 
-	case BALANCE_LED_TYPE_FADE:
+	case BALANCE_LED_TYPE_ROTATE:
 	{
-
 		if (force || temp_millis > frame_start_millis + 100)
 		{
 			if (!force)
@@ -71,45 +70,63 @@ void LEDController::update(bool force)
 			for (int i = 0; i < BALANCE_LED_PIXEL_COUNT; i++)
 			{
 				RgbColor color = {0, 0, 0};
-				if ((i + frame) % 3 == 0)
-					color = {0, 0, 255};
+				if ((i - frame) % 3 == 0)
+					color = {0, 255, 0};
 				stripe->SetPixelColor(i, color);
 			}
 			stripe->Show();
 		}
-		/* 		RGB_t new_color;
-		while (temp_millis > fade_start + (period / 2))
+	}
+	break;
+
+	case BALANCE_LED_TYPE_PULSING:
+	{
+		if (force || temp_millis > frame_start_millis + 50)
 		{
-			//invert direction
-			fade_start += (period / 2);
-			even = !even;
+			if (!force)
+				frame++;
+			if (frame >= 50)
+				frame = 0;
+			frame_start_millis = temp_millis;
+			byte brightness = 255 * (2 * frame / 50.0 - 1) * (2 * frame / 50.0 - 1);
+			RgbColor color = {0, brightness, 0};
+			stripe->ClearTo(color);
+			stripe->Show();
 		}
-		if (even)
-			new_color = getFadedColor(color_A, color_B, (float)(temp_millis - fade_start) / (period / 2));
-		else
-			new_color = getFadedColor(color_B, color_A, (float)(temp_millis - fade_start) / (period / 2));
-		setColor(new_color); */
+	}
+	break;
+
+	case BALANCE_LED_TYPE_CHASE:
+	{
+		if (force || temp_millis > frame_start_millis + 50)
+		{
+			int half = BALANCE_LED_PIXEL_COUNT / 2;
+			if (!force)
+				frame++;
+			if (frame >= half)
+				frame = 0;
+			float pos = frame;
+			frame_start_millis = temp_millis;
+			for (int i = 0; i < BALANCE_LED_PIXEL_COUNT; i++)
+			{
+				int dist = abs(i % half - pos);
+				if (dist > (half - 1) / 2)
+					dist = half - dist;
+				float brightness = max(1 - dist / 6.0, 0);
+				RgbColor color = {0, (byte)(255 * brightness * brightness), 0};
+				stripe->SetPixelColor(i, color);
+			}
+			stripe->Show();
+		}
 	}
 	break;
 	}
 }
 
-/* RGB_t LEDController::getFadedColor(RGB_t from, RGB_t to, float relative)
-{
-	if (relative < 0)
-		relative = 0;
-	else if (relative > 1)
-		relative = 1;
-	return {
-		(byte)(from.r + (to.r - from.r) * relative),
-		(byte)(from.g + (to.g - from.g) * relative),
-		(byte)(from.b + (to.b - from.b) * relative)};
-} */
-
 void LEDController::setType(byte new_type)
 {
-	type = new_type;
 	frame = 0;
+	type = new_type;
 	//update calling with force attribute
 	update(true);
 }

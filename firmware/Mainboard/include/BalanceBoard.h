@@ -9,7 +9,7 @@ class BalanceBoard
     BalanceBoard();
     //LED wrappers
     void LEDOff();
-    void setLEDType(byte type);
+    bool setLEDType(byte type);
     //balance data wrappers
     void setCalibration(float calibration);
     void setOffset(float offset);

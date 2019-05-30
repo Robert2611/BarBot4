@@ -109,7 +109,6 @@ void setup()
   Wire.onRequest(request);
   //start the LED Controller
   LEDC.begin();
-  LEDC.setType(BALANCE_LED_TYPE_BLINK);
 }
 unsigned long last_millis;
 void loop()

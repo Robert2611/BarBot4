@@ -23,7 +23,7 @@ BalanceBoard balance;
 StateMachine state_m(&balance);
 
 Protocol protocol(&SerialBT);
-LEDAnimator LEDContr;
+LEDController LEDContr;
 
 void DoBluetoothTask(void *parameters)
 {
@@ -32,6 +32,8 @@ void DoBluetoothTask(void *parameters)
 		//only listen to commands when startup is done
 		if (state_m.is_started())
 			protocol.update();
+		else
+			Serial.println("Starting");
 		delay(10);
 	}
 }
@@ -40,13 +42,14 @@ void DoLEDTask(void *parameters)
 {
 	for (;;)
 	{
+		LEDContr.setPosition((state_m.position_in_mm() + HOME_DISTANCE) / 1000 * PIXEL_COUNT);
 		LEDContr.update();
-		delay(100);
+		delay(10);
 	}
 }
 
-
-void addCommands(){
+void addCommands()
+{
 	//test command that just returns done after a defined time
 	protocol.addDoCommand(
 		"Delay",
@@ -67,8 +70,7 @@ void addCommands(){
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		}
-	);
+		});
 	protocol.addDoCommand(
 		"Draft",
 		[](int param_c, char **param_v, long *result) {
@@ -96,8 +98,7 @@ void addCommands(){
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		}
-	);
+		});
 	protocol.addDoCommand(
 		"Pump",
 		[](int param_c, char **param_v, long *result) {
@@ -118,8 +119,7 @@ void addCommands(){
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		}
-	);
+		});
 	protocol.addDoCommand(
 		"Home",
 		[](int param_c, char **param_v, long *result) {
@@ -135,8 +135,7 @@ void addCommands(){
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		}
-	);
+		});
 	protocol.addDoCommand(
 		"Move",
 		[](int param_c, char **param_v, long *result) {
@@ -162,8 +161,28 @@ void addCommands(){
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		}
-	);
+		});
+	//PlatformLED needs to be sent via I2C, so it is done in the main lool so it has to be a Do command
+	protocol.addDoCommand(
+		"PlatformLED",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a >= 0 && a < 10)
+				{
+					state_m.start_setBalanceLED(a);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
 	protocol.addSetCommand(
 		"SetSpeed",
 		[](int param_c, char **param_v, long *result) {
@@ -177,8 +196,7 @@ void addCommands(){
 				}
 			}
 			return false;
-		}
-	);
+		});
 	protocol.addSetCommand(
 		"SetBalanceCalibration",
 		[](int param_c, char **param_v, long *result) {
@@ -192,8 +210,7 @@ void addCommands(){
 				}
 			}
 			return false;
-		}
-	);
+		});
 	protocol.addSetCommand(
 		"SetBalanceOffset",
 		[](int param_c, char **param_v, long *result) {
@@ -207,8 +224,7 @@ void addCommands(){
 				}
 			}
 			return false;
-		}
-	);
+		});
 	protocol.addSetCommand(
 		"SetAccel",
 		[](int param_c, char **param_v, long *result) {
@@ -222,37 +238,33 @@ void addCommands(){
 				}
 			}
 			return false;
-		}
-	);
+		});
+	protocol.addSetCommand(
+		"SetLED",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a > 0 && a < 10)
+				{
+					LEDContr.setType(a);
+					return true;
+				}
+			}
+			return false;
+		});
 	protocol.addGetCommand(
 		"GetWeight",
 		[](int param_c, char **param_v, long *result) {
 			(*result) = balance.getWeight();
 			return true;
-		}
-	);
+		});
 	protocol.addGetCommand(
 		"HasGlas",
 		[](int param_c, char **param_v, long *result) {
 			(*result) = balance.getWeight() > GLASS_WEIGHT_MIN;
 			return true;
-		}
-	);
-	protocol.addSetCommand(
-		"SetPlatformLED",
-		[](int param_c, char **param_v, long *result) {
-			if (param_c == 1)
-			{
-				long a = atoi(param_v[0]);
-				if (a >= 0 && a < 10)
-				{
-					state_m.start_setBalanceLED(a);
-					return true;
-				}
-			}
-			return false;
-		}
-	);
+		});
 }
 
 void setup()
@@ -289,7 +301,7 @@ void setup()
 	balance.setOffset(BALANCE_OFFSET);
 
 	addCommands();
-	
+
 	Wire.begin();
 	//disable pullups for i2c
 	digitalWrite(SCL, LOW);

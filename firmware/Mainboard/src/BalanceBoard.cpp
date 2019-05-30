@@ -7,9 +7,9 @@ BalanceBoard::BalanceBoard()
 	offset = 0;
 }
 
-void BalanceBoard::setLEDType(byte type)
+bool BalanceBoard::setLEDType(byte type)
 {
-	WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMD_SET_LED_TYPE, &type, 1);
+	return WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMD_SET_LED_TYPE, &type, 1);
 }
 
 

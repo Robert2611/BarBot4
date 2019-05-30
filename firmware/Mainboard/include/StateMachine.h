@@ -21,7 +21,8 @@ enum BarBotStatus_t
 	SetBalanceLED,
 	Error,
 	ErrorIngredientEmpty,
-	ErrorCommunicationToBalance
+	ErrorCommunicationToBalance,
+	ErrorI2C
 };
 
 extern "C"
@@ -40,7 +41,6 @@ public:
 
 	BarBotStatusChangedHandler onStatusChanged;
 	AccelStepper *stepper;
-	LEDAnimator *leds;
 
 	float position_in_mm();
 	void update();

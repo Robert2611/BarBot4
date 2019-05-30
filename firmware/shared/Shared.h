@@ -13,7 +13,9 @@
 #define BALANCE_LED_TYPE_OFF 0
 #define BALANCE_LED_TYPE_CONTINOUS 1
 #define BALANCE_LED_TYPE_BLINK 2
-#define BALANCE_LED_TYPE_FADE 3
+#define BALANCE_LED_TYPE_ROTATE 3
+#define BALANCE_LED_TYPE_PULSING 4
+#define BALANCE_LED_TYPE_CHASE 5
 
 // fastled also declares a RGB type
 typedef struct

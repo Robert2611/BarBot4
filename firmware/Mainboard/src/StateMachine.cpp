@@ -10,7 +10,6 @@ StateMachine::StateMachine(BalanceBoard *_balance)
 	stepper = new AccelStepper(AccelStepper::DRIVER, PIN_PLATFORM_MOTOR_STEP, PIN_PLATFORM_MOTOR_DIR);
 	//invert dir pin
 	stepper->setPinsInverted(true);
-	//leds = new LEDController(LED_R, LED_G, LED_B);
 	set_max_speed(100);
 	set_max_accel(20);
 }
@@ -33,7 +32,6 @@ void StateMachine::begin()
 
 	stop_pumps();
 
-	//leds->begin();
 	//TODO: Make sure stirring device is out of the way
 	start_homing();
 }
@@ -49,6 +47,7 @@ void StateMachine::update()
 	case BarBotStatus_t::Error:
 	case BarBotStatus_t::ErrorIngredientEmpty:
 	case BarBotStatus_t::ErrorCommunicationToBalance:
+	case BarBotStatus_t::ErrorI2C:
 		//nothing to do here
 		break;
 
@@ -122,7 +121,7 @@ void StateMachine::update()
 	case BarBotStatus_t::Drafting:
 		if (update_balance())
 		{
-			Serial.println(get_last_draft_remaining_weight());
+			//Serial.println(get_last_draft_remaining_weight());
 			if (balance->getWeight() > target_draft_weight)
 			{
 				//success
@@ -139,7 +138,6 @@ void StateMachine::update()
 		//check for timeout
 		else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS)
 		{
-			Serial.println("Check");
 			if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT)
 			{
 				//error
@@ -180,11 +178,13 @@ void StateMachine::update()
 		}
 		break;
 	case BarBotStatus_t::SetBalanceLED:
-		balance->setLEDType(balance_LED_type);
-		set_status(BarBotStatus_t::Idle);
+		if(balance->setLEDType(balance_LED_type))
+			set_status(BarBotStatus_t::Idle);
+		else 
+			set_status(BarBotStatus_t::ErrorI2C);
+		
 		break;
 	}
-	//leds->update();
 }
 
 bool StateMachine::update_balance()
@@ -198,7 +198,7 @@ bool StateMachine::update_balance()
 		{
 			//balance class saves the data so no need to copy it here
 			balance_last_data_millis = millis();
-			Serial.println(balance->getWeight());
+			//Serial.println(balance->getWeight());
 			return true;
 		}
 	}
