@@ -78,7 +78,7 @@ function update_system_buttons(container) {
 	container.find(".shutdown_raspberry").click(function () {
 		system_do({ 'action': 'shutdown' });
 	});
-	container.find(".restart_gui").click(function(){
+	container.find(".restart_gui").click(function () {
 		location.reload();
 	});
 }
@@ -94,25 +94,34 @@ function updater() {
 			}
 			if (data.status == "connecting") {
 				show_overlayer_from_template("t_status_connecting");
+			} else if(data.message == "ingredient_empty"){
+				var e_message_empty = clone_from_template("t_message_ingredient_empty");
+				e_message_empty.find(".result_ok").click(function(){
+					get_bar_bot_data({ 'action': 'user_input', 'user_input' : true });
+				});
+				e_message_empty.find(".result_cancel").click(function(){
+					get_bar_bot_data({ 'action': 'user_input', 'user_input' : false });
+				});
+				show_overlayer(e_message_empty);
 			} else if (data.status == "startup") {
 				show_overlayer_from_template("t_status_startup");
 			} else if (data.status == "cleaning") {
 				show_overlayer_from_template("t_status_cleaning");
-			} else if (data.status == "mixing") {				
+			} else if (data.status == "mixing") {
 				if (data.message == "place_glas") {
 					show_overlayer_from_template("t_message_place_glas");
-				} else if(data.message == "mixing_done_remove_glas"){
-					var e_message_done = clone_from_template("t_message_mixing_done_remove_glas");			
-					if(data.instruction == undefined){
+				} else if (data.message == "mixing_done_remove_glas") {
+					var e_message_done = clone_from_template("t_message_mixing_done_remove_glas");
+					if (data.instruction == undefined) {
 						e_message_done.find(".instruction_wrapper").hide();
-					}else{
+					} else {
 						e_message_done.find(".instruction").html(data.instruction);
 					}
 					show_overlayer(e_message_done);
-				} else {
+				}else {
 					var e_status_mixing = clone_from_template("t_status_mixing");
 					var percent = Math.round(data.progress * 100);
-					e_status_mixing.find(".mixprogress_bar").width(percent + "%");					
+					e_status_mixing.find(".mixprogress_bar").width(percent + "%");
 					e_status_mixing.find(".percentage").html(percent);
 					show_overlayer(e_status_mixing);
 				}
@@ -138,11 +147,11 @@ function updater() {
 		});
 }
 
-function show_overlayer_from_template(template_name){
+function show_overlayer_from_template(template_name) {
 	var e_content = clone_from_template(template_name);
 	update_system_buttons(e_content);
 	show_overlayer(e_content);
-} 
+}
 function show_overlayer(content) {
 	$("#overlayer_content").html(content);
 	$("#overlayer").show();

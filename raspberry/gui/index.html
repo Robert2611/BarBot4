@@ -98,9 +98,9 @@
 	<!--PAGE ADMIN-->
 	<template id="t_admin_clean">
 		<h2>Admin - Reinigung</h2>
-		<a class="button clean_cycle_left">Linke Hälfte</a>
+		<div class="button clean_cycle_left">Linke Hälfte</a>
 		<br />
-		<a class="button clean_cycle_right">Rechte Hälfte</a>
+		<div class="button clean_cycle_right">Rechte Hälfte</a>
 		<br />
 		<p>Einzelne Ports reinigen.<br /><b>Achtung!</b><br />Pumpe wird direkt aktiviert, das Glas fährt nicht zur
 			Position.</p>
@@ -266,6 +266,11 @@
 	</template>
 	<template id="t_message_place_glas">
 		<p>Bitte ein Glas auf die Plattform stellen.</p>
+	</template>
+	<template id="t_message_ingredient_empty">
+		<p>Die Zutat ist leer.<br/>Bitte neue Flasche anschließen.</p>
+		<div class="button onwhite result_ok">Erneut versuchen</div>
+		<div class="button onwhite result_cancel">Cocktail abbrechen</div>
 	</template>
 	<template id="t_message_remove_glas">
 		<p>Bitte ein Glas auf die Plattform stellen.</p>

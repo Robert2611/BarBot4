@@ -4,10 +4,12 @@ import logging
 import serial
 import sys
 
-MessageTypes = Enum("MessageTypes", 'ACK NAK DONE ERROR STATUS COMM_ERROR TIMEOUT')
+MessageTypes = Enum(
+    "MessageTypes", 'ACK NAK DONE ERROR STATUS COMM_ERROR TIMEOUT')
+
 
 class ProtocolMessage():
-    def __init__(self, type, command, parameters = None):
+    def __init__(self, type, command, parameters=None):
         self.type = type
         self.command = command
         self.parameters = parameters
@@ -26,7 +28,8 @@ class Protocol():
         if self.ser != None and self.ser.isOpen():
             self.ser.close()
         try:
-            self.ser = serial.Serial(self.devicename, self.baud, timeout=self.timeout)
+            self.ser = serial.Serial(
+                self.devicename, self.baud, timeout=self.timeout)
             # wait for Arduino to initialize
             time.sleep(1)
         except Exception:
@@ -38,16 +41,16 @@ class Protocol():
         self.isConnected = True
         return True
 
-    def Do(self, command, parameter1, parameter2 = None, timeout=60):
-        #clear the input
+    def Do(self, command, parameter1, parameter2=None):
+        # clear the input
         while self.HasData():
             self.ReadMessage()
-        #send the command
+        # send the command
         if parameter2 != None:
             self.SendCommand(command, [parameter1, parameter2])
         else:
-             self.SendCommand(command, [parameter1])
-        #wait for the response  
+            self.SendCommand(command, [parameter1])
+        # wait for the response
         message = self.ReadMessage()
         if message.command != command:
             self.error = "answer for wrong command"
@@ -64,24 +67,24 @@ class Protocol():
                 self.error = "answer for wrong command"
                 return False
             if message.type == MessageTypes.STATUS:
-                #it is still running, all good
+                # it is still running, all good
                 continue
             elif message.type == MessageTypes.DONE:
                 return True
             elif message.type == MessageTypes.ERROR:
-                #return the error parameters
+                # return the error parameters
                 return message.parameters
             else:
                 self.error = "wrong answer"
                 return False
 
-    def Set(self, command, parameter = None):
-        #clear the input
+    def Set(self, command, parameter=None):
+        # clear the input
         while self.HasData():
             self.ReadMessage()
-        #send the command
+        # send the command
         self.SendCommand(command, [parameter])
-        #wait for the response            
+        # wait for the response
         message = self.ReadMessage()
         if message.command != command:
             self.error = "answer for wrong command"
@@ -93,13 +96,13 @@ class Protocol():
             self.error = "wrong answer"
             return False
 
-    def Get(self, command, parameters = None):
-        #clear the input
+    def Get(self, command, parameters=None):
+        # clear the input
         while self.HasData():
             self.ReadMessage()
-        #send the command
+        # send the command
         self.SendCommand(command, parameters)
-        #wait for the response  
+        # wait for the response
         message = self.ReadMessage()
         if message.command != command:
             self.error = "answer for wrong command"
@@ -114,7 +117,6 @@ class Protocol():
             self.error = "NAK received"
             return False
 
-
     def ReadMessage(self):
         if self.ser == None or not self.ser.isOpen():
             self.isConnected = False
@@ -126,6 +128,8 @@ class Protocol():
                 if c == b'\n':
                     break
                 elif c == b'':
+                    print("EOS")
+                    self.isConnected = False
                     return ProtocolMessage(MessageTypes.COMM_ERROR, "end of string")
                 else:
                     b_line += c
@@ -134,8 +138,8 @@ class Protocol():
             line = line.replace("\r", "")
             print("<" + line)
             tokens = line.split()
-            #expected format: <Type> <Command> [Parameter1] [Parameter2] ...
-            #find message type
+            # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
+            # find message type
             for type in MessageTypes:
                 if type.name == tokens[0]:
                     if len(tokens) < 2:
@@ -146,6 +150,7 @@ class Protocol():
                         return ProtocolMessage(type, tokens[1], tokens[2:])
             return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
         except Exception as e:
+            self.isConnected = False
             print(e)
             return ProtocolMessage(MessageTypes.COMM_ERROR, e)
 
@@ -161,13 +166,13 @@ class Protocol():
 
     def Close(self):
         self.ser.close()
-    
+
     def HasData(self):
         return self.ser.in_waiting > 0
-    
+
     def Update(self):
         if self.ser == None or not self.ser.isOpen():
             self.isConnected = False
             return False
-        self.ReadMessage()
+        result = self.ReadMessage()
         return self.HasData()

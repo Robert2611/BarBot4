@@ -150,7 +150,7 @@ def OnRequest(action, request_data):
         item = port_cal
         item["amount"] = amount
         bot.startSingleIngredient(item)
-        result.update({"error": "single_ingredient_started"})
+        result.update({"message": "single_ingredient_started"})
         return result
 
     elif action == "admin":
@@ -249,9 +249,13 @@ def OnRequest(action, request_data):
         result["cocktail_count"] = db.getOrderedCocktailCount(date)
         result["ingredients_amount"] = db.getOrderedIngredientsAmount(date)
         result["cocktails_by_time"] = db.getOrderedCocktailsByTime(date)
-        result["total_amount"] = sum([ia["liters"]
-                                      for ia in result["ingredients_amount"]])
+        result["total_amount"] = sum([ia["liters"] for ia in result["ingredients_amount"]])
         result["date"] = date
+        return result
+    
+    elif action == "user_input":
+        user_input = getParameter(request_data, "user_input")
+        bot.user_input = user_input == "true"       
         return result
 
 
