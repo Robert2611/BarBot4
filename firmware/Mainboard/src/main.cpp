@@ -162,7 +162,7 @@ void addCommands()
 			else
 				return CommandStatus_t::Running;
 		});
-	//PlatformLED needs to be sent via I2C, so it is done in the main lool so it has to be a Do command
+	//PlatformLED needs to be sent via I2C, so it is done in the main loop so it has to be a Do command
 	protocol.addDoCommand(
 		"PlatformLED",
 		[](int param_c, char **param_v, long *result) {
@@ -180,8 +180,13 @@ void addCommands()
 		[](int *error_code, long *parameter) {
 			if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
-			else
+			else if (state_m.status == BarBotStatus_t::SetBalanceLED)
 				return CommandStatus_t::Running;
+			else
+			{
+				(*error_code) = state_m.status;
+				return CommandStatus_t::Error;
+			}
 		});
 	protocol.addSetCommand(
 		"SetSpeed",
@@ -245,7 +250,7 @@ void addCommands()
 			if (param_c == 1)
 			{
 				long a = atoi(param_v[0]);
-				if (a > 0 && a < 10)
+				if (a >= 0 && a < 10)
 				{
 					LEDContr.setType(a);
 					return true;

@@ -177,12 +177,12 @@ void StateMachine::update()
 			//stop stirring
 		}
 		break;
+		
 	case BarBotStatus_t::SetBalanceLED:
 		if(balance->setLEDType(balance_LED_type))
 			set_status(BarBotStatus_t::Idle);
 		else 
-			set_status(BarBotStatus_t::ErrorI2C);
-		
+			set_status(BarBotStatus_t::ErrorI2C);		
 		break;
 	}
 }

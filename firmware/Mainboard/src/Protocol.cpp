@@ -68,9 +68,7 @@ void Protocol::update()
     }
 
     if (millis() > last_send_millis + LINK_TIME)
-    {
         sendLink();
-    }
 }
 
 void Protocol::process()
