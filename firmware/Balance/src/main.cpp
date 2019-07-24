@@ -11,8 +11,9 @@
 #define BALANCE_PIN_CLOCK A3
 #define BALANCE_GAIN 128
 #define LED_DATA_PIN A0
+#define LED_PIN 0
 
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 
 //used for butterorth filter
 #define FILTER_CUTOFF_FREQUENCY 5 //Hz
@@ -28,44 +29,38 @@ bool new_data = false;
 byte i2c_command = 0xFF;
 float raw_value, filtered_value;
 
-void commandRecieved(int parameters_count)
+void handleSetters(int parameters_count)
 {
-
   switch (i2c_command)
   {
   case BALANCE_CMD_SET_LED_TYPE:
-  {
     if (parameters_count != 1)
       break;
     byte data;
     data = Wire.read();
     LEDC.setType(data);
-  }
-  break;
+    break;
   }
 }
 
-void request()
+void handleGetters()
 {
   switch (i2c_command)
   {
   case BALANCE_CMD_HAS_NEW_DATA:
-  {
     Wire.write(new_data);
     new_data = false;
-  }
-  break;
+    break;
   case BALANCE_CMD_GET_DATA_RAW:
-  {
     WireProtocol::sendFloat(raw_value);
-  }
-  break;
+    break;
   case BALANCE_CMD_GET_DATA:
-  {
+    digitalWrite(LED_PIN, HIGH);
+    delay(10);
+    digitalWrite(LED_PIN, HIGH);
     WireProtocol::sendFloat(filtered_value);
-  }
-  break;
-  //no register set or unknown register
+    break;
+  //no command byte set or unknown command
   case 0xFF:
   default:
 #ifdef SERIAL_DEBUG
@@ -81,13 +76,11 @@ void recieved(int count)
 {
   //continue only if command byte was set
   if (count < 1)
-  {
     return;
-  }
   //save the command byte
   i2c_command = Wire.read();
   //handle messages that are only setters
-  commandRecieved(count - 1);
+  handleSetters(count - 1);
 }
 
 void setup()
@@ -96,6 +89,15 @@ void setup()
   Serial.begin(115200);
   Serial.println("Serial debug enabled");
 #endif
+  pinMode(LED_PIN, OUTPUT);
+  //blink to signal ready
+  digitalWrite(LED_PIN, HIGH);
+  delay(100);
+  digitalWrite(LED_PIN, LOW);
+  delay(100);
+  digitalWrite(LED_PIN, HIGH);
+  delay(500);
+  digitalWrite(LED_PIN, LOW);
   //initialize balance
   balance.begin(BALANCE_PIN_DATA, BALANCE_PIN_CLOCK, BALANCE_GAIN);
   //initialize filter
@@ -106,11 +108,10 @@ void setup()
   digitalWrite(SCL, LOW);
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
-  Wire.onRequest(request);
+  Wire.onRequest(handleGetters);
   //start the LED Controller
   LEDC.begin();
 }
-unsigned long last_millis;
 void loop()
 {
   //get data from HX711 if it has new
