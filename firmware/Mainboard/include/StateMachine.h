@@ -5,6 +5,7 @@
 #include "LEDController.h"
 #include "Configuration.h"
 #include "BalanceBoard.h"
+#include "MixerBoard.h"
 
 enum BarBotStatus_t
 {
@@ -33,7 +34,7 @@ extern "C"
 class StateMachine
 {
 public:
-	StateMachine(BalanceBoard *_balance);
+	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer);
 	void begin();
 
 	BarBotStatus_t status;
@@ -75,6 +76,7 @@ private:
 	int current_microstep;
 	bool startup;
 	BalanceBoard *balance;
+	MixerBoard *mixer;
 
 	unsigned long balance_last_check_millis;
 	unsigned long balance_last_data_millis;
@@ -88,6 +90,5 @@ private:
 	float target_draft_weight;
 	unsigned long draft_timeout_last_check_millis;
 	float draft_timeout_last_weight;
-
 };
 #endif // ifndef BAR_BOT_H

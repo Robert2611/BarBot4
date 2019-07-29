@@ -3,12 +3,13 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-#define PIN_EN 0
-#define PIN_MOTOR_1 1
-#define PIN_MOTOR_2 2
-#define PIN_ENDSTOP_TOP 2
-#define PIN_ENDSTOP_BOTTOM 3
-#define PIN_MIXER_EN 4
+#define PIN_EN 2
+#define PIN_MOTOR_1 3
+#define PIN_MOTOR_2 4
+#define PIN_ENDSTOP_TOP 5
+#define PIN_ENDSTOP_BOTTOM 6
+#define PIN_MIXER_EN 7
+#define PIN_MIXER 8
 
 byte movingDirection;
 byte targetPosition;
@@ -19,9 +20,18 @@ byte getPosition()
 {
   bool top = !digitalRead(PIN_ENDSTOP_TOP) && !digitalRead(PIN_ENDSTOP_TOP);
   bool bottom = !digitalRead(PIN_ENDSTOP_BOTTOM) && !digitalRead(PIN_ENDSTOP_BOTTOM);
-  if ((top && bottom) || (!top && !bottom))
+  if (top && !bottom)
+    return MIXER_POSITION_TOP;
+  else if (bottom && !top)
+    return MIXER_POSITION_BOTTOM;
+  else
     return MIXER_POSITION_UNDEFINED;
-  return top ? MIXER_POSITION_TOP : MIXER_POSITION_BOTTOM;
+}
+
+void setMixer(bool mix)
+{
+  digitalWrite(PIN_MIXER, HIGH);
+  digitalWrite(PIN_MIXER_EN, mix ? HIGH : LOW);
 }
 
 void handleSetters(int parameters_count)
@@ -34,6 +44,12 @@ void handleSetters(int parameters_count)
     byte data;
     data = Wire.read();
     targetPosition = data;
+    break;
+  case MIXER_CMD_MIX_ON:
+    setMixer(true);
+    break;
+  case MIXER_CMD_MIX_OFF:
+    setMixer(false);
     break;
   }
 }
@@ -74,8 +90,9 @@ void setup()
   pinMode(PIN_MOTOR_1, OUTPUT);
   pinMode(PIN_MOTOR_2, OUTPUT);
   pinMode(PIN_ENDSTOP_TOP, INPUT_PULLUP);
-  pinMode(PIN_ENDSTOP_BOTTOM, OUTPUT);
+  pinMode(PIN_ENDSTOP_BOTTOM, INPUT_PULLUP);
   pinMode(PIN_MIXER_EN, OUTPUT);
+  pinMode(PIN_MIXER, OUTPUT);
 
   //start i2c communication
   Wire.begin(MIXER_BOARD_ADDRESS);
@@ -87,15 +104,16 @@ void setup()
 
   //disable the driver
   digitalWrite(PIN_EN, LOW);
+  digitalWrite(PIN_MIXER_EN, LOW);
 }
 
 void loop()
 {
   //do we need to move up or down?
-  if ((targetPosition == MIXER_POSITION_TOP || targetPosition == MIXER_POSITION_BOTTOM) && (getPosition() != targetPosition))
+  if (((targetPosition == MIXER_POSITION_TOP) || (targetPosition == MIXER_POSITION_BOTTOM)) && (getPosition() != targetPosition))
   {
-    digitalWrite(PIN_MOTOR_1, targetPosition == MIXER_POSITION_TOP ? HIGH : LOW);
-    digitalWrite(PIN_MOTOR_2, targetPosition == MIXER_POSITION_TOP ? LOW : HIGH);
+    digitalWrite(PIN_MOTOR_1, (targetPosition == MIXER_POSITION_TOP) ? HIGH : LOW);
+    digitalWrite(PIN_MOTOR_2, (targetPosition == MIXER_POSITION_TOP) ? LOW : HIGH);
     digitalWrite(PIN_EN, HIGH);
   }
   else

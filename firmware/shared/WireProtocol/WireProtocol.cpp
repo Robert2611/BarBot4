@@ -2,7 +2,7 @@
 
 uint8_t WireProtocol::sendFloat(float data)
 {
-    Wire.write((uint8_t *)&data, sizeof(data));
+    return Wire.write((uint8_t *)&data, sizeof(data));
 }
 
 uint8_t WireProtocol::sendCommand(uint8_t address, uint8_t command, uint8_t *data, uint8_t data_length)
@@ -11,6 +11,14 @@ uint8_t WireProtocol::sendCommand(uint8_t address, uint8_t command, uint8_t *dat
     Wire.write(command);
     for (uint8_t i = 0; i < data_length; i++)
         Wire.write(data[i]);
+    return Wire.endTransmission();
+}
+
+uint8_t WireProtocol::sendCommand(uint8_t address, uint8_t command, uint8_t data)
+{
+    Wire.beginTransmission(address);
+    Wire.write(command);
+    Wire.write(data);
     return Wire.endTransmission();
 }
 
@@ -28,7 +36,21 @@ bool WireProtocol::getBool(uint8_t address, uint8_t command, bool *result)
     return false;
 }
 
-float WireProtocol::getFloat(uint8_t address, uint8_t command, float *result)
+bool WireProtocol::getByte(uint8_t address, uint8_t command, uint8_t *result)
+{
+    uint8_t cmd_result = sendCommand(address, command);
+    if (cmd_result == 0)
+    {
+        uint8_t returned = Wire.requestFrom(address, (uint8_t)1);
+        if (returned != 1)
+            return false;
+        *result = Wire.read();
+        return true;
+    }
+    return false;
+}
+
+bool WireProtocol::getFloat(uint8_t address, uint8_t command, float *result)
 {
     sendCommand(address, command);
     uint8_t returned = Wire.requestFrom(address, sizeof(float));

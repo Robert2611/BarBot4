@@ -1,8 +1,9 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer)
 {
 	this->balance = _balance;
+	this->mixer = _mixer;
 	startup = true;
 	status = BarBotStatus_t::Idle;
 	current_action_start_millis = 0;
@@ -32,7 +33,11 @@ void StateMachine::begin()
 
 	stop_pumps();
 
-	//TODO: Make sure stirring device is out of the way
+	//Make sure stirring device is out of the way
+	mixer->StartMoveTop();
+	while (!mixer->IsAtTop())
+		;
+
 	start_homing();
 }
 
@@ -164,25 +169,43 @@ void StateMachine::update()
 
 	case BarBotStatus_t::MoveToStir:
 		if (stepper->currentPosition() == stepper->targetPosition())
+		{
 			//x-position is reached
-			yield();
+			if (mixer->GetTargetPosition() != MIXER_POSITION_BOTTOM)
+			{
+				mixer->StartMoveBottom();
+			}
+			else if (mixer->IsAtBottom())
+			{
+				current_action_start_millis = millis();
+				mixer->StartMixing();
+				set_status(BarBotStatus_t::Stirring);
+			}
+		}
 		else
+		{
 			stepper->run();
+		}
 		break;
 
 	case BarBotStatus_t::Stirring:
-		//draft-duration is interpreted as stirring duration
 		if (millis() > (unsigned long)(current_action_start_millis + stirring_time))
 		{
-			//stop stirring
+			if (mixer->IsMixing())
+				mixer->StopMixing();
+			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP) //stopped but movement not yet triggered
+				mixer->StartMoveTop();
+			else if (mixer->IsAtTop()) //stopped, movement triggered, top position reached
+				set_status(BarBotStatus_t::Idle);
+			//else: top position not reached yet -> do nothing
 		}
 		break;
-		
+
 	case BarBotStatus_t::SetBalanceLED:
-		if(balance->setLEDType(balance_LED_type))
+		if (balance->setLEDType(balance_LED_type))
 			set_status(BarBotStatus_t::Idle);
-		else 
-			set_status(BarBotStatus_t::ErrorI2C);		
+		else
+			set_status(BarBotStatus_t::ErrorI2C);
 		break;
 	}
 }
@@ -287,7 +310,8 @@ void StateMachine::start_moveto(long position_in_mm)
 	set_status(BarBotStatus_t::MoveToPos);
 }
 
-void StateMachine::start_setBalanceLED(byte type){
+void StateMachine::start_setBalanceLED(byte type)
+{
 	balance_LED_type = type;
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::SetBalanceLED);
