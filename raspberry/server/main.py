@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from PyQt5.QtWidgets import QMainWindow, QApplication
 import statemachine
 import database
 import server
+import BarBotMainWindow
 import os
+import qdarkstyle
 import sys
-
 import logging
 import json
 
@@ -286,16 +288,21 @@ if not is_demo:
 else:
     bot.action = "idle"
 
-server = server.server(OnRequest)
-server.start()
+#server = server.server(OnRequest)
+#server.start()
 
 print("Server started")
 if is_demo:
     print("Demo mode")
 
 try:
+    app = QApplication(sys.argv)
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+    form = BarBotMainWindow.BarBotMainWindow(db)
+    form.show()
+    app.exec_()
     if not is_demo:
         bot.join()
-    server.join()
+    #server.join()
 except KeyboardInterrupt:
     raise
