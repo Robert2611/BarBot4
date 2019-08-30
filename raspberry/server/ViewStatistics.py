@@ -1,8 +1,10 @@
 from PyQt5 import QtWidgets, Qt, QtCore
+import BarBotMainWindow
+import View
 
-class ViewStatistics(QtWidgets.QWidget):
-    def __init__(self, data):
-        super().__init__()
+class ViewStatistics(View.View):
+    def __init__(self, _mainWindow: BarBotMainWindow):
+        super().__init__(_mainWindow)
         containerLayout = QtWidgets.QVBoxLayout()
         self.setLayout(containerLayout)
         

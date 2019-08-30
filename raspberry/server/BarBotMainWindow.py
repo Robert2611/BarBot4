@@ -1,29 +1,58 @@
-from PyQt5 import QtWidgets, Qt, QtCore
-from database import database
-from ViewListRecipes import ViewListRecipes
-from ViewRecipeNewOrEdit import ViewRecipeNewOrEdit
-from ViewSingleIngredient import ViewSingleIngredient
-from ViewStatistics import ViewStatistics
+from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from Database import Database
+import Statemachine
+import os
+import ViewIdle
+import ViewMixing
 
 class BarBotMainWindow(QtWidgets.QWidget):
-
-    db:database
-
-    def __init__(self, _db:database):
+    db:Database
+    bot:Statemachine.StateMachine
+    botStateChangedTrigger = QtCore.pyqtSignal()
+    mixingProgressChangedTrigger = QtCore.pyqtSignal()
+    currentView = None
+    def __init__(self, _db:Database, _bot:Statemachine.StateMachine):
         super().__init__()
         self.db = _db
-        self.pages = {
-            "Liste" : lambda: self.showPage(ViewListRecipes(self.db.getRecipes())),
-            "Neu" : lambda: self.showPage(ViewRecipeNewOrEdit(self.db)),
-            "Nachschlag" : lambda: self.showPage(ViewSingleIngredient()),
-            "Statistik" : lambda: self.showPage(ViewStatistics(None))
-        }
-        self.setupUi()
+        self.bot = _bot
+        #forward status changed
+        self.botStateChangedTrigger.connect(self.botStateChanged)
+        self.bot.OnStateChanged = lambda: self.botStateChangedTrigger.emit()
+        #forward mixing progress changed
+        self.mixingProgressChangedTrigger.connect(self.mixingProgressChanged)
+        self.bot.OnMixingProgressChanged = lambda: self.mixingProgressChangedTrigger.emit()
+        #remove borders and title bar
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setFixedSize(480, 800)
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.header = QtWidgets.QWidget()
+        self.layout().addWidget(self.header, 0)
+        self.wholeContent = QtWidgets.QWidget()
+        self.wholeContent.setLayout(QtWidgets.QGridLayout())
+        self.layout().addWidget(self.wholeContent, 1)
+        self.fillHeader()
+        self.setView(ViewIdle.ViewIdle(self))
+        self.show()
 
-    def showPage(self, pageNameOrWidget):
-        if self.scroller.widget() != None:
-            self.scroller.widget().setParent(None)
-        self.scroller.setWidget(pageNameOrWidget)
+    def setView(self, view):
+        #remove existing item from window
+        if self.currentView != None:
+            self.currentView.deleteLater()
+        self.currentView = view
+        self.wholeContent.layout().addWidget(self.currentView)
+
+    def botStateChanged(self):
+        if self.bot.state == Statemachine.State.MIXING:
+            self.setView(ViewMixing.ViewMixing(self))
+        print("Status changed")
+    
+    def mixingProgressChanged(self):
+        print("mixing progress changed")
+
+    def showPage(self, view):
+        if not isinstance(self.currentView, ViewIdle.ViewIdle):
+            return
+        self.currentView.setContent(view)
 
     def clear(self, item):
         if isinstance(item, QtWidgets.QLayout):
@@ -33,40 +62,6 @@ class BarBotMainWindow(QtWidgets.QWidget):
         for i in reversed(range(layout.count())): 
             layout.itemAt(i).widget().setParent(None)
         
-    def setupUi(self):                
-        # remove borders and title bar
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setFixedSize(480, 800)
-        
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
-
-        self.header = QtWidgets.QWidget()
-        layout.addWidget(self.header)
-
-        #navigation
-        self.navigation = QtWidgets.QWidget()
-        layout.addWidget(self.navigation)
-
-        #content
-        contentWrapper = QtWidgets.QWidget()
-        layout.addWidget(contentWrapper, 1)
-
-        layout = QtWidgets.QGridLayout()
-        contentWrapper.setLayout(layout)
-
-        self.scroller = QtWidgets.QScrollArea()
-        self.scroller.setWidgetResizable(True)
-        self.scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        layout.addWidget(self.scroller)
-
-        #fill the parts
-        self.fillHeader()
-        self.showPage(ViewListRecipes(self.db.getRecipes()))
-        self.fillNavigation()
-
-        self.show()
-
     def fillHeader(self):
         headerLayout = QtWidgets.QGridLayout()
         self.header.setLayout(headerLayout)
@@ -75,15 +70,41 @@ class BarBotMainWindow(QtWidgets.QWidget):
         label.setFont(Qt.QFont("Arial", 20, 2))
         headerLayout.addWidget(label, 0, 0, QtCore.Qt.AlignCenter)
 
-        icon = Qt.QIcon("../gui/css/admin.png")
+        icon = Qt.QIcon(self.imagePath("admin.png"))
         button = QtWidgets.QPushButton(icon, "")
+        button.clicked.connect(lambda: self.close())
         headerLayout.addWidget(button, 0, 0, QtCore.Qt.AlignRight)
         
-    def fillNavigation(self):
-        #self.navigation.setStyleSheet("QWidget { background: blue; }")
-        layout = QtWidgets.QHBoxLayout()
-        self.navigation.setLayout(layout)
-        for text, method in self.pages.items():
-            button = QtWidgets.QPushButton(text)
-            layout.addWidget(button)
-            button.clicked.connect(method)
+
+    def showMessage(self, message):
+        splash = QtWidgets.QLabel(message, flags=QtCore.Qt.WindowStaysOnTopHint|QtCore.Qt.FramelessWindowHint)
+        splash.show()
+        QtCore.QTimer.singleShot(1000, lambda splash=splash: splash.close())
+
+    def imagePath(self, fileName):
+        script_dir = os.path.dirname(__file__)
+        return os.path.join(script_dir, "../gui/css/", fileName)
+
+    def getAmountDropdown(self, selectedData = None):
+        #add ingredient name
+        wAmount = QtWidgets.QComboBox()
+        wAmount.addItem("-", -1)
+        for i in range(1, 17):
+            wAmount.addItem(str(i), i)
+            if i == selectedData:
+                wAmount.setCurrentIndex(i)
+            i = i+1
+        return wAmount
+
+    def getIngredientDropdown(self, selectedData = None):
+        ing = self.db.getAllIngredients().values()
+        #add ingredient name
+        wIngredient = QtWidgets.QComboBox()
+        wIngredient.addItem("-", -1)
+        i = 1
+        for item in ing:
+            wIngredient.addItem(str(item["name"]), item["id"])
+            if item["id"] == selectedData:
+                wIngredient.setCurrentIndex(i)
+            i = i+1
+        return wIngredient

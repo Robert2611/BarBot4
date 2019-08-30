@@ -1,12 +1,17 @@
 import time
-from enum import Enum
+from enum import Enum, auto
 import logging
 import serial
 import sys
 
-MessageTypes = Enum(
-    "MessageTypes", 'ACK NAK DONE ERROR STATUS COMM_ERROR TIMEOUT')
-
+class MessageTypes(Enum):
+    ACK = auto()
+    NAK = auto()
+    DONE = auto()
+    ERROR = auto()
+    STATUS = auto()
+    COMM_ERROR = auto()
+    TIMEOUT = auto()
 
 class ProtocolMessage():
     def __init__(self, type, command, parameters=None):

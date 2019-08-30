@@ -4,7 +4,7 @@
 import sqlite3 as lite
 
 
-class database(object):
+class Database(object):
     def __init__(self, filename):
         self.filename = filename
         self.con = None
@@ -139,7 +139,7 @@ class database(object):
 		""", {"name": name, "instruction": instruction})
         self.con.commit()
         new_rid = self.cursor.lastrowid
-        if(old_rid >= 0):
+        if(old_rid != None and old_rid >= 0):
             # set newly created recipe as successor for current recipe
             self.cursor.execute("""
 				UPDATE Recipes
@@ -177,17 +177,17 @@ class database(object):
 			FROM Recipes
 			WHERE id = :rid
 		""", {"rid": rid})
-        recipe_in_database = self.cursor.fetchone()
+        recipe_in_Database = self.cursor.fetchone()
         # recipe not found, so it must be different
-        if recipe_in_database == None:
+        if recipe_in_Database == None:
             self.close()
             return True
         # name has changed
-        elif recipe_in_database["name"] != name:
+        elif recipe_in_Database["name"] != name:
             self.close()
             return True
         # instruction has changed
-        elif recipe_in_database["instruction"] != instruction:
+        elif recipe_in_Database["instruction"] != instruction and not (not recipe_in_Database["instruction"] and not instruction):
             self.close()
             return True
         self.cursor.execute("""
@@ -196,14 +196,14 @@ class database(object):
 			WHERE recipe = :rid
 			ORDER BY id ASC
 		""", {"rid": rid})
-        items_in_database = self.cursor.fetchall()
-        if len(items_in_database) != len(items):
+        items_in_Database = self.cursor.fetchall()
+        if len(items_in_Database) != len(items):
             self.close()
             return True
 
-        for i in range(0, len(items_in_database)):
-            if items_in_database[i]["ingredient"] != items[i]["ingredient"] or \
-                    items_in_database[i]["amount"] != items[i]["amount"]:
+        for i in range(0, len(items_in_Database)):
+            if items_in_Database[i]["ingredient"] != items[i]["ingredient"] or \
+                    items_in_Database[i]["amount"] != items[i]["amount"]:
                 # item has changed
                 self.close()
                 return True

@@ -4,18 +4,31 @@ import threading
 import os
 
 from threading import Thread
-from protocol import Protocol
-from protocol import MessageTypes
+import Protocol
+
+from enum import Enum, auto
+
+class State(Enum):
+    CONNECTING = auto()
+    STARTUP = auto()
+    IDLE = auto()
+    MIXING = auto()
+    CLEANING = auto()
+    CLEANING_CYCLE = auto()
+    SINGLE_INGREDIENT = auto()
 
 
 class StateMachine(Thread):
-    def __init__(self, OnMixingFinishedHandler, port, baudrate):
+    OnMixingFinished = None
+    OnMixingProgressChanged = None
+    OnStateChanged = None
+
+    def __init__(self, port, baudrate):
         Thread.__init__(self)
         self.abort = False
         self.data = None
-        self.OnMixingFinished = OnMixingFinishedHandler
-        self.action = "connecting"
-        self.protocol = Protocol(port, baudrate, 1)
+        self.setState(State.CONNECTING)
+        self.protocol = Protocol.Protocol(port, baudrate, 1)
         self.message = None
         self.progress = None
         self.rainbow_duration = 10
@@ -26,38 +39,43 @@ class StateMachine(Thread):
     # main loop, runs the whole time
     def run(self):
         while not self.abort:
-            if self.action == "connecting":
+            if self.state == State.CONNECTING:
                 if self.protocol.Connect():
-                    self.action = "startup"
+                    self.setState(State.STARTUP)
                 else:
                     time.sleep(1)
-            elif self.action == "startup":
-                if self.protocol.ReadMessage().type == MessageTypes.STATUS:
+            elif self.state == State.STARTUP:
+                if self.protocol.ReadMessage().type == Protocol.MessageTypes.STATUS:
                     self.protocol.Set("SetLED", 3)
                     self.protocol.Set("SetSpeed", self.max_speed)
                     self.protocol.Set("SetAccel", self.max_accel)
-                    self.action = "idle"
-            elif self.action == "mixing":
+                    self.setState(State.IDLE)
+            elif self.state == State.MIXING:
                 self.doMixing()
-            elif self.action == "cleaning":
+            elif self.state == State.CLEANING:
                 self.doCleaning()
-            elif self.action == "cleaning_cycle":
+            elif self.state == State.CLEANING_CYCLE:
                 self.doCleaningCycle()
-            elif self.action == "single_ingredient":
+            elif self.state == State.SINGLE_INGREDIENT:
                 self.doSingleIngredient()
             else:
                 # update as long as there is data to be read
                 while self.protocol.Update():
                     pass
                 if not self.protocol.isConnected:
-                    self.action = "connecting"
+                    self.setState(State.CONNECTING)
         self.protocol.Close()
+    
+    def setState(self, state):
+        self.state = state
+        if self.OnStateChanged != None:
+            self.OnStateChanged()
 
     def isArduinoBusy(self):
-        return self.action != "idle"
+        return self.state != State.IDLE
 
     def canManipulateDatabase(self):
-        return self.action == "connecting" or self.action == "idle"
+        return self.state == State.CONNECTING or self.state == State.IDLE
 
     # do commands
 
@@ -81,6 +99,8 @@ class StateMachine(Thread):
             self.data["recipe_item_index"] += 1
             self.progress = self.data["recipe_item_index"] / \
                 len(self.data["recipe"]["items"])
+            if self.OnMixingProgressChanged != None:
+                self.OnMixingProgressChanged(self.progress)
         self.protocol.Do("Move", 0)
         self.message = "mixing_done_remove_glas"
         self.protocol.Do("PlatformLED", 2)
@@ -89,9 +109,10 @@ class StateMachine(Thread):
             time.sleep(0.5)
         self.message = None
         self.protocol.Do("PlatformLED", 0)
-        self.OnMixingFinished(self.data["recipe"]["id"])
+        if OnMixingFinished != None:
+            self.OnMixingFinished(self.data["recipe"]["id"])
         self.protocol.Set("SetLED", 3)
-        self.action = "idle"
+        self.setState(State.IDLE)
 
     def draft_one(self, item):
         if item["port"] == 12:
@@ -130,11 +151,11 @@ class StateMachine(Thread):
         for item in self.data:
             self.protocol.Do("Draft", item["port"], item["duration"])
         self.protocol.Do("Move", 0)
-        self.action = "idle"
+        self.setState(State.IDLE)
 
     def doCleaning(self):
         self.protocol.Do("Pump", self.data["port"], self.data["duration"])
-        self.action = "idle"
+        self.setState(State.IDLE)
 
     def doSingleIngredient(self):
         self.message = "place_glas"
@@ -143,22 +164,22 @@ class StateMachine(Thread):
         self.message = None
         self.draft_one(self.data)
         self.protocol.Do("Move", 0)
-        self.action = "idle"
+        self.setState(State.IDLE)
 
     # start commands
 
     def startMixing(self, recipe):
         self.data = {"recipe": recipe, "recipe_item_index": 0}
-        self.action = "mixing"
+        self.setState(State.MIXING)
 
     def startSingleIngredient(self, recipe_item):
         self.data = recipe_item
-        self.action = "single_ingredient"
+        self.setState(State.SINGLE_INGREDIENT)
 
     def startCleaning(self, port, duration):
         self.data = {"port": port, "duration": duration}
-        self.action = "cleaning"
+        self.setState(State.CLEANING)
 
     def startCleaningCycle(self, data):
         self.data = data
-        self.action = "cleaning_cycle"
+        self.setState(State.CLEANING_CYCLE)
