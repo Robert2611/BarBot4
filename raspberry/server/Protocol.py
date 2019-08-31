@@ -30,7 +30,7 @@ class Protocol():
         self.timeout = timeout
 
     def Connect(self):
-        if self.ser != None and self.ser.isOpen():
+        if self.ser is not None and self.ser.isOpen():
             self.ser.close()
         try:
             self.ser = serial.Serial(
@@ -51,7 +51,7 @@ class Protocol():
         while self.HasData():
             self.ReadMessage()
         # send the command
-        if parameter2 != None:
+        if parameter2 is not None:
             self.SendCommand(command, [parameter1, parameter2])
         else:
             self.SendCommand(command, [parameter1])
@@ -113,7 +113,7 @@ class Protocol():
             self.error = "answer for wrong command"
             return False
         if message.type == MessageTypes.ACK:
-            if message.parameters != None:
+            if message.parameters is not None:
                 return message.parameters[0]
             else:
                 self.error = "No result sent"
@@ -160,9 +160,9 @@ class Protocol():
             return ProtocolMessage(MessageTypes.COMM_ERROR, e)
 
     def SendCommand(self, command, parameters):
-        if self.ser != None:
+        if self.ser is not None:
             cmd = command
-            if parameters != None:
+            if parameters is not None:
                 for parameter in parameters:
                     cmd = cmd + " " + str(parameter)
             cmd = cmd + "\r"

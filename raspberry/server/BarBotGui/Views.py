@@ -1,19 +1,21 @@
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-import View
-import BarBotMainWindow
-import ViewListRecipes
-import ViewRecipeNewOrEdit
-import ViewSingleIngredient
-import ViewStatistics
+import BarBotGui
 
-class ViewIdle(View.View):
-    def __init__(self, _mainWindow: BarBotMainWindow):
+class MixingView(BarBotGui.View):
+    def __init__(self, _mainWindow: BarBotGui.MainWindow):
+        super().__init__(_mainWindow)
+        self.setLayout(QtWidgets.QVBoxLayout())
+
+        self.layout().addWidget(QtWidgets.QLabel("mixing!"))
+
+class IdleView(BarBotGui.View):
+    def __init__(self, _mainWindow: BarBotGui.MainWindow):
         super().__init__(_mainWindow)
         self.pages = {
-            "Liste" : lambda: self.mainWindow.showPage(ViewListRecipes.ViewListRecipes(self.mainWindow)),
-            "Neu" : lambda: self.mainWindow.showPage(ViewRecipeNewOrEdit.ViewRecipeNewOrEdit(self.mainWindow)),
-            "Nachschlag" : lambda: self.mainWindow.showPage(ViewSingleIngredient.ViewSingleIngredient(self.mainWindow)),
-            "Statistik" : lambda: self.mainWindow.showPage(ViewStatistics.ViewStatistics(self.mainWindow))
+            "Liste" : lambda: self.setSubViewByName("ListRecipes"),
+            "Neu" : lambda: self.setSubViewByName("RecipeNewOrEdit"),
+            "Nachschlag" : lambda: self.setSubViewByName("SingleIngredient"),
+            "Statistik" : lambda: self.setSubViewByName("Statistics")
         }
         self.setLayout(QtWidgets.QVBoxLayout())
 
@@ -41,11 +43,17 @@ class ViewIdle(View.View):
         self.scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         contentWrapper.layout().addWidget(self.scroller)
 
-        self.setContent(ViewListRecipes.ViewListRecipes(self.mainWindow))
+        self.setSubViewByName("ListRecipes")
+    
+    def setSubViewByName(self, name):
+        import BarBotGui.IdleSubViews
+        class_ = getattr(BarBotGui.IdleSubViews, name)
+        self.setContent(class_(self.mainWindow))
 
         #self.navigation.setStyleSheet("QWidget { background: blue; }")
     
     def setContent(self, view):
-        if self.scroller.widget() != None:
+        if self.scroller.widget() is not None:
             self.scroller.widget().setParent(None)
         self.scroller.setWidget(view)
+

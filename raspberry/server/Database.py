@@ -19,7 +19,7 @@ class Database(object):
         self.isConnected = True
 
     def close(self):
-        if(self.con != None):
+        if(self.con is not None):
             self.con.close()
         self.con = None
         self.cursor = None
@@ -139,7 +139,7 @@ class Database(object):
 		""", {"name": name, "instruction": instruction})
         self.con.commit()
         new_rid = self.cursor.lastrowid
-        if(old_rid != None and old_rid >= 0):
+        if(old_rid is not None and old_rid >= 0):
             # set newly created recipe as successor for current recipe
             self.cursor.execute("""
 				UPDATE Recipes

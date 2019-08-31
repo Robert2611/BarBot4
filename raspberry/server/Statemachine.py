@@ -68,7 +68,7 @@ class StateMachine(Thread):
     
     def setState(self, state):
         self.state = state
-        if self.OnStateChanged != None:
+        if self.OnStateChanged is not None:
             self.OnStateChanged()
 
     def isArduinoBusy(self):
@@ -99,7 +99,7 @@ class StateMachine(Thread):
             self.data["recipe_item_index"] += 1
             self.progress = self.data["recipe_item_index"] / \
                 len(self.data["recipe"]["items"])
-            if self.OnMixingProgressChanged != None:
+            if self.OnMixingProgressChanged is not None:
                 self.OnMixingProgressChanged(self.progress)
         self.protocol.Do("Move", 0)
         self.message = "mixing_done_remove_glas"
@@ -109,7 +109,7 @@ class StateMachine(Thread):
             time.sleep(0.5)
         self.message = None
         self.protocol.Do("PlatformLED", 0)
-        if OnMixingFinished != None:
+        if OnMixingFinished is not None:
             self.OnMixingFinished(self.data["recipe"]["id"])
         self.protocol.Set("SetLED", 3)
         self.setState(State.IDLE)

@@ -3,7 +3,7 @@
 from PyQt5.QtWidgets import QMainWindow, QApplication
 import Statemachine
 import Database
-import BarBotMainWindow
+import BarBotGui
 import os
 import qdarkstyle
 import sys
@@ -18,7 +18,7 @@ def getParameter(request_data, index, converter=None):
     value = request_data.get(index)
     if value == None:
         return None
-    elif converter != None:
+    elif converter is not None:
         return converter(value[0])
     else:
         return value[0]
@@ -176,7 +176,7 @@ else:
 try:
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    form = BarBotMainWindow.BarBotMainWindow(db, bot)
+    form = BarBotGui.MainWindow(db, bot)
     form.show()
     app.exec_()
     if not is_demo:

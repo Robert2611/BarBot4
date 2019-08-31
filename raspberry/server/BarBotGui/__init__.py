@@ -2,10 +2,9 @@ from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 from Database import Database
 import Statemachine
 import os
-import ViewIdle
-import ViewMixing
+import BarBotGui
 
-class BarBotMainWindow(QtWidgets.QWidget):
+class MainWindow(QtWidgets.QWidget):
     db:Database
     bot:Statemachine.StateMachine
     botStateChangedTrigger = QtCore.pyqtSignal()
@@ -13,6 +12,7 @@ class BarBotMainWindow(QtWidgets.QWidget):
     currentView = None
     def __init__(self, _db:Database, _bot:Statemachine.StateMachine):
         super().__init__()
+        import BarBotGui.Views
         self.db = _db
         self.bot = _bot
         #forward status changed
@@ -31,26 +31,28 @@ class BarBotMainWindow(QtWidgets.QWidget):
         self.wholeContent.setLayout(QtWidgets.QGridLayout())
         self.layout().addWidget(self.wholeContent, 1)
         self.fillHeader()
-        self.setView(ViewIdle.ViewIdle(self))
+        self.setView(BarBotGui.Views.IdleView(self))
         self.show()
 
     def setView(self, view):
         #remove existing item from window
-        if self.currentView != None:
+        if self.currentView is not None:
             self.currentView.deleteLater()
         self.currentView = view
         self.wholeContent.layout().addWidget(self.currentView)
 
     def botStateChanged(self):
+        import BarBotGui.Views
         if self.bot.state == Statemachine.State.MIXING:
-            self.setView(ViewMixing.ViewMixing(self))
+            self.setView(BarBotGui.Views.MixingView(self))
         print("Status changed")
     
     def mixingProgressChanged(self):
         print("mixing progress changed")
 
     def showPage(self, view):
-        if not isinstance(self.currentView, ViewIdle.ViewIdle):
+        import BarBotGui.Views
+        if not isinstance(self.currentView, BarBotGui.Views.IdleView):
             return
         self.currentView.setContent(view)
 
@@ -83,7 +85,7 @@ class BarBotMainWindow(QtWidgets.QWidget):
 
     def imagePath(self, fileName):
         script_dir = os.path.dirname(__file__)
-        return os.path.join(script_dir, "../gui/css/", fileName)
+        return os.path.join(script_dir, "../../gui/css/", fileName)
 
     def getAmountDropdown(self, selectedData = None):
         #add ingredient name
@@ -108,3 +110,14 @@ class BarBotMainWindow(QtWidgets.QWidget):
                 wIngredient.setCurrentIndex(i)
             i = i+1
         return wIngredient
+
+class View(QtWidgets.QWidget):
+    mainWindow: MainWindow
+    dab: Database
+    bot: Statemachine.StateMachine
+
+    def __init__(self, _mainWindow: MainWindow):
+        super().__init__(_mainWindow)
+        self.mainWindow = _mainWindow
+        self.db = _mainWindow.db
+        self.bot = _mainWindow.bot
