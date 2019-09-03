@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QMainWindow, QApplication
-import Statemachine
-import Database
+import BarBot
 import BarBotGui
 import os
 import qdarkstyle
 import sys
-import logging
-import json
 
 #sudo rfcomm connect hci0 20:16:04:14:60:60&
 
@@ -136,49 +133,39 @@ def OnRequest(action, request_data):
         bot.startCleaningCycle(data)
         result.update({"message": "clean_started"})
         return result
-
-    elif action == "statistics":
-        result.update({"parties": db.getPartyDates()})
-        date = getParameter(request_data, "date")
-        if date == None:
-            date = result["parties"][0]["partydate"]
-        result["total_count"] = result["parties"][0]["ordercount"]
-        result["cocktail_count"] = db.getOrderedCocktailCount(date)
-        result["ingredients_amount"] = db.getOrderedIngredientsAmount(date)
-        result["cocktails_by_time"] = db.getOrderedCocktailsByTime(date)
-        result["total_amount"] = sum([ia["liters"] for ia in result["ingredients_amount"]])
-        result["date"] = date
-        return result
     
     elif action == "user_input":
         user_input = getParameter(request_data, "user_input")
         bot.user_input = user_input == "true"       
         return result
 
-
+#open database
 dirname = sys.path[0]
 filename = os.path.join(dirname, '../bar_bot.sqlite')
-db = Database.Database(filename)
+db = BarBot.Database(filename)
 db.clearOrders()
 
-bot = Statemachine.StateMachine(db.getStrSetting("arduino_port"), db.getStrSetting("arduino_baud"))
+#create statemachine
+bot = BarBot.StateMachine(db.getStrSetting("arduino_port"), db.getStrSetting("arduino_baud"), is_demo)
 bot.OnMixingFinished = lambda rid: db.closeOrder(rid)
 bot.rainbow_duration = db.getIntSetting("rainbow_duration")
 bot.max_speed = db.getIntSetting("max_speed")
 bot.max_accel = db.getIntSetting("max_accel")
+bot.start()
 if not is_demo:
-    bot.start()
-    print("Com started")
+    print("BarBot started")
 else:
-    bot.setState(Statemachine.State.IDLE)
     print("Demo mode")
 
+#show gui and join the threads
 try:
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     form = BarBotGui.MainWindow(db, bot)
     form.show()
     app.exec_()
+    # tell the statemachine to stop
+    bot.abort = True
     if not is_demo:
         bot.join()
 except KeyboardInterrupt:

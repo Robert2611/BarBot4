@@ -170,7 +170,8 @@ class Protocol():
             self.ser.write(cmd.encode())
 
     def Close(self):
-        self.ser.close()
+        if self.ser is not None:
+            self.ser.close()
 
     def HasData(self):
         return self.ser.in_waiting > 0

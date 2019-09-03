@@ -1,36 +1,72 @@
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-from Database import Database
-import Statemachine
+import BarBot
 import os
 import BarBotGui
 
+def setNoSpacingAndMargin(layout):
+    layout.setSpacing(0)
+    layout.setContentsMargins(0,0,0,0)
+
+def setWidgetColor(widget, color):
+    widget.setStyleSheet("QWidget { background: %s; }" % color)
+
+def getImage(fileName):
+    script_dir = os.path.dirname(__file__)
+    path = os.path.join(script_dir, "../../gui/css/", fileName)
+    return Qt.QIcon(path)
+
 class MainWindow(QtWidgets.QWidget):
-    db:Database
-    bot:Statemachine.StateMachine
-    botStateChangedTrigger = QtCore.pyqtSignal()
-    mixingProgressChangedTrigger = QtCore.pyqtSignal()
+    db:BarBot.Database
+    bot:BarBot.StateMachine    
     currentView = None
-    def __init__(self, _db:Database, _bot:Statemachine.StateMachine):
+    botStateChangedTrigger = QtCore.pyqtSignal()
+    Views = {
+        BarBot.State.CONNECTING: "ConnectingAndStartupView",
+        BarBot.State.STARTUP: "ConnectingAndStartupView",
+        BarBot.State.IDLE: "IdleView",
+        BarBot.State.MIXING: "MixingView",
+        BarBot.State.CLEANING: "CleaingView",
+        BarBot.State.CLEANING_CYCLE: "CleaingCycleView",
+        BarBot.State.SINGLE_INGREDIENT: "SingleIngredientView"
+    }
+    def __init__(self, _db:BarBot.Database, _bot:BarBot.StateMachine):
         super().__init__()
         import BarBotGui.Views
         self.db = _db
         self.bot = _bot
+
+        styles = [
+            ".BarBotHeader{ font-size: 50px; }"
+            ".Headline{ font-size: 20px; }"
+            ".RecipeTitle{ font-size: 20px; }"
+        ]
+        self.setStyleSheet("\n".join(styles))
+
         #forward status changed
         self.botStateChangedTrigger.connect(self.botStateChanged)
         self.bot.OnStateChanged = lambda: self.botStateChangedTrigger.emit()
-        #forward mixing progress changed
-        self.mixingProgressChangedTrigger.connect(self.mixingProgressChanged)
-        self.bot.OnMixingProgressChanged = lambda: self.mixingProgressChangedTrigger.emit()
+
         #remove borders and title bar
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setFixedSize(480, 800)
+
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.header = QtWidgets.QWidget()
-        self.layout().addWidget(self.header, 0)
-        self.wholeContent = QtWidgets.QWidget()
-        self.wholeContent.setLayout(QtWidgets.QGridLayout())
-        self.layout().addWidget(self.wholeContent, 1)
-        self.fillHeader()
+        #header
+        header = QtWidgets.QWidget()
+        header.setLayout(QtWidgets.QGridLayout())
+        self.layout().addWidget(header, 0)
+
+        label = QtWidgets.QLabel("Bar-Bot 4.0")
+        label.setProperty("class", "BarBotHeader")
+        header.layout().addWidget(label, 0, 0, QtCore.Qt.AlignCenter)
+
+        #content
+        self.contentWrapper = QtWidgets.QWidget()
+        self.contentWrapper.setLayout(QtWidgets.QGridLayout())
+        self.contentWrapper.layout().setSpacing(0)
+        self.contentWrapper.layout().setContentsMargins(0,0,0,0)
+        self.layout().addWidget(self.contentWrapper, 1)
+
         self.setView(BarBotGui.Views.IdleView(self))
         self.show()
 
@@ -39,16 +75,13 @@ class MainWindow(QtWidgets.QWidget):
         if self.currentView is not None:
             self.currentView.deleteLater()
         self.currentView = view
-        self.wholeContent.layout().addWidget(self.currentView)
+        self.contentWrapper.layout().addWidget(self.currentView)
 
     def botStateChanged(self):
         import BarBotGui.Views
-        if self.bot.state == Statemachine.State.MIXING:
-            self.setView(BarBotGui.Views.MixingView(self))
+        viewClass = getattr(BarBotGui.Views, self.Views[self.bot.state])
+        self.setView(viewClass(self))
         print("Status changed")
-    
-    def mixingProgressChanged(self):
-        print("mixing progress changed")
 
     def showPage(self, view):
         import BarBotGui.Views
@@ -62,30 +95,12 @@ class MainWindow(QtWidgets.QWidget):
         elif isinstance(item, QtWidgets.QWidget):
             layout = item.layout()
         for i in reversed(range(layout.count())): 
-            layout.itemAt(i).widget().setParent(None)
-        
-    def fillHeader(self):
-        headerLayout = QtWidgets.QGridLayout()
-        self.header.setLayout(headerLayout)
-
-        label = QtWidgets.QLabel("Bar-Bot 4.0")
-        label.setFont(Qt.QFont("Arial", 20, 2))
-        headerLayout.addWidget(label, 0, 0, QtCore.Qt.AlignCenter)
-
-        icon = Qt.QIcon(self.imagePath("admin.png"))
-        button = QtWidgets.QPushButton(icon, "")
-        button.clicked.connect(lambda: self.close())
-        headerLayout.addWidget(button, 0, 0, QtCore.Qt.AlignRight)
-        
+            layout.itemAt(i).widget().setParent(None) 
 
     def showMessage(self, message):
         splash = QtWidgets.QLabel(message, flags=QtCore.Qt.WindowStaysOnTopHint|QtCore.Qt.FramelessWindowHint)
         splash.show()
         QtCore.QTimer.singleShot(1000, lambda splash=splash: splash.close())
-
-    def imagePath(self, fileName):
-        script_dir = os.path.dirname(__file__)
-        return os.path.join(script_dir, "../../gui/css/", fileName)
 
     def getAmountDropdown(self, selectedData = None):
         #add ingredient name
@@ -113,8 +128,8 @@ class MainWindow(QtWidgets.QWidget):
 
 class View(QtWidgets.QWidget):
     mainWindow: MainWindow
-    dab: Database
-    bot: Statemachine.StateMachine
+    dab: BarBot.Database
+    bot: BarBot.StateMachine
 
     def __init__(self, _mainWindow: MainWindow):
         super().__init__(_mainWindow)

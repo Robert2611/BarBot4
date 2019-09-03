@@ -1,4 +1,4 @@
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from PyQt5 import QtWidgets, Qt, QtCore, QtGui, QtChart
 import BarBotGui
 
 class ListRecipes(BarBotGui.View):
@@ -19,19 +19,19 @@ class ListRecipes(BarBotGui.View):
             recipeBox.layout().addWidget(recipeTitleContainer)
 
             #edit button
-            icon = Qt.QIcon(self.mainWindow.imagePath("edit.png"))
+            icon = BarBotGui.getImage("edit.png")
             editButton = QtWidgets.QPushButton(icon, "")
             editButton.clicked.connect(lambda checked,rid=recipe["id"]: self.openEdit(rid))
             recipeTitleContainer.layout().addWidget(editButton, 0)
 
             #title 
             recipeTitle = QtWidgets.QLabel(recipe["name"])
-            recipeTitle.setFont(QtGui.QFont("Arial", 20, 2))
+            recipeTitle.setProperty("class", "RecipeTitle")
             recipeTitleContainer.layout().addWidget(recipeTitle, 1)
 
             #order button
             if recipe["available"]:
-                icon = Qt.QIcon(self.mainWindow.imagePath("order.png"))
+                icon = BarBotGui.getImage("order.png")
                 editButton = QtWidgets.QPushButton(icon, "")
                 editButton.clicked.connect(lambda checked,rid=recipe["id"]: self.order(rid))
                 recipeTitleContainer.layout().addWidget(editButton, 0)
@@ -70,6 +70,11 @@ class RecipeNewOrEdit(BarBotGui.View):
         else:
             self.recipeData = {"name" : "", "instruction": ""}
         self.setLayout(QtWidgets.QVBoxLayout())
+
+        #title
+        title = QtWidgets.QLabel("Neues Rezept" if self.id is None else "Rezept bearbeiten")
+        title.setProperty("class", "Headline")
+        self.layout().addWidget(title)
 
         self.NameWidget = QtWidgets.QLineEdit(self.recipeData["name"])
         self.InstructionWidget = QtWidgets.QLineEdit(self.recipeData["instruction"])
@@ -145,7 +150,7 @@ class SingleIngredient(BarBotGui.View):
 
         #title
         title = QtWidgets.QLabel("Nachschlag")
-        title.setFont(QtGui.QFont("Arial", 20, 2))
+        title.setProperty("class", "Headline")
         self.layout().addWidget(title)
 
         #text
@@ -195,10 +200,109 @@ class SingleIngredient(BarBotGui.View):
         return
 
 class Statistics(BarBotGui.View):
+    content = None
     def __init__(self, _mainWindow: BarBotGui.MainWindow):
         super().__init__(_mainWindow)
-        containerLayout = QtWidgets.QVBoxLayout()
-        self.setLayout(containerLayout)
-        
-        containerLayout.addWidget(QtWidgets.QLabel("Statistics"))
+        self.setLayout(QtWidgets.QVBoxLayout())
 
+        #title
+        title = QtWidgets.QLabel("Statistik")
+        title.setProperty("class", "Headline")
+        self.layout().addWidget(title)
+
+        #date selector
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        self.layout().addWidget(row)
+
+        label = QtWidgets.QLabel("Datum")
+        row.layout().addWidget(label)
+        
+        self.parties = self.db.getParties()
+        cbDates = QtWidgets.QComboBox()
+        for party in self.parties:
+            cbDates.addItem(party["partydate"])
+        cbDates.currentTextChanged.connect(self.partyDataChanged)
+        row.layout().addWidget(cbDates)
+
+        self.contentWrapper = QtWidgets.QWidget()
+        self.contentWrapper.setLayout(QtWidgets.QGridLayout())
+        BarBotGui.setNoSpacingAndMargin(self.contentWrapper.layout())
+        self.layout().addWidget(self.contentWrapper)
+
+        #initialize with date of last party
+        self.update(self.parties[0]["partydate"] if self.parties else None)
+
+    def partyDataChanged(self, newDate):
+        self.update(newDate)
+
+    def createBarChart(self, data):
+        barSet = QtChart.QBarSet("")
+        xNames = []
+        for name, value in data:
+            xNames.append(name)
+            barSet.append(value)
+        series = QtChart.QHorizontalStackedBarSeries()
+        series.append(barSet)
+        series.setLabelsVisible()
+        nameAxis = QtChart.QBarCategoryAxis()
+        nameAxis.append(xNames)
+        chart = QtChart.QChart()
+        chart.createDefaultAxes()
+        chart.setAxisY(nameAxis)
+        chart.legend().setVisible(False)
+        chart.addSeries(series)
+        chart.setMinimumHeight(500)
+        chart.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        chartView = QtChart.QChartView(chart)
+        chartView.setRenderHint(QtGui.QPainter.Antialiasing)
+        return chartView
+
+    def update(self, date):
+        if not date:
+            return
+        #self.total_count = self.parties[0]["ordercount"]
+
+        #get data from database
+        cocktail_count = self.db.getOrderedCocktailCount(date)
+        ingredients_amount = self.db.getOrderedIngredientsAmount(date)
+        cocktails_by_time = self.db.getOrderedCocktailsByTime(date)
+        #create container
+        container = QtWidgets.QWidget()
+        container.setLayout(QtWidgets.QVBoxLayout())
+        
+        #total ordered cocktails
+        totalCocktails = sum(c["count"] for c in cocktail_count)
+        label = QtWidgets.QLabel("Bestellte Cocktails (%i)" % totalCocktails)
+        container.layout().addWidget(label)
+        #ordered cocktails by name
+        data = [(c["name"],c["count"]) for c in reversed(cocktail_count)]
+        chart = self.createBarChart(data)
+        container.layout().addWidget(chart)
+        
+        #total liters
+        total_amount = sum([amount["liters"] for amount in ingredients_amount])
+        label = QtWidgets.QLabel("Verbrauchte Zutaten (%i l)" % total_amount)
+        container.layout().addWidget(label)
+        #ingrediends
+        data = [(c["ingredient"],c["liters"]) for c in reversed(ingredients_amount)]
+        chart = self.createBarChart(data)
+        container.layout().addWidget(chart)
+
+        #label
+        label = QtWidgets.QLabel("Bestellungen")
+        container.layout().addWidget(label)
+        #cocktails vs. time chart
+        data = [(c["hour"],c["count"]) for c in reversed(cocktails_by_time)]
+        chart = self.createBarChart(data)
+        container.layout().addWidget(chart)
+
+        #set content
+        self.setContent(container)
+    
+    def setContent(self, content):
+        if self.content is not None:
+            #setting the parent of the previos content to None will destroy it
+            self.content.setParent(None)
+        self.content = content
+        self.contentWrapper.layout().addWidget(content)
