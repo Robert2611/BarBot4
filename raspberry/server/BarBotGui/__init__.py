@@ -10,7 +10,11 @@ def setNoSpacingAndMargin(layout):
 def setWidgetColor(widget, color):
     widget.setStyleSheet("QWidget { background: %s; }" % color)
 
-def getImage(fileName):
+def getCSSPath():
+    script_dir = os.path.dirname(__file__)
+    return os.path.join(script_dir, "../../gui/css")
+
+def getQtIconFromFileName(fileName):
     script_dir = os.path.dirname(__file__)
     path = os.path.join(script_dir, "../../gui/css/", fileName)
     return Qt.QIcon(path)
@@ -35,12 +39,32 @@ class MainWindow(QtWidgets.QWidget):
         self.db = _db
         self.bot = _bot
 
-        styles = [
-            ".BarBotHeader{ font-size: 50px; }"
-            ".Headline{ font-size: 20px; }"
-            ".RecipeTitle{ font-size: 20px; }"
-        ]
-        self.setStyleSheet("\n".join(styles))
+        styles = """
+            .BarBotHeader{
+                font-size: 50px;
+            }
+            .Headline{
+                font-size: 20px;
+            }
+            .RecipeTitle{
+                font-size: 20px;
+            }
+            .AdminCheckbox::indicator{
+                image: url(#iconpath#/admin.png);
+                width: 20px;
+                height: 20px;
+                border-width: 2px;
+                border-style: solid;
+                border-color: gray;
+            }
+            .AdminCheckbox::indicator:checked{
+                border-color: red;
+            }
+            .AdminCheckbox::indicator:unchecked{
+            }
+        """
+        styles = styles.replace("#iconpath#", getCSSPath())
+        self.setStyleSheet(styles)
 
         #forward status changed
         self.botStateChangedTrigger.connect(self.botStateChanged)

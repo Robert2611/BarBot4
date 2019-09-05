@@ -27,6 +27,7 @@ class MixingView(BarBotGui.View):
         self.progressBar.setValue(int(self.bot.progress * 100))
 
 class IdleView(BarBotGui.View):
+    isAdmin = False
     def __init__(self, _mainWindow: BarBotGui.MainWindow):
         super().__init__(_mainWindow)
         self.pages = {
@@ -34,6 +35,14 @@ class IdleView(BarBotGui.View):
             "Neu" : lambda: self.setSubViewByName("RecipeNewOrEdit"),
             "Nachschlag" : lambda: self.setSubViewByName("SingleIngredient"),
             "Statistik" : lambda: self.setSubViewByName("Statistics")
+        }
+        self.adminPages = {
+            "Übersicht" : lambda: self.setSubViewByName("AdminOverview"),
+            "Positionen" : lambda: self.setSubViewByName("Ports"),
+            "Kalibrierung" : lambda: self.setSubViewByName("Calibration"),
+            "Reinigung" : lambda: self.setSubViewByName("Cleaning"),
+            "System" : lambda: self.setSubViewByName("System"),
+            "Löschen" : lambda: self.setSubViewByName("RemoveRecipe")
         }
         self.setLayout(QtWidgets.QVBoxLayout())
         BarBotGui.setNoSpacingAndMargin(self.layout())
@@ -44,17 +53,30 @@ class IdleView(BarBotGui.View):
         #navigation
         self.navigation = QtWidgets.QWidget()
         self.layout().addWidget(self.navigation)
-
         self.navigation.setLayout(QtWidgets.QHBoxLayout())
+
         for text, method in self.pages.items():
             button = QtWidgets.QPushButton(text)
             button.clicked.connect(method)
             self.navigation.layout().addWidget(button, 1)
 
-        icon = BarBotGui.getImage("admin.png")
-        button = QtWidgets.QPushButton(icon, "")
-        button.clicked.connect(lambda: self.mainWindow.close())
-        self.navigation.layout().addWidget(button, 0)
+        #admin button
+        #icon = BarBotGui.getQtIconFromFileName("admin.png")
+        self.adminButton = QtWidgets.QCheckBox("")
+        self.adminButton.setProperty("class", "AdminCheckbox")
+        self.adminButton.stateChanged.connect(self.adminStateChanged)
+        self.navigation.layout().addWidget(self.adminButton, 0)
+
+        #admin navigation
+        self.adminNavigation = QtWidgets.QWidget()
+        self.layout().addWidget(self.adminNavigation)
+        self.adminNavigation.setLayout(QtWidgets.QHBoxLayout())
+        self.adminNavigation.setVisible(False)
+
+        for text, method in self.adminPages.items():
+            button = QtWidgets.QPushButton(text)
+            button.clicked.connect(method)
+            self.adminNavigation.layout().addWidget(button, 1)
 
         #content
         contentWrapper = QtWidgets.QWidget()
@@ -69,12 +91,14 @@ class IdleView(BarBotGui.View):
 
         self.setSubViewByName("ListRecipes")
     
+    def adminStateChanged(self, admin):
+        self.isAdmin = admin
+        self.adminNavigation.setVisible(self.isAdmin)
+    
     def setSubViewByName(self, name):
         import BarBotGui.IdleSubViews
         class_ = getattr(BarBotGui.IdleSubViews, name)
         self.setContent(class_(self.mainWindow))
-
-        #self.navigation.setStyleSheet("QWidget { background: blue; }")
     
     def setContent(self, view):
         if self.scroller.widget() is not None:
