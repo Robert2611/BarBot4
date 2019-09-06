@@ -24,15 +24,8 @@ class MainWindow(QtWidgets.QWidget):
     bot:BarBot.StateMachine    
     currentView = None
     botStateChangedTrigger = QtCore.pyqtSignal()
-    Views = {
-        BarBot.State.CONNECTING: "ConnectingAndStartupView",
-        BarBot.State.STARTUP: "ConnectingAndStartupView",
-        BarBot.State.IDLE: "IdleView",
-        BarBot.State.MIXING: "MixingView",
-        BarBot.State.CLEANING: "CleaingView",
-        BarBot.State.CLEANING_CYCLE: "CleaingCycleView",
-        BarBot.State.SINGLE_INGREDIENT: "SingleIngredientView"
-    }
+    lastIdleSubView = None
+    isAdmin = False
     def __init__(self, _db:BarBot.Database, _bot:BarBot.StateMachine):
         super().__init__()
         import BarBotGui.Views
@@ -103,8 +96,12 @@ class MainWindow(QtWidgets.QWidget):
 
     def botStateChanged(self):
         import BarBotGui.Views
-        viewClass = getattr(BarBotGui.Views, self.Views[self.bot.state])
-        self.setView(viewClass(self))
+        if isinstance(self.currentView, BarBotGui.Views.IdleView):
+            self.lastIdleSubView = self.currentView.subViewName
+        if self.bot.state == BarBot.State.IDLE and self.lastIdleSubView:
+            self.setView(BarBotGui.Views.IdleView(self, self.lastIdleSubView))
+        else:
+            self.setView(BarBotGui.Views.BusyView(self))
         print("Status changed")
 
     def showPage(self, view):
@@ -112,14 +109,6 @@ class MainWindow(QtWidgets.QWidget):
         if not isinstance(self.currentView, BarBotGui.Views.IdleView):
             return
         self.currentView.setContent(view)
-
-    def clear(self, item):
-        if isinstance(item, QtWidgets.QLayout):
-            layout = item
-        elif isinstance(item, QtWidgets.QWidget):
-            layout = item.layout()
-        for i in reversed(range(layout.count())): 
-            layout.itemAt(i).widget().setParent(None) 
 
     def showMessage(self, message):
         splash = QtWidgets.QLabel(message, flags=QtCore.Qt.WindowStaysOnTopHint|QtCore.Qt.FramelessWindowHint)
@@ -130,6 +119,7 @@ class MainWindow(QtWidgets.QWidget):
         #add ingredient name
         wAmount = QtWidgets.QComboBox()
         wAmount.addItem("-", -1)
+        wAmount.setCurrentIndex(0)
         for i in range(1, 17):
             wAmount.addItem(str(i), i)
             if i == selectedData:
@@ -142,6 +132,7 @@ class MainWindow(QtWidgets.QWidget):
         #add ingredient name
         wIngredient = QtWidgets.QComboBox()
         wIngredient.addItem("-", -1)
+        wIngredient.setCurrentIndex(0)
         i = 1
         for item in ing:
             wIngredient.addItem(str(item["name"]), item["id"])

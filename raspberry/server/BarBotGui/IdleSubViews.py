@@ -119,8 +119,6 @@ class RecipeNewOrEdit(BarBotGui.View):
         self.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def save(self):
-        if not self.mainWindow.bot.canManipulateDatabase():
-            return
         # check data
         name = self.NameWidget.text()
         if name == None or name == "":
@@ -137,6 +135,7 @@ class RecipeNewOrEdit(BarBotGui.View):
         if self.id is not None and not self.db.recipeChanged(self.id, name, items, instruction):
             self.mainWindow.showMessage("Rezept wurde nicht verändert")
             return
+        print("id: %i" % self.id)
         # update Database
         new_id = self.db.createOrUpdateRecipe(name, instruction, self.id)
         self.db.addRecipeItems(new_id, items)
@@ -329,7 +328,7 @@ class AdminOverview(BarBotGui.View):
         for i in range(12):
             label = QtWidgets.QLabel("Position %i" % (i+1))
             table.layout().addWidget(label, i, 0)
-            if i in ports and ports[i] in ingredients:
+            if i in ports.keys() and ports[i] in ingredients.keys():
                 ingredient = ingredients[ports[i]]
                 label = QtWidgets.QLabel(ingredient["name"])
                 table.layout().addWidget(label, i, 1)
@@ -382,8 +381,14 @@ class Ports(BarBotGui.View):
     
     def save(self):
         ports = dict()
-        for i, cb in self.IngredientWidgets.items():
-            ports[i] = cb.currentData()
+        for port, cb in self.IngredientWidgets.items():
+            ingredient = cb.currentData()
+            if ingredient not in ports.values():
+                ports[port] = ingredient
+            else:
+                self.mainWindow.showMessage("Jede Zutat darf nur einer Position zugewiesen werden!")
+                return
+        self.mainWindow.showMessage("Positionen wurden gespeichert.")
         self.db.setPorts(ports)
 
 class Calibration(BarBotGui.View):
@@ -396,7 +401,58 @@ class Cleaning(BarBotGui.View):
     def __init__(self, _mainWindow: BarBotGui.MainWindow):
         super().__init__(_mainWindow)
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.layout().addWidget(QtWidgets.QLabel("Reinigung"))
+
+        self.ingredients = self.db.getAllIngredients()
+        self.ports = self.db.getIngredientOfPort()
+        self.amount = 50
+        #assume calibration value of water
+        self.calibration = 1000
+
+        #title
+        title = QtWidgets.QLabel("Reinigung")
+        title.setProperty("class", "Headline")
+        self.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        self.layout().addWidget(title)
+
+        #clean left
+        button = QtWidgets.QPushButton("Reinigen linke Hälfte")
+        button.clicked.connect(lambda: self.cleanLeft())
+        self.layout().addWidget(button)
+
+        #clean right
+        button = QtWidgets.QPushButton("Reinigen rechte Hälfte")
+        button.clicked.connect(lambda: self.cleanRight())
+        self.layout().addWidget(button)
+
+        #grid
+        grid = QtWidgets.QWidget()
+        grid.setLayout(QtWidgets.QGridLayout())
+        self.layout().addWidget(grid)
+        #fill with buttons
+        for column in range(6):
+            for row in range(2):
+                port = row * 6 + column
+                button = QtWidgets.QPushButton(str(port + 1))
+                button.clicked.connect(lambda checked, pid=port: self.cleanSingle(pid))
+                grid.layout().addWidget(button, row, column)
+
+        #dummy
+        self.layout().addWidget(QtWidgets.QWidget(), 1)
+
+    def cleanLeft(self):
+        data = []
+        for i in range(0, 6):
+            data.append({"port": i, "amount": self.amount, "calibration": self.calibration})
+        self.bot.startCleaningCycle(data)
+
+    def cleanRight(self):
+        data = []
+        for i in range(6, 12):
+            data.append({"port": i, "amount": self.amount, "calibration": self.calibration})
+        self.bot.startCleaningCycle(data)
+    
+    def cleanSingle(self, port):
+        self.bot.startCleaning(port, self.amount * self.calibration)
 
 class System(BarBotGui.View):
     def __init__(self, _mainWindow: BarBotGui.MainWindow):

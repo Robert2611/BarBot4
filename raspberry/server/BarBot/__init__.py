@@ -14,6 +14,11 @@ class State(Enum):
     CLEANING_CYCLE = auto()
     SINGLE_INGREDIENT = auto()
 
+class UserMessages(Enum):
+    MixingDoneRemoveGlas = auto()
+    PlaceGlas = auto()
+    IngredientEmpty = auto()
+
 class StateMachine(threading.Thread):
     OnMixingFinished = None
     OnMixingProgressChanged = None
@@ -23,12 +28,13 @@ class StateMachine(threading.Thread):
     progress = None
     data = None
     abort = False
-    message = None
+    message:UserMessages = None
     user_input = None
     rainbow_duration = 10
     max_speed = 100
     max_accel = 100
     demo = False
+    protocol:BarBot.Communication.Protocol = None
 
     def __init__(self, port, baudrate, demo = False):
         threading.Thread.__init__(self)
@@ -54,12 +60,16 @@ class StateMachine(threading.Thread):
                     self.setState(State.IDLE)
             elif self.state == State.MIXING:
                 self.doMixing()
+                self.setState(State.IDLE)
             elif self.state == State.CLEANING:
                 self.doCleaning()
+                self.setState(State.IDLE)
             elif self.state == State.CLEANING_CYCLE:
                 self.doCleaningCycle()
+                self.setState(State.IDLE)
             elif self.state == State.SINGLE_INGREDIENT:
                 self.doSingleIngredient()
+                self.setState(State.IDLE)
             else:
                 if not self.demo:
                     # update as long as there is data to be read
@@ -71,6 +81,9 @@ class StateMachine(threading.Thread):
                     time.sleep(0.1)
         if not self.demo:
             self.protocol.Close()
+
+    def setUserInput(self, value:bool):
+        self.user_input = value
     
     def setState(self, state):
         self.state = state
@@ -82,7 +95,7 @@ class StateMachine(threading.Thread):
         if self.OnMixingProgressChanged is not None:
             self.OnMixingProgressChanged()
     
-    def setMessage(self, message):
+    def setMessage(self, message:UserMessages):        
         self.message = message
         if self.OnMessageChanged is not None:
             self.OnMessageChanged()
@@ -97,21 +110,32 @@ class StateMachine(threading.Thread):
 
     def doMixing(self):
         if self.demo:
-            for item in self.data["recipe"]["items"]:
-                self.data["recipe_item_index"] += 1
-                maxProgress = len(self.data["recipe"]["items"])
-                self.setMixingProgress(self.data["recipe_item_index"] / maxProgress)
-                time.sleep(2)
-            self.setState(State.IDLE)
+            # self.setMessage(UserMessages.MixingDoneRemoveGlas)
+            # time.sleep(2)
+            # self.setMessage(None)
+            # for item in self.data["recipe"]["items"]:
+            #     self.data["recipe_item_index"] += 1
+            #     maxProgress = len(self.data["recipe"]["items"])
+            #     self.setMixingProgress(self.data["recipe_item_index"] / maxProgress)
+            #     time.sleep(2)
+            # return
+            self.setMessage(UserMessages.IngredientEmpty)
+            self.user_input = None
+            # wait for user input
+            while self.user_input is None:
+                time.sleep(0.5)
+            # remove the message
+            self.setMessage(None)
+            print(self.user_input)
             return
         # wait for the glas
-        self.setMessage("place_glas")
+        self.setMessage(UserMessages.PlaceGlas)
         self.protocol.Do("PlatformLED", 4)
         while self.protocol.Get("HasGlas") != "1":
             pass
         # glas is there, wait a second to let the user take away the hand
         self.protocol.Do("PlatformLED", 3)
-        self.message = None
+        self.setMessage(None)
         time.sleep(1)
         self.protocol.Do("PlatformLED", 5)
         for item in self.data["recipe"]["items"]:
@@ -124,25 +148,24 @@ class StateMachine(threading.Thread):
             maxProgress = len(self.data["recipe"]["items"]) - 1
             self.setMixingProgress(self.data["recipe_item_index"] / maxProgress)
         self.protocol.Do("Move", 0)
-        self.setMessage("mixing_done_remove_glas")
+        self.setMessage(UserMessages.MixingDoneRemoveGlas)
         self.protocol.Do("PlatformLED", 2)
         self.protocol.Set("SetLED", 2)
         while self.protocol.Get("HasGlas") != "0":
             time.sleep(0.5)
-        self.message = None
+        self.setMessage(None)
         self.protocol.Do("PlatformLED", 0)
         if OnMixingFinished is not None:
             self.OnMixingFinished(self.data["recipe"]["id"])
         self.protocol.Set("SetLED", 3)
-        self.setState(State.IDLE)
 
     def draft_one(self, item):
         if item["port"] == 12:
             self.protocol.Do("Stir", item["amount"] * 1000)
         else:
             while True:
-                result = self.protocol.Do("Draft", item["port"], int(
-                    item["amount"] * item["calibration"]))
+                weight = int(item["amount"] * item["calibration"])
+                result = self.protocol.Do("Draft", item["port"], weight)
                 if result == True:
                     # drafting successfull
                     return True
@@ -150,15 +173,15 @@ class StateMachine(threading.Thread):
                     #ingredient is empty
                     # safe how much is left to draft
                     item["amount"] = int(result[1]) / item["calibration"]
-                    print("ingredient_empty")
-                    self.setMessage("ingredient_empty")
+                    print(UserMessages.IngredientEmpty)
+                    self.setMessage(UserMessages.IngredientEmpty)
                     self.user_input = None
                     # wait for user input
-                    while self.user_input == None:
+                    while self.user_input is None:
                         time.sleep(0.5)
-                    # remove the message again
-                    self.message = None
-                    if self.user_input == False:
+                    # remove the message
+                    self.setMessage(None)
+                    if not self.user_input:
                         return False
                     # repeat the loop
                 else:
@@ -166,27 +189,34 @@ class StateMachine(threading.Thread):
                     return False
 
     def doCleaningCycle(self):
-        self.setMessage("place_glas")
+        if self.demo:
+            time.sleep(2)
+            return
+        self.setMessage(UserMessages.PlaceGlas)
         while self.protocol.Get("HasGlas") != "1":
             time.sleep(0.5)
-        self.message = None
+        self.setMessage(None)
         for item in self.data:
-            self.protocol.Do("Draft", item["port"], item["duration"])
+            weight = int(item["amount"] * item["calibration"])
+            self.protocol.Do("Draft", item["port"], weight)
         self.protocol.Do("Move", 0)
-        self.setState(State.IDLE)
 
     def doCleaning(self):
-        self.protocol.Do("Pump", self.data["port"], self.data["duration"])
-        self.setState(State.IDLE)
+        if self.demo:
+            time.sleep(2)
+            return
+        self.protocol.Do("Draft", self.data["port"], int(self.data["weight"]))
 
     def doSingleIngredient(self):
-        self.setMessage("place_glas")
+        if self.demo:
+            time.sleep(2)
+            return
+        self.setMessage(UserMessages.PlaceGlas)
         while self.protocol.Get("HasGlas") != "1":
             time.sleep(0.5)
-        self.message = None
+        self.setMessage(None)
         self.draft_one(self.data)
         self.protocol.Do("Move", 0)
-        self.setState(State.IDLE)
 
     # start commands
 
@@ -198,8 +228,8 @@ class StateMachine(threading.Thread):
         self.data = recipe_item
         self.setState(State.SINGLE_INGREDIENT)
 
-    def startCleaning(self, port, duration):
-        self.data = {"port": port, "duration": duration}
+    def startCleaning(self, port, weight):
+        self.data = {"port": port, "weight": weight}
         self.setState(State.CLEANING)
 
     def startCleaningCycle(self, data):
@@ -208,10 +238,11 @@ class StateMachine(threading.Thread):
     
 
 class Database(object):
+    con:lite.Connection
+    filename:str
+    isConnected:bool = False
     def __init__(self, filename):
         self.filename = filename
-        self.con = None
-        self.isConnected = False
 
     def open(self):
         if self.isConnected:
@@ -401,6 +432,7 @@ class Database(object):
 		""", {"rid": rid})
         items_in_Database = self.cursor.fetchall()
         if len(items_in_Database) != len(items):
+            print(items_in_Database)
             self.close()
             return True
 
