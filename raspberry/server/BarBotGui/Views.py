@@ -103,11 +103,11 @@ class BusyView(BarBotGui.View):
 
             self.titleLabel.setText("Cocktail\n'%s'\nwird gemischt." % self.bot.data["recipe"]["name"])
         elif self.bot.state == BarBot.State.CLEANING:
-            self.setTitle("Reinigung")
+            self.titleLabel.setText("Reinigung")
         elif self.bot.state == BarBot.State.CLEANING_CYCLE:
-            self.setTitle("Reinigung")
+            self.titleLabel.setText("Reinigung")
         elif self.bot.state == BarBot.State.SINGLE_INGREDIENT:
-            self.setTitle("Dein Nachschlag wird hinzugefügt")
+            self.titleLabel.setText("Dein Nachschlag wird hinzugefügt")
 
 class IdleView(BarBotGui.View):
     subViewName = None
@@ -122,7 +122,6 @@ class IdleView(BarBotGui.View):
         self.adminPages = {
             "Übersicht" : lambda: self.setSubViewByName("AdminOverview"),
             "Positionen" : lambda: self.setSubViewByName("Ports"),
-            "Kalibrierung" : lambda: self.setSubViewByName("Calibration"),
             "Reinigung" : lambda: self.setSubViewByName("Cleaning"),
             "System" : lambda: self.setSubViewByName("System"),
             "Löschen" : lambda: self.setSubViewByName("RemoveRecipe")

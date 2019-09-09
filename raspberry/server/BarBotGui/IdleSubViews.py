@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui, QtChart
 import BarBotGui
+import BarBot
 
 class ListRecipes(BarBotGui.View):
     def __init__(self, _mainWindow: BarBotGui.MainWindow):
@@ -79,10 +80,12 @@ class RecipeNewOrEdit(BarBotGui.View):
         #name
         self.layout().addWidget(QtWidgets.QLabel("Name:"))
         self.NameWidget = QtWidgets.QLineEdit(self.recipeData["name"])
+        self.NameWidget.mousePressEvent = lambda event: self.mainWindow.openKeyboard(self.NameWidget)
         self.layout().addWidget(self.NameWidget)        
         #instruction
         self.layout().addWidget(QtWidgets.QLabel("Zusatzinfo:"))
         self.InstructionWidget = QtWidgets.QLineEdit(self.recipeData["instruction"])
+        self.InstructionWidget.mousePressEvent = lambda event: self.mainWindow.openKeyboard(self.InstructionWidget)
         self.layout().addWidget(self.InstructionWidget)
 
         #ingredients
@@ -458,7 +461,25 @@ class System(BarBotGui.View):
     def __init__(self, _mainWindow: BarBotGui.MainWindow):
         super().__init__(_mainWindow)
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.layout().addWidget(QtWidgets.QLabel("System"))
+
+        #title
+        title = QtWidgets.QLabel("System")
+        title.setProperty("class", "Headline")
+        self.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        self.layout().addWidget(title)
+
+        #shutdown
+        button = QtWidgets.QPushButton("Herunterfahren")
+        button.clicked.connect(lambda: BarBot.runCommand("sudo shutdown now"))        
+        self.layout().addWidget(button)
+
+        #reboot
+        button = QtWidgets.QPushButton("Neu Starten")
+        button.clicked.connect(lambda: BarBot.runCommand("sudo reboot"))        
+        self.layout().addWidget(button)
+
+        #dummy
+        self.layout().addWidget(QtWidgets.QWidget(), 1)
 
 class RemoveRecipe(BarBotGui.View):
     list = None

@@ -1,9 +1,21 @@
 import time
 import threading
 import BarBot.Communication
+import sys
+import os
+import subprocess
 import sqlite3 as lite
 
 from enum import Enum, auto
+
+def getAbsolutePath(relative_path):
+    dirname = sys.path[0]
+    filename = os.path.join(dirname, relative_path)
+    return filename
+
+def runCommand(cmd_str):
+    subprocess.Popen([cmd_str], shell=True, stdin=None,
+                     stdout=None, stderr=None, close_fds=True)
 
 class State(Enum):
     CONNECTING = auto()
