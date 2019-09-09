@@ -1,0 +1,22 @@
+.BarBotHeader{
+    font-size: 50px;
+}
+.Headline{
+    font-size: 20px;
+}
+.RecipeTitle{
+    font-size: 20px;
+}
+.AdminCheckbox::indicator{
+    image: url(#iconpath#/admin.png);
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+    border-style: solid;
+    border-color: gray;
+}
+.AdminCheckbox::indicator:checked{
+    border-color: red;
+}
+.AdminCheckbox::indicator:unchecked{
+}

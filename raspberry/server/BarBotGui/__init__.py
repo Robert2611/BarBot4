@@ -12,12 +12,113 @@ def setWidgetColor(widget, color):
 
 def getCSSPath():
     script_dir = os.path.dirname(__file__)
-    return os.path.join(script_dir, "../../gui/css")
+    return os.path.join(script_dir, "asset")
 
 def getQtIconFromFileName(fileName):
     script_dir = os.path.dirname(__file__)
-    path = os.path.join(script_dir, "../../gui/css/", fileName)
+    path = os.path.join(script_dir, "asset", fileName)
     return Qt.QIcon(path)
+
+
+class Keyboard(QtWidgets.QWidget):
+    widgetsCreated = False
+    isShift = False
+    target: QtWidgets.QLineEdit = None
+    def __init__(self, target: QtWidgets.QLineEdit):
+        super().__init__()
+        self.target = target
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.updateKeys()
+        #move to bottom of the screen
+        desktop = Qt.QApplication.desktop().availableGeometry()
+        keyboardDesired = Qt.QRect(Qt.QPoint(0,0), self.sizeHint())
+        keyboardDesired.moveBottomRight(desktop.bottomRight())
+        keyboardDesired.setLeft(desktop.left())
+        self.setGeometry(keyboardDesired)
+
+    def updateKeys(self):
+	    #first row
+        keys = [
+            ["1","!"],["2","\""],["3","§"],["4","$"],["5","%"],
+            ["6","&"],["7","/"],["8","("],["9",")"],["0","ß"]
+        ]
+        if not self.widgetsCreated:
+            self.firstRow = self.addRow([data[0] for data in keys])
+        for index, data in enumerate(keys):
+            self.firstRow[index].setText(data[1] if self.isShift else data[0])
+
+	    #second row
+        keys = ["q","w","e","r","t","z","u","i","o","p"]
+        if not self.widgetsCreated:
+            self.secondRow = self.addRow(keys)
+        for index, letter in enumerate(keys):
+            self.secondRow[index].setText(str.upper(letter) if self.isShift else letter)
+        
+	    #third row
+        keys = ["a","s","d","f","g","h","j","k","l","ö"]
+        if not self.widgetsCreated:
+            self.thirdRow = self.addRow(keys)
+        for index, letter in enumerate(keys):
+            self.thirdRow[index].setText(str.upper(letter) if self.isShift else letter)
+
+        #fourth row
+        keys = ["y","x","c","v","b","n","m","ä","ü"]
+        if not self.widgetsCreated:
+            self.fourthRow = self.addRow(keys)
+        for index, letter in enumerate(keys):
+            self.fourthRow[index].setText(str.upper(letter) if self.isShift else letter)
+        
+        #last row
+        if not self.widgetsCreated:
+            row = QtWidgets.QWidget()
+            row.setLayout(QtWidgets.QHBoxLayout())
+            BarBotGui.setNoSpacingAndMargin(row.layout())
+            #shift
+            button = QtWidgets.QPushButton("▲")
+            button.clicked.connect(lambda checked, b=button: self.buttonClicked("shift"))
+            row.layout().addWidget(button)
+            #space
+            button = QtWidgets.QPushButton(" ")
+            button.clicked.connect(lambda checked, b=button: self.buttonClicked(" "))
+            row.layout().addWidget(button)
+            #delete
+            button = QtWidgets.QPushButton("←")
+            button.clicked.connect(lambda checked, b=button: self.buttonClicked("delete"))
+            row.layout().addWidget(button)
+            self.layout().addWidget(row)
+
+        self.widgetsCreated = True
+
+    def buttonClicked(self, content):
+        if self.target is None:
+            return
+        if content == "shift":
+            self.isShift = not self.isShift
+            self.updateKeys()
+        else:
+            if content == "delete":
+                self.target.setText(self.target.text()[:-1])
+            else:
+                self.target.setText(self.target.text() + content)
+            #reset shift state
+            if self.isShift:
+                self.isShift = False
+                self.updateKeys()
+
+    def addRow(self, keys):
+        res =  []
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        BarBotGui.setNoSpacingAndMargin(row.layout())
+        for letter in keys:
+            button = QtWidgets.QPushButton(letter)
+            button.clicked.connect(lambda checked, b=button: self.buttonClicked(b.text()))
+            res.append(button)
+            row.layout().addWidget(button)
+        self.layout().addWidget(row)
+        return res
+
 
 class MainWindow(QtWidgets.QWidget):
     db:BarBot.Database
@@ -26,38 +127,18 @@ class MainWindow(QtWidgets.QWidget):
     botStateChangedTrigger = QtCore.pyqtSignal()
     lastIdleSubView = None
     isAdmin = False
+    keyboard: Keyboard = None
     def __init__(self, _db:BarBot.Database, _bot:BarBot.StateMachine):
         super().__init__()
         import BarBotGui.Views
         self.db = _db
         self.bot = _bot
 
-        styles = """
-            .BarBotHeader{
-                font-size: 50px;
-            }
-            .Headline{
-                font-size: 20px;
-            }
-            .RecipeTitle{
-                font-size: 20px;
-            }
-            .AdminCheckbox::indicator{
-                image: url(#iconpath#/admin.png);
-                width: 20px;
-                height: 20px;
-                border-width: 2px;
-                border-style: solid;
-                border-color: gray;
-            }
-            .AdminCheckbox::indicator:checked{
-                border-color: red;
-            }
-            .AdminCheckbox::indicator:unchecked{
-            }
-        """
+        styles = open(os.path.join(getCSSPath(), 'main.qss')).read()
         styles = styles.replace("#iconpath#", getCSSPath())
         self.setStyleSheet(styles)
+
+        self.mousePressEvent = lambda event: self.closeKeyboard()
 
         #forward status changed
         self.botStateChangedTrigger.connect(self.botStateChanged)
@@ -86,6 +167,17 @@ class MainWindow(QtWidgets.QWidget):
 
         self.setView(BarBotGui.Views.IdleView(self))
         self.show()
+
+    def closeKeyboard(self):
+        if self.keyboard is not None:
+            self.keyboard.close()
+            self.keyboard = None
+    
+    def openKeyboard(self, target: QtWidgets.QLineEdit):
+        if self.keyboard is not None:
+            self.keyboard.close()
+        self.keyboard = Keyboard(target)
+        self.keyboard.show()
 
     def setView(self, view):
         #remove existing item from window
@@ -151,3 +243,4 @@ class View(QtWidgets.QWidget):
         self.mainWindow = _mainWindow
         self.db = _mainWindow.db
         self.bot = _mainWindow.bot
+
