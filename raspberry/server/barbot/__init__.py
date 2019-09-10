@@ -1,6 +1,6 @@
 import time
 import threading
-import BarBot.Communication
+import barbot.communication
 import sys
 import os
 import subprocess
@@ -8,176 +8,171 @@ import sqlite3 as lite
 
 from enum import Enum, auto
 
-def getAbsolutePath(relative_path):
-    dirname = sys.path[0]
-    filename = os.path.join(dirname, relative_path)
-    return filename
-
-def runCommand(cmd_str):
+def run_command(cmd_str):
     subprocess.Popen([cmd_str], shell=True, stdin=None,
                      stdout=None, stderr=None, close_fds=True)
 
 class State(Enum):
-    CONNECTING = auto()
-    STARTUP = auto()
-    IDLE = auto()
-    MIXING = auto()
-    CLEANING = auto()
-    CLEANING_CYCLE = auto()
-    SINGLE_INGREDIENT = auto()
+    connecting = auto()
+    startup = auto()
+    idle = auto()
+    mixing = auto()
+    cleaning = auto()
+    cleaning_cycle = auto()
+    single_ingredient = auto()
 
 class UserMessages(Enum):
-    MixingDoneRemoveGlas = auto()
-    PlaceGlas = auto()
-    IngredientEmpty = auto()
+    mixing_done_remove_glas = auto()
+    place_glas = auto()
+    ingredient_empty = auto()
 
 class StateMachine(threading.Thread):
-    OnMixingFinished = None
-    OnMixingProgressChanged = None
-    OnStateChanged = None
-    OnMessageChanged = None
+    on_mixing_finished = None
+    on_mixing_progress_changed = None
+    on_state_changed = None
+    on_message_changed = None
 
     progress = None
     data = None
     abort = False
     message:UserMessages = None
-    user_input = None
+    _user_input = None
     rainbow_duration = 10
     max_speed = 100
     max_accel = 100
     demo = False
-    protocol:BarBot.Communication.Protocol = None
+    protocol:barbot.communication.Protocol = None
 
     def __init__(self, port, baudrate, demo = False):
         threading.Thread.__init__(self)
         self.demo = demo
         if not demo:
-            self.protocol = BarBot.Communication.Protocol(port, baudrate, 1)
-            self.setState(State.CONNECTING)
-        self.setState(State.IDLE)
+            self.protocol = barbot.communication.Protocol(port, baudrate, 1)
+            self.set_state(State.connecting)
+        self.set_state(State.idle)
 
     # main loop, runs the whole time
     def run(self):
         while not self.abort:
-            if self.state == State.CONNECTING:
-                if self.protocol.Connect():
-                    self.setState(State.STARTUP)
+            if self.state == State.connecting:
+                if self.protocol.connect():
+                    self.set_state(State.startup)
                 else:
                     time.sleep(1)
-            elif self.state == State.STARTUP:
-                if self.protocol.ReadMessage().type == BarBot.Communication.MessageTypes.STATUS:
-                    self.protocol.Set("SetLED", 3)
-                    self.protocol.Set("SetSpeed", self.max_speed)
-                    self.protocol.Set("SetAccel", self.max_accel)
-                    self.setState(State.IDLE)
-            elif self.state == State.MIXING:
-                self.doMixing()
-                self.setState(State.IDLE)
-            elif self.state == State.CLEANING:
-                self.doCleaning()
-                self.setState(State.IDLE)
-            elif self.state == State.CLEANING_CYCLE:
-                self.doCleaningCycle()
-                self.setState(State.IDLE)
-            elif self.state == State.SINGLE_INGREDIENT:
-                self.doSingleIngredient()
-                self.setState(State.IDLE)
+            elif self.state == State.startup:
+                if self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
+                    self.protocol.send_set("SetLED", 3)
+                    self.protocol.send_set("SetSpeed", self.max_speed)
+                    self.protocol.send_set("SetAccel", self.max_accel)
+                    self.set_state(State.idle)
+            elif self.state == State.mixing:
+                self._do_mixing()
+                self.set_state(State.idle)
+            elif self.state == State.cleaning:
+                self._do_cleaning()
+                self.set_state(State.idle)
+            elif self.state == State.cleaning_cycle:
+                self._do_cleaning_cycle()
+                self.set_state(State.idle)
+            elif self.state == State.single_ingredient:
+                self._do_single_ingredient()
+                self.set_state(State.idle)
             else:
                 if not self.demo:
                     # update as long as there is data to be read
-                    while self.protocol.Update():
+                    while self.protocol.update():
                         pass
-                    if not self.protocol.isConnected:
-                        self.setState(State.CONNECTING)
+                    if not self.protocol._is_connected:
+                        self.set_state(State.connecting)
                 else:
                     time.sleep(0.1)
         if not self.demo:
-            self.protocol.Close()
+            self.protocol.close()
 
-    def setUserInput(self, value:bool):
-        self.user_input = value
+    def set_user_input(self, value:bool):
+        self._user_input = value
     
-    def setState(self, state):
+    def set_state(self, state):
         self.state = state
-        if self.OnStateChanged is not None:
-            self.OnStateChanged()
+        if self.on_state_changed is not None:
+            self.on_state_changed()
     
-    def setMixingProgress(self, progress):
+    def _set_mixing_progress(self, progress):
         self.progress = progress
-        if self.OnMixingProgressChanged is not None:
-            self.OnMixingProgressChanged()
+        if self.on_mixing_progress_changed is not None:
+            self.on_mixing_progress_changed()
     
-    def setMessage(self, message:UserMessages):        
+    def _set_message(self, message:UserMessages):        
         self.message = message
-        if self.OnMessageChanged is not None:
-            self.OnMessageChanged()
+        if self.on_message_changed is not None:
+            self.on_message_changed()
 
-    def isArduinoBusy(self):
-        return self.state != State.IDLE
+    def is_busy(self):
+        return self.state != State.idle
 
-    def canManipulateDatabase(self):
-        return self.state == State.CONNECTING or self.state == State.IDLE
+    def can_edit_database(self):
+        return self.state == State.connecting or self.state == State.idle
 
     # do commands
 
-    def doMixing(self):
+    def _do_mixing(self):
         if self.demo:
-            # self.setMessage(UserMessages.MixingDoneRemoveGlas)
+            # self._set_message(UserMessages.mixing_done_remove_glas)
             # time.sleep(2)
-            # self.setMessage(None)
+            # self._set_message(None)
             # for item in self.data["recipe"]["items"]:
             #     self.data["recipe_item_index"] += 1
             #     maxProgress = len(self.data["recipe"]["items"])
-            #     self.setMixingProgress(self.data["recipe_item_index"] / maxProgress)
+            #     self._set_mixing_progress(self.data["recipe_item_index"] / maxProgress)
             #     time.sleep(2)
             # return
-            self.setMessage(UserMessages.IngredientEmpty)
+            self._set_message(UserMessages.ingredient_empty)
             self.user_input = None
             # wait for user input
             while self.user_input is None:
                 time.sleep(0.5)
             # remove the message
-            self.setMessage(None)
+            self._set_message(None)
             print(self.user_input)
             return
         # wait for the glas
-        self.setMessage(UserMessages.PlaceGlas)
-        self.protocol.Do("PlatformLED", 4)
-        while self.protocol.Get("HasGlas") != "1":
+        self._set_message(UserMessages.place_glas)
+        self.protocol.send_do("PlatformLED", 4)
+        while self.protocol.send_get("HasGlas") != "1":
             pass
         # glas is there, wait a second to let the user take away the hand
-        self.protocol.Do("PlatformLED", 3)
-        self.setMessage(None)
+        self.protocol.send_do("PlatformLED", 3)
+        self._set_message(None)
         time.sleep(1)
-        self.protocol.Do("PlatformLED", 5)
+        self.protocol.send_do("PlatformLED", 5)
         for item in self.data["recipe"]["items"]:
             # don't do anything else if user has aborted
-            self.protocol.Set("SetLED", 4)
+            self.protocol.send_set("SetLED", 4)
             # do the actual draft, exit the loop if it did not succeed
-            if not self.draft_one(item):
+            if not self._draft_one(item):
                 break
             self.data["recipe_item_index"] += 1
             maxProgress = len(self.data["recipe"]["items"]) - 1
-            self.setMixingProgress(self.data["recipe_item_index"] / maxProgress)
-        self.protocol.Do("Move", 0)
-        self.setMessage(UserMessages.MixingDoneRemoveGlas)
-        self.protocol.Do("PlatformLED", 2)
-        self.protocol.Set("SetLED", 2)
-        while self.protocol.Get("HasGlas") != "0":
+            self._set_mixing_progress(self.data["recipe_item_index"] / maxProgress)
+        self.protocol.send_do("Move", 0)
+        self._set_message(UserMessages.mixing_done_remove_glas)
+        self.protocol.send_do("PlatformLED", 2)
+        self.protocol.send_set("SetLED", 2)
+        while self.protocol.send_get("HasGlas") != "0":
             time.sleep(0.5)
-        self.setMessage(None)
-        self.protocol.Do("PlatformLED", 0)
-        if OnMixingFinished is not None:
-            self.OnMixingFinished(self.data["recipe"]["id"])
-        self.protocol.Set("SetLED", 3)
+        self._set_message(None)
+        self.protocol.send_do("PlatformLED", 0)
+        if on_mixing_finished is not None:
+            self.on_mixing_finished(self.data["recipe"]["id"])
+        self.protocol.send_set("SetLED", 3)
 
-    def draft_one(self, item):
+    def _draft_one(self, item):
         if item["port"] == 12:
-            self.protocol.Do("Stir", item["amount"] * 1000)
+            self.protocol.send_do("Stir", item["amount"] * 1000)
         else:
             while True:
                 weight = int(item["amount"] * item["calibration"])
-                result = self.protocol.Do("Draft", item["port"], weight)
+                result = self.protocol.send_do("Draft", item["port"], weight)
                 if result == True:
                     # drafting successfull
                     return True
@@ -185,14 +180,14 @@ class StateMachine(threading.Thread):
                     #ingredient is empty
                     # safe how much is left to draft
                     item["amount"] = int(result[1]) / item["calibration"]
-                    print(UserMessages.IngredientEmpty)
-                    self.setMessage(UserMessages.IngredientEmpty)
+                    print(UserMessages.ingredient_empty)
+                    self._set_message(UserMessages.ingredient_empty)
                     self.user_input = None
                     # wait for user input
                     while self.user_input is None:
                         time.sleep(0.5)
                     # remove the message
-                    self.setMessage(None)
+                    self._set_message(None)
                     if not self.user_input:
                         return False
                     # repeat the loop
@@ -200,80 +195,80 @@ class StateMachine(threading.Thread):
                     # unhandled error while drafting
                     return False
 
-    def doCleaningCycle(self):
+    def _do_cleaning_cycle(self):
         if self.demo:
             time.sleep(2)
             return
-        self.setMessage(UserMessages.PlaceGlas)
-        while self.protocol.Get("HasGlas") != "1":
+        self._set_message(UserMessages.place_glas)
+        while self.protocol.send_get("HasGlas") != "1":
             time.sleep(0.5)
-        self.setMessage(None)
+        self._set_message(None)
         for item in self.data:
             weight = int(item["amount"] * item["calibration"])
-            self.protocol.Do("Draft", item["port"], weight)
-        self.protocol.Do("Move", 0)
+            self.protocol.send_do("Draft", item["port"], weight)
+        self.protocol.send_do("Move", 0)
 
-    def doCleaning(self):
+    def _do_cleaning(self):
         if self.demo:
             time.sleep(2)
             return
-        self.protocol.Do("Draft", self.data["port"], int(self.data["weight"]))
+        self.protocol.send_do("Draft", self.data["port"], int(self.data["weight"]))
 
-    def doSingleIngredient(self):
+    def _do_single_ingredient(self):
         if self.demo:
             time.sleep(2)
             return
-        self.setMessage(UserMessages.PlaceGlas)
-        while self.protocol.Get("HasGlas") != "1":
+        self._set_message(UserMessages.place_glas)
+        while self.protocol.send_get("HasGlas") != "1":
             time.sleep(0.5)
-        self.setMessage(None)
-        self.draft_one(self.data)
-        self.protocol.Do("Move", 0)
+        self._set_message(None)
+        self._draft_one(self.data)
+        self.protocol.send_do("Move", 0)
 
     # start commands
 
-    def startMixing(self, recipe):
+    def start_mixing(self, recipe):
         self.data = {"recipe": recipe, "recipe_item_index": 0}
-        self.setState(State.MIXING)
+        self.set_state(State.mixing)
 
-    def startSingleIngredient(self, recipe_item):
+    def start_single_ingredient(self, recipe_item):
         self.data = recipe_item
-        self.setState(State.SINGLE_INGREDIENT)
+        self.set_state(State.single_ingredient)
 
-    def startCleaning(self, port, weight):
+    def start_cleaning(self, port, weight):
         self.data = {"port": port, "weight": weight}
-        self.setState(State.CLEANING)
+        self.set_state(State.cleaning)
 
-    def startCleaningCycle(self, data):
+    def start_cleaning_cycle(self, data):
         self.data = data
-        self.setState(State.CLEANING_CYCLE)
+        self.set_state(State.cleaning_cycle)
     
 
 class Database(object):
     con:lite.Connection
     filename:str
-    isConnected:bool = False
+    _is_connected:bool = False
     def __init__(self, filename):
         self.filename = filename
 
     def open(self):
-        if self.isConnected:
+        if self._is_connected:
             return
         self.con = lite.connect(self.filename)
         self.con.row_factory = lite.Row
         self.cursor = self.con.cursor()
-        self.isConnected = True
+        self._is_connected = True
 
     def close(self):
         if(self.con is not None):
             self.con.close()
         self.con = None
         self.cursor = None
-        self.isConnected = False
+        self._is_connected = False
 
-    def getIngredientOfPort(self):
+    def ingredient_of_port(self):
         # only open/close if called while not connected
-        wasOpen = self.isConnected
+        wasOpen = self._is_connected
         if not wasOpen:
             self.open()
         self.cursor.execute("""
@@ -287,7 +282,7 @@ class Database(object):
             self.close()
         return res
 
-    def getPortAndCalibration(self, iid):
+    def port_and_calibration(self, iid):
         self.open()
         self.cursor.execute("""
 			SELECT p.id as port,  i.calibration AS calibration
@@ -302,7 +297,7 @@ class Database(object):
             return None
         return dict(res)
 
-    def getAllIngredients(self):
+    def list_ingredients(self):
         self.open()
         self.cursor.execute("""
 			SELECT i.id, i.name, i.type, i.calibration, p.id as port
@@ -316,7 +311,7 @@ class Database(object):
         self.close()
         return res
 
-    def getRecipes(self):
+    def list_recipes(self):
         self.open()
         self.cursor.execute("""
 			SELECT name, id
@@ -326,13 +321,13 @@ class Database(object):
         recipes = []
         for row in self.cursor.fetchall():
             recipe = dict(row)
-            self.addAllRecipeItems(recipe)
+            self._add_items_to_recipe(recipe)
             recipes.append(recipe)
         self.close()
         return recipes
 
-    def addAllRecipeItems(self, recipe):
-        availableIngredients = self.getIngredientOfPort().values()
+    def _add_items_to_recipe(self, recipe):
+        availableIngredients = self.ingredient_of_port().values()
         self.cursor.execute("""
 			SELECT ri.id, ri.amount, i.name, ri.Ingredient AS iid, i.calibration AS calibration, p.id as port
 			FROM RecipeItems ri
@@ -357,7 +352,7 @@ class Database(object):
             recipe["items"].append(item)
         recipe["available"] = recipe_available
 
-    def getRecipe(self, rid):
+    def recipe(self, rid):
         self.open()
         self.cursor.execute("""
 			SELECT name, id, instruction
@@ -372,12 +367,12 @@ class Database(object):
             return None
         recipe = dict(res)
         # fetch items
-        self.addAllRecipeItems(recipe)
+        self._add_items_to_recipe(recipe)
         self.close()
         return recipe
 
     # returns: new recipe id
-    def createOrUpdateRecipe(self, name, instruction, old_rid=-1):
+    def create_or_update_recipe(self, name, instruction, old_rid=-1):
         self.open()
         self.cursor.execute("""
 			INSERT INTO Recipes ( name, instruction, successor_id )
@@ -396,7 +391,7 @@ class Database(object):
         self.close()
         return new_rid
 
-    def removeRecipe(self, rid):
+    def remove_recipe(self, rid):
         self.open()
         self.cursor.execute("""
             UPDATE Recipes
@@ -406,7 +401,7 @@ class Database(object):
         self.con.commit()
         self.close()
         
-    def addRecipeItems(self, rid, items):
+    def _insert_recipe_items(self, rid, items):
         self.open()
         for item in items:
             self.cursor.execute("""
@@ -416,7 +411,7 @@ class Database(object):
         self.con.commit()
         self.close()
 
-    def recipeChanged(self, rid, name, items, instruction):
+    def has_recipe_changed(self, rid, name, items, instruction):
         self.open()
         self.cursor.execute("""
 			SELECT name, instruction
@@ -457,7 +452,7 @@ class Database(object):
         self.close()
         return False
 
-    def startOrder(self, rid):
+    def start_order(self, rid):
         self.open()
         self.cursor.execute("""
 			INSERT INTO Orders ( recipe, started, status )
@@ -466,7 +461,7 @@ class Database(object):
         self.con.commit()
         self.close()
 
-    def closeOrder(self, rid):
+    def close_order(self, rid):
         self.open()
         self.cursor.execute("""
 			UPDATE Orders
@@ -476,7 +471,7 @@ class Database(object):
         self.con.commit()
         self.close()
 
-    def clearOrders(self):
+    def clear_order(self):
         self.open()
         self.cursor.execute("""
 			UPDATE Orders
@@ -486,7 +481,7 @@ class Database(object):
         self.con.commit()
         self.close()
 
-    def setPorts(self, ports):
+    def update_ports(self, ports):
         self.open()
         for port, iid in ports.items():
             self.cursor.execute("""
@@ -497,7 +492,7 @@ class Database(object):
         self.con.commit()
         self.close()
 
-    def setCalibration(self, port, calibration):
+    def update_calibration(self, port, calibration):
         self.open()
         self.cursor.execute("""
 			UPDATE Ingredients
@@ -511,21 +506,7 @@ class Database(object):
         self.con.commit()
         self.close()
 
-    def getStrSetting(self, name):
-        self.open()
-        self.cursor.execute("""
-			SELECT value
-			FROM Settings
-			WHERE name=:name
-		""", {'name': name})
-        res = self.cursor.fetchone()
-        self.close()
-        return res["value"]
-
-    def getIntSetting(self, name):
-        return int(self.getStrSetting(name))
-
-    def getOrderedCocktailCount(self, date):
+    def ordered_cocktails_count(self, date):
         self.open()
         self.cursor.execute("""
 			SELECT r.name, r.id AS rid, COUNT(*) AS count
@@ -540,7 +521,7 @@ class Database(object):
         res = [dict(row) for row in self.cursor.fetchall()]
         return res
 
-    def getOrderedIngredientsAmount(self, date):
+    def ordered_ingredients_amount(self, date):
         self.open()
         self.cursor.execute("""
 			SELECT i.name AS ingredient, i.id AS iid, SUM(ri.amount)/100 AS liters
@@ -557,7 +538,7 @@ class Database(object):
         res = [dict(row) for row in self.cursor.fetchall()]
         return res
 
-    def getOrderedCocktailsByTime(self, date):
+    def ordered_cocktails_by_time(self, date):
         self.open()
         self.cursor.execute("""
 			SELECT strftime('%Y-%m-%d %H',o.started) AS hour, count(*) AS count
@@ -569,7 +550,7 @@ class Database(object):
         res = [dict(row) for row in self.cursor.fetchall()]
         return res
 
-    def getParties(self):
+    def list_parties(self):
         self.open()
         self.cursor.execute("""
 			SELECT partydate, ordercount

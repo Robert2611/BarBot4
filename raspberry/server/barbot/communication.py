@@ -19,17 +19,16 @@ class ProtocolMessage():
         self.command = command
         self.parameters = parameters
 
-
 class Protocol():
     def __init__(self, port, baud, timeout):
         self.baud = baud
         self.devicename = port
         self.error = None
         self.ser = None
-        self.isConnected = False
+        self.is_connected = False
         self.timeout = timeout
 
-    def Connect(self):
+    def connect(self):
         if self.ser is not None and self.ser.isOpen():
             self.ser.close()
         try:
@@ -43,20 +42,20 @@ class Protocol():
         print("connection to %s successfull" % (self.devicename))
         while self.ser.in_waiting:
             self.ser.read()
-        self.isConnected = True
+        self.is_connected = True
         return True
 
-    def Do(self, command, parameter1, parameter2=None):
+    def send_do(self, command, parameter1, parameter2=None):
         # clear the input
-        while self.HasData():
-            self.ReadMessage()
+        while self.has_data():
+            self.read_message()
         # send the command
         if parameter2 is not None:
-            self.SendCommand(command, [parameter1, parameter2])
+            self.send_command(command, [parameter1, parameter2])
         else:
-            self.SendCommand(command, [parameter1])
+            self.send_command(command, [parameter1])
         # wait for the response
-        message = self.ReadMessage()
+        message = self.read_message()
         if message.command != command:
             self.error = "answer for wrong command"
             return False
@@ -67,7 +66,7 @@ class Protocol():
             self.error = "wrong answer"
             return False
         while True:
-            message = self.ReadMessage()
+            message = self.read_message()
             if message.command != command:
                 self.error = "answer for wrong command"
                 return False
@@ -83,14 +82,14 @@ class Protocol():
                 self.error = "wrong answer"
                 return False
 
-    def Set(self, command, parameter=None):
+    def send_set(self, command, parameter=None):
         # clear the input
-        while self.HasData():
-            self.ReadMessage()
+        while self.has_data():
+            self.read_message()
         # send the command
-        self.SendCommand(command, [parameter])
+        self.send_command(command, [parameter])
         # wait for the response
-        message = self.ReadMessage()
+        message = self.read_message()
         if message.command != command:
             self.error = "answer for wrong command"
             return False
@@ -101,14 +100,14 @@ class Protocol():
             self.error = "wrong answer"
             return False
 
-    def Get(self, command, parameters=None):
+    def send_get(self, command, parameters=None):
         # clear the input
-        while self.HasData():
-            self.ReadMessage()
+        while self.has_data():
+            self.read_message()
         # send the command
-        self.SendCommand(command, parameters)
+        self.send_command(command, parameters)
         # wait for the response
-        message = self.ReadMessage()
+        message = self.read_message()
         if message.command != command:
             self.error = "answer for wrong command"
             return False
@@ -122,9 +121,9 @@ class Protocol():
             self.error = "NAK received"
             return False
 
-    def ReadMessage(self):
+    def read_message(self) -> ProtocolMessage:
         if self.ser == None or not self.ser.isOpen():
-            self.isConnected = False
+            self.is_connected = False
             return ProtocolMessage(MessageTypes.COMM_ERROR, "port not open")
         try:
             b_line = bytes()
@@ -134,7 +133,7 @@ class Protocol():
                     break
                 elif c == b'':
                     print("EOS")
-                    self.isConnected = False
+                    self.is_connected = False
                     return ProtocolMessage(MessageTypes.COMM_ERROR, "end of string")
                 else:
                     b_line += c
@@ -155,11 +154,11 @@ class Protocol():
                         return ProtocolMessage(type, tokens[1], tokens[2:])
             return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
         except Exception as e:
-            self.isConnected = False
+            self.is_connected = False
             print(e)
             return ProtocolMessage(MessageTypes.COMM_ERROR, e)
 
-    def SendCommand(self, command, parameters):
+    def send_command(self, command, parameters):
         if self.ser is not None:
             cmd = command
             if parameters is not None:
@@ -169,16 +168,16 @@ class Protocol():
             print(">" + cmd)
             self.ser.write(cmd.encode())
 
-    def Close(self):
+    def close(self):
         if self.ser is not None:
             self.ser.close()
 
-    def HasData(self):
+    def has_data(self):
         return self.ser.in_waiting > 0
 
-    def Update(self):
+    def update(self):
         if self.ser == None or not self.ser.isOpen():
-            self.isConnected = False
+            self.is_connected = False
             return False
-        result = self.ReadMessage()
-        return self.HasData()
+        result = self.read_message()
+        return self.has_data()

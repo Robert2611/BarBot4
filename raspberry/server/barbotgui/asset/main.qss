@@ -1,4 +1,4 @@
-.BarBotHeader{
+.barbotHeader{
     font-size: 50px;
 }
 .Headline{
