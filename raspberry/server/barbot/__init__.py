@@ -61,9 +61,9 @@ class StateMachine(threading.Thread):
                     time.sleep(1)
             elif self.state == State.startup:
                 if self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
-                    self.protocol.send_set("SetLED", 3)
-                    self.protocol.send_set("SetSpeed", self.max_speed)
-                    self.protocol.send_set("SetAccel", self.max_accel)
+                    self.protocol.try_set("SetLED", 3)
+                    self.protocol.try_set("SetSpeed", self.max_speed)
+                    self.protocol.try_set("SetAccel", self.max_accel)
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
@@ -82,7 +82,7 @@ class StateMachine(threading.Thread):
                     # update as long as there is data to be read
                     while self.protocol.update():
                         pass
-                    if not self.protocol._is_connected:
+                    if not self.protocol.is_connected:
                         self.set_state(State.connecting)
                 else:
                     time.sleep(0.1)
@@ -137,42 +137,42 @@ class StateMachine(threading.Thread):
             return
         # wait for the glas
         self._set_message(UserMessages.place_glas)
-        self.protocol.send_do("PlatformLED", 4)
-        while self.protocol.send_get("HasGlas") != "1":
+        self.protocol.try_do("PlatformLED", 4)
+        while self.protocol.try_get("HasGlas") != "1":
             pass
         # glas is there, wait a second to let the user take away the hand
-        self.protocol.send_do("PlatformLED", 3)
+        self.protocol.try_do("PlatformLED", 3)
         self._set_message(None)
         time.sleep(1)
-        self.protocol.send_do("PlatformLED", 5)
+        self.protocol.try_do("PlatformLED", 5)
         for item in self.data["recipe"]["items"]:
             # don't do anything else if user has aborted
-            self.protocol.send_set("SetLED", 4)
+            self.protocol.try_set("SetLED", 4)
             # do the actual draft, exit the loop if it did not succeed
             if not self._draft_one(item):
                 break
             self.data["recipe_item_index"] += 1
             maxProgress = len(self.data["recipe"]["items"]) - 1
             self._set_mixing_progress(self.data["recipe_item_index"] / maxProgress)
-        self.protocol.send_do("Move", 0)
+        self.protocol.try_do("Move", 0)
         self._set_message(UserMessages.mixing_done_remove_glas)
-        self.protocol.send_do("PlatformLED", 2)
-        self.protocol.send_set("SetLED", 2)
-        while self.protocol.send_get("HasGlas") != "0":
+        self.protocol.try_do("PlatformLED", 2)
+        self.protocol.try_set("SetLED", 2)
+        while self.protocol.try_get("HasGlas") != "0":
             time.sleep(0.5)
         self._set_message(None)
-        self.protocol.send_do("PlatformLED", 0)
+        self.protocol.try_do("PlatformLED", 0)
         if on_mixing_finished is not None:
             self.on_mixing_finished(self.data["recipe"]["id"])
-        self.protocol.send_set("SetLED", 3)
+        self.protocol.try_set("SetLED", 3)
 
     def _draft_one(self, item):
         if item["port"] == 12:
-            self.protocol.send_do("Stir", item["amount"] * 1000)
+            self.protocol.try_do("Stir", item["amount"] * 1000)
         else:
             while True:
                 weight = int(item["amount"] * item["calibration"])
-                result = self.protocol.send_do("Draft", item["port"], weight)
+                result = self.protocol.try_do("Draft", item["port"], weight)
                 if result == True:
                     # drafting successfull
                     return True
@@ -200,30 +200,30 @@ class StateMachine(threading.Thread):
             time.sleep(2)
             return
         self._set_message(UserMessages.place_glas)
-        while self.protocol.send_get("HasGlas") != "1":
+        while self.protocol.try_get("HasGlas") != "1":
             time.sleep(0.5)
         self._set_message(None)
         for item in self.data:
             weight = int(item["amount"] * item["calibration"])
-            self.protocol.send_do("Draft", item["port"], weight)
-        self.protocol.send_do("Move", 0)
+            self.protocol.try_do("Draft", item["port"], weight)
+        self.protocol.try_do("Move", 0)
 
     def _do_cleaning(self):
         if self.demo:
             time.sleep(2)
             return
-        self.protocol.send_do("Draft", self.data["port"], int(self.data["weight"]))
+        self.protocol.try_do("Draft", self.data["port"], int(self.data["weight"]))
 
     def _do_single_ingredient(self):
         if self.demo:
             time.sleep(2)
             return
         self._set_message(UserMessages.place_glas)
-        while self.protocol.send_get("HasGlas") != "1":
+        while self.protocol.try_get("HasGlas") != "1":
             time.sleep(0.5)
         self._set_message(None)
         self._draft_one(self.data)
-        self.protocol.send_do("Move", 0)
+        self.protocol.try_do("Move", 0)
 
     # start commands
 

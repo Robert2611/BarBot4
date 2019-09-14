@@ -8,7 +8,6 @@ import qdarkstyle
 import sys
 import config
 
-#sudo rfcomm connect hci0 20:16:04:14:60:60&
 
 is_demo = "-d" in sys.argv[1:]
 
@@ -17,6 +16,10 @@ dirname = sys.path[0]
 filename = os.path.join(dirname, '../bar_bot.sqlite')
 db = barbot.Database(filename)
 db.clear_order()
+
+if not is_demo:
+    #connect bluetooth device
+    barbot.run_command("sudo rfcomm connect hci0 %s&" % config.mac_adress)
 
 #create statemachine
 bot = barbot.StateMachine(config.com_port, config.baud_rate, is_demo)

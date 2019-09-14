@@ -45,7 +45,7 @@ class Protocol():
         self.is_connected = True
         return True
 
-    def send_do(self, command, parameter1, parameter2=None):
+    def _send_do(self, command, parameter1, parameter2=None):
         # clear the input
         while self.has_data():
             self.read_message()
@@ -82,7 +82,7 @@ class Protocol():
                 self.error = "wrong answer"
                 return False
 
-    def send_set(self, command, parameter=None):
+    def _send_set(self, command, parameter=None):
         # clear the input
         while self.has_data():
             self.read_message()
@@ -99,8 +99,9 @@ class Protocol():
         if message.type != MessageTypes.ACK:
             self.error = "wrong answer"
             return False
+        return True
 
-    def send_get(self, command, parameters=None):
+    def _send_get(self, command, parameters=None):
         # clear the input
         while self.has_data():
             self.read_message()
@@ -110,16 +111,17 @@ class Protocol():
         message = self.read_message()
         if message.command != command:
             self.error = "answer for wrong command"
-            return False
+            return None
         if message.type == MessageTypes.ACK:
             if message.parameters is not None:
                 return message.parameters[0]
             else:
                 self.error = "No result sent"
-                return False
+                return None
         if message.type == MessageTypes.NAK:
             self.error = "NAK received"
-            return False
+            return None
+        return None
 
     def read_message(self) -> ProtocolMessage:
         if self.ser == None or not self.ser.isOpen():
@@ -157,6 +159,25 @@ class Protocol():
             self.is_connected = False
             print(e)
             return ProtocolMessage(MessageTypes.COMM_ERROR, e)
+
+    def try_get(self, command, parameters=None):
+        for i in range(3):
+            res = self._send_get(command, parameters)
+            if res is not None:
+                return res
+        return None
+
+    def try_set(self, command, parameters=None):
+        for i in range(3):
+            if self._send_set(command, parameters):
+                return True
+        return False
+
+    def try_do(self, command, parameters=None):
+        for i in range(3):
+            if self._send_do(command, parameters):
+                return True
+        return False
 
     def send_command(self, command, parameters):
         if self.ser is not None:
