@@ -1,4 +1,7 @@
-.barbotHeader{
+QWidget{
+    font-size: 20px;
+}
+.BarBotHeader{
     font-size: 50px;
 }
 .Headline{
@@ -19,4 +22,11 @@
     border-color: red;
 }
 .AdminCheckbox::indicator:unchecked{
+}
+.BarChartBar{
+    background-color: gray;
+}
+.BarChartWrapper{
+    border-color: gray;
+    border-width: 1px;
 }

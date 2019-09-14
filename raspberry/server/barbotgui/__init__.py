@@ -142,7 +142,6 @@ class MainWindow(QtWidgets.QWidget):
 
         #remove borders and title bar
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setFixedSize(480, 800)
 
         self.setLayout(QtWidgets.QVBoxLayout())
         #header
@@ -151,7 +150,7 @@ class MainWindow(QtWidgets.QWidget):
         self.layout().addWidget(header, 0)
 
         label = QtWidgets.QLabel("Bar-Bot 4.0")
-        label.setProperty("class", "barbotHeader")
+        label.setProperty("class", "BarBotHeader")
         header.layout().addWidget(label, 0, 0, QtCore.Qt.AlignCenter)
 
         #content
@@ -162,7 +161,13 @@ class MainWindow(QtWidgets.QWidget):
         self.layout().addWidget(self._content_wrapper, 1)
 
         self.set_view(barbotgui.views.ListRecipes(self))
-        self.show()
+        self.setFixedSize(480, 800)
+        #show fullscreen on raspberry
+        if "raspberry" in os.uname().nodename:
+            self.showFullScreen()
+            self.setCursor(QtCore.Qt.BlankCursor)
+        else:
+            self.show()
 
     def close_keyboard(self):
         if self._keyboard is not None:

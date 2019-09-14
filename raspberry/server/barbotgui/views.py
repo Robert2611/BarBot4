@@ -1,5 +1,6 @@
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui, QtChart
+from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
+import barbotgui.plot
 import barbot
 
 
@@ -54,11 +55,11 @@ class BusyView(barbotgui.View):
         self._message.setLayout(QtWidgets.QVBoxLayout())		
         self._message_container.layout().addWidget(self._message)
         
-        _message_label = QtWidgets.QLabel()
-        self._message.layout().addWidget(_message_label)
+        message_label = QtWidgets.QLabel()
+        self._message.layout().addWidget(message_label)
 
         if self.bot.message == barbot.UserMessages.ingredient_empty:
-            _message_label.setText("Die Zutat ist leer.\nBitte neue Flasche anschließen.")
+            message_label.setText("Die Zutat ist leer.\nBitte neue Flasche anschließen.")
             
             row = QtWidgets.QWidget()
             row.setLayout(QtWidgets.QHBoxLayout())
@@ -73,10 +74,10 @@ class BusyView(barbotgui.View):
             row.layout().addWidget(continue_button)
 
         elif self.bot.message == barbot.UserMessages.place_glas:
-            _message_label.setText("Bitte ein Glas auf die Plattform stellen.")
+            message_label.setText("Bitte ein Glas auf die Plattform stellen.")
 
         elif self.bot.message == barbot.UserMessages.mixing_done_remove_glas:
-            _message_label.setText("Der Cocktail ist fertig gemischt.\nDu kannst ihn von der Platform nehmen.")
+            message_label.setText("Der Cocktail ist fertig gemischt.\nDu kannst ihn von der Platform nehmen.")
             
             if self.bot.data["recipe"]["instruction"]:
                 label = QtWidgets.QLabel("Zusätzliche Informationen:")
@@ -109,6 +110,10 @@ class BusyView(barbotgui.View):
             self._title_tabel.setText("Reinigung")
         elif self.bot.state == barbot.State.single_ingredient:
             self._title_tabel.setText("Dein Nachschlag wird hinzugefügt")
+        elif self.bot.state == barbot.State.startup:
+            self._title_tabel.setText("Starte BarBot, bitte warten")
+        else:
+            self._title_tabel.setText("Unknown status: %s" % self.bot.state)
 
 class IdleView(barbotgui.View):
     def __init__(self, window: barbotgui.MainWindow):
@@ -174,6 +179,10 @@ class IdleView(barbotgui.View):
         scroller.setWidgetResizable(True)
         scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         content_wrapper.layout().addWidget(scroller)
+
+        QtWidgets.QScroller.grabGesture(
+            scroller.viewport(), QtWidgets.QScroller.LeftMouseButtonGesture
+        )
 
         self._content = QtWidgets.QWidget()
         scroller.setWidget(self._content)
@@ -425,28 +434,6 @@ class Statistics(IdleView):
         #initialize with date of last party
         self._update(self.parties[0]["partydate"] if self.parties else None)
 
-    def bar_chart(self, data) -> QtChart.QChartView:
-        barSet = QtChart.QBarSet("")
-        names_x = []
-        for name, value in data:
-            names_x.append(name)
-            barSet.append(value)
-        series = QtChart.QHorizontalStackedBarSeries()
-        series.append(barSet)
-        series.setLabelsVisible()
-        name_axis = QtChart.QBarCategoryAxis()
-        name_axis.append(names_x)
-        chart = QtChart.QChart()
-        chart.createDefaultAxes()
-        chart.setAxisY(name_axis)
-        chart.legend().setVisible(False)
-        chart.addSeries(series)
-        chart.setMinimumHeight(500)
-        chart.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        chart_view = QtChart.QChartView(chart)
-        chart_view.setRenderHint(QtGui.QPainter.Antialiasing)
-        return chart_view
-
     def _update(self, date):
         if not date:
             return
@@ -466,7 +453,7 @@ class Statistics(IdleView):
         container.layout().addWidget(label)
         #ordered cocktails by name
         data = [(c["name"],c["count"]) for c in reversed(cocktail_count)]
-        chart = self.bar_chart(data)
+        chart = barbotgui.plot.BarChart(data)
         container.layout().addWidget(chart)
         
         #total liters
@@ -475,7 +462,7 @@ class Statistics(IdleView):
         container.layout().addWidget(label)
         #ingrediends
         data = [(c["ingredient"],c["liters"]) for c in reversed(ingredients_amount)]
-        chart = self.bar_chart(data)
+        chart = barbotgui.plot.BarChart(data)
         container.layout().addWidget(chart)
 
         #label
@@ -483,7 +470,7 @@ class Statistics(IdleView):
         container.layout().addWidget(label)
         #cocktails vs. time chart
         data = [(c["hour"],c["count"]) for c in reversed(cocktails_by_time)]
-        chart = self.bar_chart(data)
+        chart = barbotgui.plot.BarChart(data)
         container.layout().addWidget(chart)
 
         #set content
@@ -664,7 +651,7 @@ class System(IdleView):
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
 class RemoveRecipe(IdleView):
-    list = None
+    _list = None
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
