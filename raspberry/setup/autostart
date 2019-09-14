@@ -2,6 +2,5 @@
 @pcmanfm --desktop --profile LXDE-pi
 @xscreensaver -no-splash
 point-rpi
-@unclutter -idle 0
-@chromium-browser --noerrdialogs --kiosk --incognito /home/pi/bar_bot/gui/index.html
-@/home/pi/bar_bot/bin/touch_rotate.sh
+@/home/pi/bar_bot/setup/touch_rotate.sh
+@/home/pi/bar_bot/start.sh

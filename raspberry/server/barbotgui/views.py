@@ -699,11 +699,11 @@ class RemoveRecipe(IdleView):
         center_box.layout().addWidget(row)
 
         ok_button = QtWidgets.QPushButton("Löschen")
-        ok_button.clicked.connect(lambda: self.remove())
+        ok_button.clicked.connect(lambda: self._remove())
         row.layout().addWidget(ok_button)
 
         cancel_button = QtWidgets.QPushButton("Abbrechen")
-        cancel_button.clicked.connect(lambda: self.hideConfirmationDialog())
+        cancel_button.clicked.connect(lambda: self._hide_confirmation())
         row.layout().addWidget(cancel_button)
     
     def add_list(self):
@@ -729,18 +729,18 @@ class RemoveRecipe(IdleView):
             #remove button
             icon = barbotgui.qt_icon_from_file_name("remove.png")
             remove_button = QtWidgets.QPushButton(icon, "")
-            remove_button.clicked.connect(lambda checked,rid=recipe["id"]: self.showConfirmationDialog(rid))
+            remove_button.clicked.connect(lambda checked,rid=recipe["id"]: self._show_confirmation(rid))
             recipe_box.layout().addWidget(remove_button, 0)
 
-    def showConfirmationDialog(self, id):
+    def _show_confirmation(self, id):
         self._id = id
         self._list.setVisible(False)
         self._confirmation_dialog.setVisible(True)
     
-    def hideConfirmationDialog(self):
+    def _hide_confirmation(self):
         self._confirmation_dialog.setVisible(False)
         self._list.setVisible(True)
 
-    def remove(self):
+    def _remove(self):
         self.db.remove_recipe(self._id)
         self.add_list()
