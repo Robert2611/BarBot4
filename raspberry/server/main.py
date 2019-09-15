@@ -7,14 +7,22 @@ import os
 import qdarkstyle
 import sys
 import config
+import logging
 
+
+#cofigure logging
+logging.basicConfig(
+    filename=os.path.join(sys.path[0], '../bar_bot.log'),
+    filemode='w',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 is_demo = "-d" in sys.argv[1:]
 
 #open database
-dirname = sys.path[0]
-filename = os.path.join(dirname, '../bar_bot.sqlite')
-db = barbot.Database(filename)
+db_filename = os.path.join(sys.path[0], '../bar_bot.sqlite')
+db = barbot.Database(db_filename)
 db.clear_order()
 
 if not is_demo:
@@ -28,10 +36,6 @@ bot.rainbow_duration = config.rainbow_duration
 bot.max_speed = config.max_speed
 bot.max_accel = config.max_accel
 bot.start()
-if not is_demo:
-    print("barbot started")
-else:
-    print("Demo mode")
 
 #show gui and join the threads
 try:

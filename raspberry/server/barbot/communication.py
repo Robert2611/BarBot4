@@ -20,12 +20,12 @@ class ProtocolMessage():
         self.parameters = parameters
 
 class Protocol():
+    ser:serial.Serial = None
+    error = None
+    is_connected = False
     def __init__(self, port, baud, timeout):
         self.baud = baud
         self.devicename = port
-        self.error = None
-        self.ser = None
-        self.is_connected = False
         self.timeout = timeout
 
     def connect(self):
@@ -37,9 +37,9 @@ class Protocol():
             # wait for Arduino to initialize
             time.sleep(1)
         except Exception:
-            print("connection to %s failed" % (self.devicename))
+            logging.warn("connection to %s failed" % (self.devicename))
             return False
-        print("connection to %s successfull" % (self.devicename))
+        logging.info("connection to %s successfull" % (self.devicename))
         while self.ser.in_waiting:
             self.ser.read()
         self.is_connected = True
@@ -134,7 +134,7 @@ class Protocol():
                 if c == b'\n':
                     break
                 elif c == b'':
-                    print("EOS")
+                    logging.warn("Read returned empty byte")
                     self.is_connected = False
                     return ProtocolMessage(MessageTypes.COMM_ERROR, "end of string")
                 else:
@@ -142,7 +142,7 @@ class Protocol():
             line = b_line.decode('utf-8')
             line = line.replace("\n", "")
             line = line.replace("\r", "")
-            print("<" + line)
+            logging.debug("<" + line)
             tokens = line.split()
             # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
             # find message type
@@ -157,7 +157,7 @@ class Protocol():
             return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
         except Exception as e:
             self.is_connected = False
-            print(e)
+            logging.exception("Read failed")
             return ProtocolMessage(MessageTypes.COMM_ERROR, e)
 
     def try_get(self, command, parameters=None):
@@ -173,29 +173,42 @@ class Protocol():
                 return True
         return False
 
-    def try_do(self, command, parameters=None):
+    def try_do(self, command, parameter1, parameter2=None):
         for i in range(3):
-            if self._send_do(command, parameters):
+            if self._send_do(command, parameter1, parameter2):
                 return True
         return False
 
-    def send_command(self, command, parameters):
-        if self.ser is not None:
+    def send_command(self, command, parameters=None):
+        if self.is_connected:
             cmd = command
             if parameters is not None:
                 for parameter in parameters:
                     cmd = cmd + " " + str(parameter)
             cmd = cmd + "\r"
-            print(">" + cmd)
-            self.ser.write(cmd.encode())
+            logging.debug(">" + cmd)
+            try:
+                if self.ser.write(cmd.encode()) > 0:
+                    return True
+            except Exception as e:
+                logging.exception("Send command failed")
+        return False
 
     def close(self):
         if self.ser is not None:
             self.ser.close()
 
     def has_data(self):
-        return self.ser.in_waiting > 0
-
+        if self.ser == None or not self.ser.isOpen():
+            self.is_connected = False
+            return False
+        try:
+            res = self.ser.in_waiting > 0
+            return res
+        except Exception as e:
+            logging.exception("Receiving data count failed")
+        return False
+        
     def update(self):
         if self.ser == None or not self.ser.isOpen():
             self.is_connected = False

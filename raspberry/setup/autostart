@@ -3,4 +3,4 @@
 @xscreensaver -no-splash
 point-rpi
 @/home/pi/bar_bot/setup/touch_rotate.sh
-@/home/pi/bar_bot/start.sh
+@/home/pi/bar_bot/server/main.py

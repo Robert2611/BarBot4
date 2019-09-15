@@ -2,6 +2,7 @@ from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbot
 import os
 import barbotgui
+import logging
 
 def set_no_spacing(layout):
     layout.setSpacing(0)
@@ -181,6 +182,10 @@ class MainWindow(QtWidgets.QWidget):
         self._keyboard.show()
 
     def set_view(self, view):
+        logging.debug("Set view: '%s'" % view.__class__.__name__)
+        if self._current_view == view:
+            logging.debug("View is allready set")
+            return
         #remove existing item from window
         if self._current_view is not None:
             #switch from idle to busy?
@@ -199,10 +204,10 @@ class MainWindow(QtWidgets.QWidget):
 
     def _bot_state_changed(self):
         if self.bot.state == barbot.State.idle:
-            self.set_view(self._last_idle_view)
+            if self._last_idle_view != self._current_view:
+                self.set_view(self._last_idle_view)
         else:
             self.set_view(barbotgui.views.BusyView(self))
-        print("Status changed")
 
     def show_message(self, message):
         splash = QtWidgets.QLabel(message, flags=QtCore.Qt.WindowStaysOnTopHint|QtCore.Qt.FramelessWindowHint)

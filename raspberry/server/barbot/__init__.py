@@ -5,12 +5,17 @@ import sys
 import os
 import subprocess
 import sqlite3 as lite
+import logging
 
 from enum import Enum, auto
 
-def run_command(cmd_str):
-    subprocess.Popen([cmd_str], shell=True, stdin=None,
-                     stdout=None, stderr=None, close_fds=True)
+def run_command(cmd_str, cmd_str2=None):
+    if cmd_str2:
+        subprocess.Popen([cmd_str, cmd_str2], shell=True, stdin=None,
+                    stdout=None, stderr=None, close_fds=True)
+    else:
+        subprocess.Popen([cmd_str], shell=True, stdin=None,
+                        stdout=None, stderr=None, close_fds=True)
 
 class State(Enum):
     connecting = auto()
@@ -46,6 +51,7 @@ class StateMachine(threading.Thread):
     def __init__(self, port, baudrate, demo = False):
         threading.Thread.__init__(self)
         self.demo = demo
+        logging.debug("State machine started" + (" in demo mode" if demo else ""))
         if not demo:
             self.protocol = barbot.communication.Protocol(port, baudrate, 1)
             self.set_state(State.connecting)
@@ -60,7 +66,9 @@ class StateMachine(threading.Thread):
                 else:
                     time.sleep(1)
             elif self.state == State.startup:
-                if self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
+                if not self.protocol.is_connected:
+                    self.set_state(State.connecting)
+                elif self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
                     self.protocol.try_set("SetLED", 3)
                     self.protocol.try_set("SetSpeed", self.max_speed)
                     self.protocol.try_set("SetAccel", self.max_accel)
@@ -94,6 +102,7 @@ class StateMachine(threading.Thread):
     
     def set_state(self, state):
         self.state = state
+        logging.debug("State changed to '%s'" % self.state)
         if self.on_state_changed is not None:
             self.on_state_changed()
     
@@ -133,7 +142,7 @@ class StateMachine(threading.Thread):
                 time.sleep(0.5)
             # remove the message
             self._set_message(None)
-            print(self.user_input)
+            logging.debug(self.user_input)
             return
         # wait for the glas
         self._set_message(UserMessages.place_glas)
@@ -180,7 +189,6 @@ class StateMachine(threading.Thread):
                     #ingredient is empty
                     # safe how much is left to draft
                     item["amount"] = int(result[1]) / item["calibration"]
-                    print(UserMessages.ingredient_empty)
                     self._set_message(UserMessages.ingredient_empty)
                     self.user_input = None
                     # wait for user input
@@ -439,7 +447,6 @@ class Database(object):
 		""", {"rid": rid})
         items_in_Database = self.cursor.fetchall()
         if len(items_in_Database) != len(items):
-            print(items_in_Database)
             self.close()
             return True
 

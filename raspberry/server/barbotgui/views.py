@@ -329,7 +329,6 @@ class RecipeNewOrEdit(IdleView):
         if self._id is not None and not self.db.has_recipe_changed(self._id, name, items, instruction):
             self.window.show_message("Rezept wurde nicht verändert")
             return
-        print("id: %i" % self._id)
         # update Database
         new_id = self.db.create_or_update_recipe(name, instruction, self._id)
         self.db._insert_recipe_items(new_id, items)
@@ -637,6 +636,21 @@ class System(IdleView):
         self._content.layout().setAlignment(title, QtCore.Qt.AlignTop)
         self._content.layout().addWidget(title)
 
+        label = QtWidgets.QLabel("Software")
+        self._content.layout().addWidget(label)
+        #reopen software
+        button = QtWidgets.QPushButton("Neu Starten")
+        button.clicked.connect(lambda: self.restart_GUI())        
+        self._content.layout().addWidget(button)
+
+        #close software
+        button = QtWidgets.QPushButton("Schließen")
+        button.clicked.connect(lambda: self.window.close())        
+        self._content.layout().addWidget(button)
+
+        label = QtWidgets.QLabel("PI")
+        self._content.layout().addWidget(label)
+
         #shutdown
         button = QtWidgets.QPushButton("Herunterfahren")
         button.clicked.connect(lambda: barbot.run_command("sudo shutdown now"))        
@@ -646,9 +660,14 @@ class System(IdleView):
         button = QtWidgets.QPushButton("Neu Starten")
         button.clicked.connect(lambda: barbot.run_command("sudo reboot"))        
         self._content.layout().addWidget(button)
+        
 
         #dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+    
+    def restart_GUI(self):
+        self.window.close()
+        barbot.run_command("python3 /home/pi/bar_bot/server/main.py")
 
 class RemoveRecipe(IdleView):
     _list = None
