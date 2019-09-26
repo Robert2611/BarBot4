@@ -132,7 +132,7 @@ class MainWindow(QtWidgets.QWidget):
         self.bot = _bot
 
         styles = open(os.path.join(css_path(), 'main.qss')).read()
-        styles = styles.replace("#iconpath#", css_path())
+        styles = styles.replace("#iconpath#", css_path().replace("\\","\\\\"))
         self.setStyleSheet(styles)
 
         self.mousePressEvent = lambda event: self.close_keyboard()
@@ -164,7 +164,7 @@ class MainWindow(QtWidgets.QWidget):
         self.set_view(barbotgui.views.ListRecipes(self))
         self.setFixedSize(480, 800)
         #show fullscreen on raspberry
-        if "raspberry" in os.uname().nodename:
+        if "rasp" in os.name:
             self.showFullScreen()
             self.setCursor(QtCore.Qt.BlankCursor)
         else:

@@ -11,7 +11,7 @@ QWidget{
     font-size: 20px;
 }
 .AdminCheckbox::indicator{
-    image: url(#iconpath#/admin.png);
+    image: url("#iconpath#/admin.png");
     width: 20px;
     height: 20px;
     border-width: 2px;
