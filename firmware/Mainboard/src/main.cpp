@@ -328,6 +328,7 @@ void setup()
 	addCommands();
 
 	Wire.begin();
+	//Wire.setClock(50000)
 	//disable pullups for i2c
 	digitalWrite(SCL, LOW);
 	digitalWrite(SDA, LOW);

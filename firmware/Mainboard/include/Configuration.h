@@ -4,10 +4,10 @@
 #define PUMP_POWER_PWM                      900
 #define PLATFORM_MOTOR_HOMING_SPEED         10000
 
-#define HOME_DISTANCE                       65
+#define HOME_DISTANCE                       55
 #define PUMP_DISTANCE                       50
-#define FIRST_PUMP_POSITION                 75
-#define STIRRING_POSITION                   (FIRST_PUMP_POSITION + 11 * PUMP_DISTANCE + 75)
+#define FIRST_PUMP_POSITION                 65
+#define STIRRING_POSITION                   855//(FIRST_PUMP_POSITION + 11 * PUMP_DISTANCE + 75)
 #define PLATFORM_MOTOR_MAXPOS_MM            900
 
 #define PLATFORM_MOTOR_MICROSTEPS           4
