@@ -3,12 +3,14 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
+#define MIXER_SEND_RETRIES 15
+
 class MixerBoard
 {
 public:
   MixerBoard();
-  void StartMoveTop();
-  void StartMoveBottom();
+  bool StartMoveTop();
+  bool StartMoveBottom();
   bool IsAtTop();
   bool IsAtBottom();
   bool IsMixing();
@@ -17,7 +19,7 @@ public:
   byte GetTargetPosition();
 
 private:
-  void StartMove(byte pos);
+  bool StartMove(byte pos);
   byte GetPosition();
   byte _targetPosition;
   bool _isMixing;

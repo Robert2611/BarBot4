@@ -3,16 +3,17 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-#define PIN_EN 2
-#define PIN_MOTOR_1 3
-#define PIN_MOTOR_2 4
-#define PIN_ENDSTOP_TOP 5
-#define PIN_ENDSTOP_BOTTOM 6
-#define PIN_MIXER_EN 7
-#define PIN_MIXER 8
+#define PIN_EN A1
+#define PIN_MOTOR_1 A0
+#define PIN_MOTOR_2 13
+#define PIN_ENDSTOP_TOP 0
+#define PIN_ENDSTOP_BOTTOM 1
+#define PIN_MIXER_EN A2
+#define PIN_MIXER A3
 
 byte movingDirection;
 byte targetPosition;
+byte oldPosition;
 
 byte i2c_command = 0xFF;
 
@@ -83,6 +84,16 @@ void recieved(int count)
   //handle messages that are only setters
   handleSetters(count - 1);
 }
+void initWire()
+{
+  //start i2c communication
+  Wire.begin(MIXER_BOARD_ADDRESS);
+  //disable pullups for i2c
+  digitalWrite(SCL, LOW);
+  digitalWrite(SDA, LOW);
+  Wire.onReceive(recieved);
+  Wire.onRequest(handleGetters);
+}
 
 void setup()
 {
@@ -93,18 +104,13 @@ void setup()
   pinMode(PIN_ENDSTOP_BOTTOM, INPUT_PULLUP);
   pinMode(PIN_MIXER_EN, OUTPUT);
   pinMode(PIN_MIXER, OUTPUT);
-
-  //start i2c communication
-  Wire.begin(MIXER_BOARD_ADDRESS);
-  //disable pullups for i2c
-  digitalWrite(SCL, LOW);
-  digitalWrite(SDA, LOW);
-  Wire.onReceive(recieved);
-  Wire.onRequest(handleGetters);
-
+  initWire();
   //disable the driver
-  digitalWrite(PIN_EN, LOW);
+  digitalWrite(PIN_MOTOR_1, HIGH);
+  digitalWrite(PIN_MOTOR_2, HIGH);
+  digitalWrite(PIN_EN, HIGH);
   digitalWrite(PIN_MIXER_EN, LOW);
+  oldPosition = MIXER_POSITION_UNDEFINED;
 }
 
 void loop()
@@ -114,11 +120,20 @@ void loop()
   {
     digitalWrite(PIN_MOTOR_1, (targetPosition == MIXER_POSITION_TOP) ? HIGH : LOW);
     digitalWrite(PIN_MOTOR_2, (targetPosition == MIXER_POSITION_TOP) ? LOW : HIGH);
-    digitalWrite(PIN_EN, HIGH);
   }
   else
   {
+    //target position reached
     //disable output
-    digitalWrite(PIN_EN, LOW);
+    digitalWrite(PIN_MOTOR_1, HIGH);
+    digitalWrite(PIN_MOTOR_2, HIGH);
+    delay(100);
+    if (oldPosition != targetPosition)
+    {
+      oldPosition = targetPosition;
+      //reset wire protocol after each stop of the motor
+      TWCR = 0; // reset TwoWire Control Register to default, inactive state
+      initWire();
+    }
   }
 }

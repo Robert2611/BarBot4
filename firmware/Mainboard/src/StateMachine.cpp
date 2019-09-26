@@ -24,12 +24,15 @@ void StateMachine::begin()
 
 	pinMode(PIN_PUMP_SERIAL_DATA, OUTPUT);
 	pinMode(PIN_PUMP_NOT_ENABLED, OUTPUT);
+	digitalWrite(PIN_PUMP_NOT_ENABLED, HIGH);
 	pinMode(PIN_PUMP_SERIAL_RCLK, OUTPUT);
 	pinMode(PIN_PUMP_SERIAL_SCLK, OUTPUT);
 
 	//initialize PWM for the pump on channel 0 with 10 bit resolution and 5kHz
 	ledcSetup(LEDC_CHANNEL_PUMP, 5000, 10);
 	ledcAttachPin(PIN_PUMP_NOT_ENABLED, LEDC_CHANNEL_PUMP);
+	ledcWrite(LEDC_CHANNEL_PUMP, 1024);
+	
 
 	stop_pumps();
 
@@ -174,9 +177,11 @@ void StateMachine::update()
 			if (mixer->GetTargetPosition() != MIXER_POSITION_BOTTOM)
 			{
 				mixer->StartMoveBottom();
+				Serial.println("Move to Bottom");
 			}
 			else if (mixer->IsAtBottom())
 			{
+				Serial.println("At Bottom");
 				current_action_start_millis = millis();
 				mixer->StartMixing();
 				set_status(BarBotStatus_t::Stirring);
@@ -191,10 +196,15 @@ void StateMachine::update()
 	case BarBotStatus_t::Stirring:
 		if (millis() > (unsigned long)(current_action_start_millis + stirring_time))
 		{
-			if (mixer->IsMixing())
-				mixer->StopMixing();
-			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP) //stopped but movement not yet triggered
-				mixer->StartMoveTop();
+			if (mixer->IsMixing()){
+				mixer->StopMixing();				
+				Serial.println("At Bottom");
+			}
+			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP){ //stopped but movement not yet triggered
+				if(!mixer->StartMoveTop()){
+					set_status(BarBotStatus_t::ErrorI2C);
+				}
+			}
 			else if (mixer->IsAtTop()) //stopped, movement triggered, top position reached
 				set_status(BarBotStatus_t::Idle);
 			//else: top position not reached yet -> do nothing
@@ -365,11 +375,12 @@ void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 
 	//write serial data to pump board
 	digitalWrite(PIN_PUMP_SERIAL_RCLK, LOW);
+	byte PumpBit[] = {15,14,13,12,11,10,9,6,5,4,3,2};
 	//each shift register has one byte, we have to shift in the data in reverse order
-	for (int i = 7; i >= 0; i--)
+	for (int i = 0; i <16; i++)
 	{
 		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
-		digitalWrite(PIN_PUMP_SERIAL_DATA, i == _pump_index);
+		digitalWrite(PIN_PUMP_SERIAL_DATA, _pump_index >= 0 && i == PumpBit[_pump_index]);
 		digitalWrite(PIN_PUMP_SERIAL_SCLK, HIGH);
 		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
 	}

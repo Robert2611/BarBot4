@@ -29,6 +29,8 @@ bool new_data = false;
 byte i2c_command = 0xFF;
 float raw_value, filtered_value;
 
+bool LED_high = false;
+
 void handleSetters(int parameters_count)
 {
   switch (i2c_command)
@@ -55,10 +57,9 @@ void handleGetters()
     WireProtocol::sendFloat(raw_value);
     break;
   case BALANCE_CMD_GET_DATA:
-    digitalWrite(LED_PIN, HIGH);
-    delay(10);
-    digitalWrite(LED_PIN, HIGH);
     WireProtocol::sendFloat(filtered_value);
+    digitalWrite(LED_PIN, LED_high ? HIGH : LOW);
+    LED_high = !LED_high;
     break;
   //no command byte set or unknown command
   case 0xFF:

@@ -5,14 +5,14 @@ MixerBoard::MixerBoard()
     _targetPosition = MIXER_POSITION_UNDEFINED;
 }
 
-void MixerBoard::StartMoveTop()
+bool MixerBoard::StartMoveTop()
 {
-    StartMove(MIXER_POSITION_TOP);
+    return StartMove(MIXER_POSITION_TOP);
 }
 
-void MixerBoard::StartMoveBottom()
+bool MixerBoard::StartMoveBottom()
 {
-    StartMove(MIXER_POSITION_BOTTOM);
+    return StartMove(MIXER_POSITION_BOTTOM);
 }
 
 bool MixerBoard::IsAtTop()
@@ -25,10 +25,16 @@ bool MixerBoard::IsAtBottom()
     return GetPosition() == MIXER_POSITION_BOTTOM;
 }
 
-void MixerBoard::StartMove(byte pos)
+bool MixerBoard::StartMove(byte pos)
 {
     _targetPosition = pos;
-    WireProtocol::sendCommand(MIXER_BOARD_ADDRESS, MIXER_CMD_SET_TARGET_POS, (uint8_t)pos);
+    for (int i = 0; i < MIXER_SEND_RETRIES; i++)
+    {
+        //was it transmitted successfully?
+        if (WireProtocol::sendCommand(MIXER_BOARD_ADDRESS, MIXER_CMD_SET_TARGET_POS, (uint8_t)pos) ==0)
+            return true;
+    }
+    return false;
 }
 
 byte MixerBoard::GetTargetPosition()
