@@ -112,7 +112,7 @@ void MCP23X17::beginSPI(uint8_t cs_pin, uint8_t adress)
 	::pinMode(_cs_pin, OUTPUT);
 	::digitalWrite(_cs_pin, HIGH);
 
-	SPI.begin();
+	SPI.begin(14, 12, 13, -1);
 
 	_mode = MCP23X17_MODE_SPI;
 	begin(adress);

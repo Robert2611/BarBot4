@@ -4,10 +4,17 @@
 #include "Shared.h"
 #include "LEDController.h"
 #include "Wire.h"
+#include "MCP23X17.h"
 
 #include "Configuration.h"
 #include "BalanceBoard.h"
 #include "StateMachine.h"
+
+#include "Adafruit_GFX.h"
+#include "Adafruit_SSD1306.h"
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
@@ -21,7 +28,10 @@ TaskHandle_t LEDTask;
 BluetoothSerial SerialBT;
 BalanceBoard balance;
 MixerBoard mixer;
-StateMachine state_m(&balance, &mixer);
+MCP23X17 mcp;
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
+
+StateMachine state_m(&balance, &mixer, &mcp, &display);
 
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
@@ -34,7 +44,9 @@ void DoBluetoothTask(void *parameters)
 		if (state_m.is_started())
 			protocol.update();
 		else
-			Serial.println("Starting");
+			Serial.print("Starting (");
+		Serial.print(state_m.status);
+		Serial.println(")");
 		delay(10);
 	}
 }
@@ -277,19 +289,6 @@ void addCommands()
 							   (*result) = balance.getWeight() > GLASS_WEIGHT_MIN;
 							   return true;
 						   });
-	protocol.addSetCommand("SetLED",
-						   [](int param_c, char **param_v, long *result) {
-							   if (param_c == 1)
-							   {
-								   long a = atoi(param_v[0]);
-								   if (a >= 0 && a < 10)
-								   {
-									   LEDContr.setType(a);
-									   return true;
-								   }
-							   }
-							   return false;
-						   });
 }
 
 void setup()
@@ -332,10 +331,16 @@ void setup()
 	//disable pullups for i2c
 	digitalWrite(SCL, LOW);
 	digitalWrite(SDA, LOW);
+
+	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+	{
+		Serial.println("error");
+		for (;;)
+			yield();
+	}
 	state_m.begin();
 }
 
-long last_millis = 0;
 void loop()
 {
 	state_m.update();

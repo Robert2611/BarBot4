@@ -3,13 +3,14 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-#define PIN_EN A1
-#define PIN_MOTOR_1 A0
-#define PIN_MOTOR_2 13
-#define PIN_ENDSTOP_TOP 0
-#define PIN_ENDSTOP_BOTTOM 1
-#define PIN_MIXER_EN A2
-#define PIN_MIXER A3
+#define PIN_EN A7
+#define PIN_MOTOR_1 A0 //PC0
+#define PIN_MOTOR_2 A1 //PC1
+#define PIN_ENDSTOP_TOP 2
+#define PIN_ENDSTOP_BOTTOM 3
+#define PIN_MIXER_EN 1
+#define PIN_MIXER 0
+#define PIN_LED 4
 
 byte movingDirection;
 byte targetPosition;
@@ -97,11 +98,21 @@ void initWire()
 
 void setup()
 {
+  pinMode(PIN_LED, OUTPUT);
+  //blink to signal ready
+  digitalWrite(PIN_LED, HIGH);
+  delay(500);
+  digitalWrite(PIN_LED, LOW);
+  delay(100);
+  digitalWrite(PIN_LED, HIGH);
+  delay(500);
+  digitalWrite(PIN_LED, LOW);
+
   pinMode(PIN_EN, OUTPUT);
   pinMode(PIN_MOTOR_1, OUTPUT);
   pinMode(PIN_MOTOR_2, OUTPUT);
-  pinMode(PIN_ENDSTOP_TOP, INPUT_PULLUP);
-  pinMode(PIN_ENDSTOP_BOTTOM, INPUT_PULLUP);
+  pinMode(PIN_ENDSTOP_TOP, INPUT);
+  pinMode(PIN_ENDSTOP_BOTTOM, INPUT);
   pinMode(PIN_MIXER_EN, OUTPUT);
   pinMode(PIN_MIXER, OUTPUT);
   initWire();

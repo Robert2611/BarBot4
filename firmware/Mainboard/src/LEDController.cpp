@@ -6,6 +6,7 @@ LEDController::LEDController()
 
 void LEDController::begin()
 {
+	pinMode(PIN_NEOPIXEL, OUTPUT);
 	stripe->Begin();
 	setType(LEDType::LED_TYPE_OFF);
 }

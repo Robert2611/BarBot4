@@ -49,7 +49,7 @@ bool WireProtocol::getByte(uint8_t address, uint8_t command, uint8_t *result)
     }
     else
     {
-        Serial.println(cmd_result);
+        //Serial.println(cmd_result);
     }
     return false;
 }

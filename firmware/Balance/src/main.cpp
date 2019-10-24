@@ -11,7 +11,7 @@
 #define BALANCE_PIN_CLOCK A3
 #define BALANCE_GAIN 128
 #define LED_DATA_PIN A0
-#define LED_PIN 0
+#define LED_PIN 1
 
 //#define SERIAL_DEBUG
 

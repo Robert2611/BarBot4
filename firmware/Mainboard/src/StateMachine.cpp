@@ -1,9 +1,11 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display)
 {
 	this->balance = _balance;
 	this->mixer = _mixer;
+	this->mcp = _mcp;
+	this->display = _display;
 	startup = true;
 	status = BarBotStatus_t::Idle;
 	current_action_start_millis = 0;
@@ -17,31 +19,23 @@ StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer)
 
 void StateMachine::begin()
 {
-	pinMode(PIN_PLATFORM_MOTOR_HOME, INPUT_PULLDOWN);
+	pinMode(PIN_PLATFORM_MOTOR_HOME, INPUT);
 	pinMode(PIN_PLATFORM_MOTOR_EN, OUTPUT);
 	//enable motor
 	digitalWrite(PIN_PLATFORM_MOTOR_EN, LOW);
 
-	pinMode(PIN_PUMP_SERIAL_DATA, OUTPUT);
-	pinMode(PIN_PUMP_NOT_ENABLED, OUTPUT);
-	digitalWrite(PIN_PUMP_NOT_ENABLED, HIGH);
-	pinMode(PIN_PUMP_SERIAL_RCLK, OUTPUT);
-	pinMode(PIN_PUMP_SERIAL_SCLK, OUTPUT);
+	pinMode(PIN_BUTTON, INPUT);
+	pinMode(PIN_CRUSHER_SENSE, INPUT);
+	pinMode(PIN_SERVO, OUTPUT);
+	pinMode(PIN_LED, OUTPUT);
 
-	//initialize PWM for the pump on channel 0 with 10 bit resolution and 5kHz
-	ledcSetup(LEDC_CHANNEL_PUMP, 5000, 10);
-	ledcAttachPin(PIN_PUMP_NOT_ENABLED, LEDC_CHANNEL_PUMP);
-	ledcWrite(LEDC_CHANNEL_PUMP, 1024);
-	
+	pinMode(PIN_IO_RESET, OUTPUT);
+	pinMode(PIN_IO_CS, OUTPUT);
 
-	stop_pumps();
+	init_mcp();
 
-	//Make sure stirring device is out of the way
 	mixer->StartMoveTop();
-	while (!mixer->IsAtTop())
-		;
-
-	start_homing();
+	set_status(BarBotStatus_t::MoveMixerUp);
 }
 
 void StateMachine::update()
@@ -59,6 +53,15 @@ void StateMachine::update()
 		//nothing to do here
 		break;
 
+	case BarBotStatus_t::MoveMixerUp:
+		if (mixer->IsAtTop())
+		{
+			if (startup)
+				start_homing();
+			else
+				set_status(BarBotStatus_t::Idle);
+		}
+		break;
 	/** HOMING START **/
 	case BarBotStatus_t::HomingRough:
 		if (!is_homed())
@@ -196,12 +199,15 @@ void StateMachine::update()
 	case BarBotStatus_t::Stirring:
 		if (millis() > (unsigned long)(current_action_start_millis + stirring_time))
 		{
-			if (mixer->IsMixing()){
-				mixer->StopMixing();				
+			if (mixer->IsMixing())
+			{
+				mixer->StopMixing();
 				Serial.println("At Bottom");
 			}
-			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP){ //stopped but movement not yet triggered
-				if(!mixer->StartMoveTop()){
+			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP)
+			{ //stopped but movement not yet triggered
+				if (!mixer->StartMoveTop())
+				{
 					set_status(BarBotStatus_t::ErrorI2C);
 				}
 			}
@@ -335,6 +341,7 @@ void StateMachine::set_status(BarBotStatus_t new_status)
 	if (new_status != status)
 	{
 		status = new_status;
+		update_display();
 		if (onStatusChanged != NULL)
 			onStatusChanged(status);
 	}
@@ -368,28 +375,24 @@ void StateMachine::set_max_accel(float accel)
 ///endregion: setters ///
 
 ///region: pump ///
+
+void StateMachine::init_mcp()
+{
+	//initialize the mcp
+	mcp->beginSPI(PIN_IO_CS);
+	for (int i = 0; i < DRAFT_PORTS_COUNT; i++)
+		mcp->pinMode(i, OUTPUT);
+	mcp->writeGPIOBA(0);
+	//reset off
+	digitalWrite(PIN_IO_RESET, HIGH);
+}
+
 void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 {
-	//disable output
-	ledcWrite(LEDC_CHANNEL_PUMP, 1024);
-
-	//write serial data to pump board
-	digitalWrite(PIN_PUMP_SERIAL_RCLK, LOW);
-	byte PumpBit[] = {15,14,13,12,11,10,9,6,5,4,3,2};
-	//each shift register has one byte, we have to shift in the data in reverse order
-	for (int i = 0; i <16; i++)
-	{
-		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
-		digitalWrite(PIN_PUMP_SERIAL_DATA, _pump_index >= 0 && i == PumpBit[_pump_index]);
-		digitalWrite(PIN_PUMP_SERIAL_SCLK, HIGH);
-		digitalWrite(PIN_PUMP_SERIAL_SCLK, LOW);
-	}
-	digitalWrite(PIN_PUMP_SERIAL_RCLK, HIGH);
-	digitalWrite(PIN_PUMP_SERIAL_DATA, LOW);
-	delay(50);
-	//inverted output, because the enabled pin low active
-	if (_pump_index >= 0 && _pump_index < DRAFT_PORTS_COUNT && power_pwm > 0)
-		ledcWrite(LEDC_CHANNEL_PUMP, 1024 - power_pwm);
+	if (_pump_index < 0)
+		mcp->writeGPIOBA(0);
+	else
+		mcp->writeGPIOBA(1 << _pump_index);
 }
 
 void StateMachine::stop_pumps()
@@ -397,3 +400,14 @@ void StateMachine::stop_pumps()
 	start_pump(-1, 0);
 }
 ///endregion: pump ///
+
+void StateMachine::update_display()
+{
+	display->clearDisplay();
+	display->setTextSize(1);			  // Normal 1:1 pixel scale
+	display->setTextColor(SSD1306_WHITE); // Draw white text
+	display->setCursor(0, 0);			  // Start at top-left corner
+	display->print("Status: ");
+	display->print(StatusNames[status]);
+	display->display();
+}

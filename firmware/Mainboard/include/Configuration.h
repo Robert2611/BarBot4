@@ -14,17 +14,19 @@
 #define PLATFORM_MOTOR_FULLSTEPS_PER_MM     200.0 / ( 20.0 * 2.0 )
 
 // PINS //
-#define PIN_NEOPIXEL                        5
+#define PIN_NEOPIXEL                        23
 
-#define PIN_PLATFORM_MOTOR_HOME             19
-#define PIN_PLATFORM_MOTOR_DIR              14
-#define PIN_PLATFORM_MOTOR_STEP             13
-#define PIN_PLATFORM_MOTOR_EN               27
+#define PIN_PLATFORM_MOTOR_HOME             18
+#define PIN_PLATFORM_MOTOR_DIR              16 //RX2
+#define PIN_PLATFORM_MOTOR_STEP             17 //TX2
+#define PIN_PLATFORM_MOTOR_EN               4
 
-#define PIN_PUMP_SERIAL_DATA                26
-#define PIN_PUMP_NOT_ENABLED                25
-#define PIN_PUMP_SERIAL_RCLK                32
-#define PIN_PUMP_SERIAL_SCLK                33
+#define PIN_IO_RESET                        35
+#define PIN_IO_CS                           15
+#define PIN_BUTTON                          19
+#define PIN_CRUSHER_SENSE                   25
+#define PIN_SERVO                           26
+#define PIN_LED                             27
 // PINS END //
 
 #define BALANCE_OFFSET                      -92690
