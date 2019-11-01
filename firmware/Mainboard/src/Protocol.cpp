@@ -96,7 +96,6 @@ void Protocol::process()
             stop = true;
         }
     } while ((param_c < 30) && !stop);
-
     onCommand(command, param_c, param_v);
 }
 

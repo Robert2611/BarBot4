@@ -13,9 +13,7 @@ void LEDController::begin()
 
 void LEDController::update(bool force)
 {
-
 	unsigned long temp_millis = millis();
-
 	switch (type)
 	{
 

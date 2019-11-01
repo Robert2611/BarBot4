@@ -28,10 +28,11 @@ TaskHandle_t LEDTask;
 BluetoothSerial SerialBT;
 BalanceBoard balance;
 MixerBoard mixer;
-MCP23X17 mcp;
+SPIClass hspi(HSPI);
+MCP23X17 mcp(PIN_IO_CS, &hspi);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
-StateMachine state_m(&balance, &mixer, &mcp, &display);
+StateMachine state_m(&balance, &mixer, &mcp, &display, &SerialBT);
 
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
@@ -42,11 +43,15 @@ void DoBluetoothTask(void *parameters)
 	{
 		//only listen to commands when startup is done
 		if (state_m.is_started())
+		{
 			protocol.update();
+		}
 		else
+		{
 			Serial.print("Starting (");
-		Serial.print(state_m.status);
-		Serial.println(")");
+			Serial.print(state_m.status);
+			Serial.println(")");
+		}
 		delay(10);
 	}
 }
@@ -338,6 +343,7 @@ void setup()
 		for (;;)
 			yield();
 	}
+	hspi.begin();
 	state_m.begin();
 }
 

@@ -1,11 +1,12 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt)
 {
 	this->balance = _balance;
 	this->mixer = _mixer;
 	this->mcp = _mcp;
 	this->display = _display;
+	this->bt = _bt;
 	startup = true;
 	status = BarBotStatus_t::Idle;
 	current_action_start_millis = 0;
@@ -29,9 +30,6 @@ void StateMachine::begin()
 	pinMode(PIN_SERVO, OUTPUT);
 	pinMode(PIN_LED, OUTPUT);
 
-	pinMode(PIN_IO_RESET, OUTPUT);
-	pinMode(PIN_IO_CS, OUTPUT);
-
 	init_mcp();
 
 	mixer->StartMoveTop();
@@ -40,10 +38,18 @@ void StateMachine::begin()
 
 void StateMachine::update()
 {
+	if (display_needs_update)
+	{
+		display_needs_update=false;
+		if(status != BarBotStatus_t::Idle)
+			update_display();
+	}
+
 	switch (status)
 	{
 	case BarBotStatus_t::Idle:
 		update_balance();
+		update_display();
 		break;
 
 	case BarBotStatus_t::Error:
@@ -180,11 +186,9 @@ void StateMachine::update()
 			if (mixer->GetTargetPosition() != MIXER_POSITION_BOTTOM)
 			{
 				mixer->StartMoveBottom();
-				Serial.println("Move to Bottom");
 			}
 			else if (mixer->IsAtBottom())
 			{
-				Serial.println("At Bottom");
 				current_action_start_millis = millis();
 				mixer->StartMixing();
 				set_status(BarBotStatus_t::Stirring);
@@ -202,7 +206,6 @@ void StateMachine::update()
 			if (mixer->IsMixing())
 			{
 				mixer->StopMixing();
-				Serial.println("At Bottom");
 			}
 			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP)
 			{ //stopped but movement not yet triggered
@@ -341,7 +344,7 @@ void StateMachine::set_status(BarBotStatus_t new_status)
 	if (new_status != status)
 	{
 		status = new_status;
-		update_display();
+		display_needs_update = true;
 		if (onStatusChanged != NULL)
 			onStatusChanged(status);
 	}
@@ -378,36 +381,80 @@ void StateMachine::set_max_accel(float accel)
 
 void StateMachine::init_mcp()
 {
-	//initialize the mcp
-	mcp->beginSPI(PIN_IO_CS);
-	for (int i = 0; i < DRAFT_PORTS_COUNT; i++)
-		mcp->pinMode(i, OUTPUT);
-	mcp->writeGPIOBA(0);
+	pinMode(PIN_IO_RESET, OUTPUT);
 	//reset off
 	digitalWrite(PIN_IO_RESET, HIGH);
+	//initialize the mcp
+	mcp->begin();
+	if (mcp->readRegister(MCP23X17_IODIRA) != 0xFF)
+		Serial.println("Initializing MCP failed");
+
+	//A0 to A7 are used by pumps, so make them all outputs
+	mcp->writeRegister(MCP23X17_IODIRA, 0b00000000);
+	//B0 to B3 are pumps, the rest is unused, so leave it as input
+	mcp->writeRegister(MCP23X17_IODIRB, 0b11110000);
+	stop_pumps();
 }
 
 void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 {
-	if (_pump_index < 0)
-		mcp->writeGPIOBA(0);
-	else
-		mcp->writeGPIOBA(1 << _pump_index);
+	if (_pump_index < 0 || _pump_index >= DRAFT_PORTS_COUNT)
+	{
+		stop_pumps();
+		return;
+	}
+	uint16_t pos = 0;
+	bitWrite(pos, _pump_index % 8, 1);
+	//set only the bit associated with
+	mcp->writeRegister(MCP23X17_GPIOA, _pump_index < 8 ? pos : 0);
+	mcp->writeRegister(MCP23X17_GPIOB, _pump_index < 8 ? 0 : pos);
 }
 
 void StateMachine::stop_pumps()
 {
-	start_pump(-1, 0);
+	//all outputs off
+	mcp->writeRegister(MCP23X17_GPIOA, 0);
+	mcp->writeRegister(MCP23X17_GPIOB, 0);
 }
 ///endregion: pump ///
 
 void StateMachine::update_display()
 {
 	display->clearDisplay();
-	display->setTextSize(1);			  // Normal 1:1 pixel scale
 	display->setTextColor(SSD1306_WHITE); // Draw white text
-	display->setCursor(0, 0);			  // Start at top-left corner
+
+	//write status
+	display->setTextSize(1);
+	display->setCursor(0, 0);
 	display->print("Status: ");
 	display->print(StatusNames[status]);
+
+	//write mac adress
+	display->setTextSize(1);
+	display->setCursor(0, 16);
+	const uint8_t *point = esp_bt_dev_get_address();
+	for (int i = 0; i < 6; i++)
+	{
+		char str[3];
+		sprintf(str, "%02X", (int)point[i]);
+		display->print(str);
+		if (i < 5)
+			display->print(":");
+	}
+
+	//bt status
+	display->setTextSize(1);
+	display->setCursor(0, 2 * 16);
+	display->print("BT: ");
+	if (!bt->hasClient())
+		display->print("not ");
+	display->print("connected");
+
+	//weight
+	display->setTextSize(1);
+	display->setCursor(0, 3 * 16);
+	display->print("Weight:");
+	display->print(balance->getWeight());
+
 	display->display();
 }

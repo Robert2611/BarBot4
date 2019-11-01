@@ -10,6 +10,9 @@
 
 #include "Adafruit_GFX.h"
 #include "Adafruit_SSD1306.h"
+#include "esp_bt_main.h"
+#include "esp_bt_device.h"
+#include "BluetoothSerial.h"
 
 const char StatusNames[][32] = {
 	"Idle",
@@ -58,7 +61,7 @@ extern "C"
 class StateMachine
 {
 public:
-	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display);
+	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt);
 	void begin();
 
 	BarBotStatus_t status;
@@ -101,6 +104,9 @@ private:
 	MixerBoard *mixer;
 	MCP23X17 *mcp;
 	Adafruit_SSD1306 *display;
+	BluetoothSerial *bt;
+
+	bool display_needs_update;
 
 	unsigned long balance_last_check_millis;
 	unsigned long balance_last_data_millis;

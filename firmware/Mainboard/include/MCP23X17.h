@@ -18,44 +18,29 @@
 class MCP23X17
 {
 public:
-    void beginSPI(uint8_t cs_pin);
-    void beginSPI(uint8_t cs_pin, uint8_t adress);
+    MCP23X17(uint8_t cs_pin, SPIClass *spi);
+    MCP23X17(uint8_t cs_pin, SPIClass *spi, uint8_t adress);
 
-    void beginWire(void);
-    void beginWire(uint8_t adress);
+    MCP23X17(TwoWire *i2c);
+    MCP23X17(TwoWire *i2c, uint8_t adress);
 
-    void pinMode(uint8_t p, uint8_t d);
-    void digitalWrite(uint8_t p, uint8_t d);
-    void pullUp(uint8_t p, uint8_t d);
-    uint8_t digitalRead(uint8_t p);
+    void begin();
 
-    void writeGPIOAB(uint16_t);
-    void writeGPIOBA(uint16_t);
-    uint16_t readGPIOAB();
-    uint16_t readGPIOBA();
-    uint8_t readGPIOA();
-    uint8_t readGPIOB();
-
-    void setupInterrupts(uint8_t mirroring, uint8_t open, uint8_t polarity);
-    void setupInterruptPin(uint8_t p, uint8_t mode);
-    uint8_t getLastInterruptPin();
-    uint8_t getLastInterruptPinValue();
+    uint8_t readRegister(uint8_t addr);
+    void writeRegister(uint8_t addr, uint8_t value);
 
 private:
     uint8_t _mode;
     uint8_t _cs_pin;
     uint8_t _address;
-
-    void begin(uint8_t adress);
-
-    uint8_t bitForPin(uint8_t pin);
-    uint8_t regForPin(uint8_t pin, uint8_t portAaddr, uint8_t portBaddr);
+    SPIClass *_spi;
+    TwoWire *_i2c;
 
     uint16_t readWord(uint8_t addr);
     void writeWord(uint8_t addr, uint16_t value);
 
-    uint8_t readRegister(uint8_t addr);
-    void writeRegister(uint8_t addr, uint8_t value);
+    uint8_t bitForPin(uint8_t pin);
+    uint8_t regForPin(uint8_t pin, uint8_t portAaddr, uint8_t portBaddr);
 
     void transferSpiAddress(bool write);
 
@@ -66,7 +51,7 @@ private:
     void updateRegisterBit(uint8_t p, uint8_t pValue, uint8_t portAaddr, uint8_t portBaddr);
 };
 
-#define MCP23X17_ADDRESS 0x20
+#define MCP23X17_ADDRESS 0x40
 
 #define MCP23X17_MODE_SPI 0
 #define MCP23X17_MODE_WIRE 1

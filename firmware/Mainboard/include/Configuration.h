@@ -21,7 +21,7 @@
 #define PIN_PLATFORM_MOTOR_STEP             17 //TX2
 #define PIN_PLATFORM_MOTOR_EN               4
 
-#define PIN_IO_RESET                        35
+#define PIN_IO_RESET                        32
 #define PIN_IO_CS                           15
 #define PIN_BUTTON                          19
 #define PIN_CRUSHER_SENSE                   25
