@@ -18,6 +18,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+
+def running_on_linux():
+    return "rasp" in os.name
+
+
 is_demo = "-d" in sys.argv[1:]
 
 # open database
@@ -25,11 +30,12 @@ db_filename = os.path.join(sys.path[0], '../bar_bot.sqlite')
 db = barbot.Database(db_filename)
 db.clear_order()
 
-if not is_demo and "rasp" in os.name:
+if not is_demo and running_on_linux():
     # connect bluetooth device
     barbot.run_command("sudo rfcomm connect hci0 %s&" % config.mac_adress)
 # create statemachine
-bot = barbot.StateMachine(config.com_port, config.baud_rate, is_demo)
+port = config.com_port_linux if running_on_linux() else config.com_port_windows
+bot = barbot.StateMachine(port, config.baud_rate, is_demo)
 bot.on_mixing_finished = lambda rid: db.close_order(rid)
 bot.rainbow_duration = config.rainbow_duration
 bot.max_speed = config.max_speed

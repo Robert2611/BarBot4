@@ -4,6 +4,7 @@ import logging
 import serial
 import sys
 
+
 class MessageTypes(Enum):
     ACK = auto()
     NAK = auto()
@@ -13,16 +14,19 @@ class MessageTypes(Enum):
     COMM_ERROR = auto()
     TIMEOUT = auto()
 
+
 class ProtocolMessage():
     def __init__(self, type, command, parameters=None):
         self.type = type
         self.command = command
         self.parameters = parameters
 
+
 class Protocol():
-    ser:serial.Serial = None
+    ser: serial.Serial = None
     error = None
     is_connected = False
+
     def __init__(self, port, baud, timeout):
         self.baud = baud
         self.devicename = port
@@ -175,8 +179,9 @@ class Protocol():
 
     def try_do(self, command, parameter1, parameter2=None):
         for i in range(3):
-            if self._send_do(command, parameter1, parameter2):
-                return True
+            res = self._send_do(command, parameter1, parameter2)
+            if res:
+                return res
         return False
 
     def send_command(self, command, parameters=None):
@@ -190,7 +195,7 @@ class Protocol():
             try:
                 if self.ser.write(cmd.encode()) > 0:
                     return True
-            except Exception as e:
+            except Exception:
                 logging.exception("Send command failed")
         return False
 
@@ -205,13 +210,13 @@ class Protocol():
         try:
             res = self.ser.in_waiting > 0
             return res
-        except Exception as e:
+        except Exception:
             logging.exception("Receiving data count failed")
         return False
-        
+
     def update(self):
         if self.ser == None or not self.ser.isOpen():
             self.is_connected = False
             return False
-        result = self.read_message()
+        self.read_message()
         return self.has_data()

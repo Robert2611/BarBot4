@@ -125,6 +125,7 @@ class MainWindow(QtWidgets.QWidget):
     _last_idle_view = None
     _keyboard: Keyboard = None
     is_admin = False
+    
     def __init__(self, _db:barbot.Database, _bot:barbot.StateMachine):
         super().__init__()
         import barbotgui.views
@@ -161,7 +162,7 @@ class MainWindow(QtWidgets.QWidget):
         self._content_wrapper.layout().setContentsMargins(0,0,0,0)
         self.layout().addWidget(self._content_wrapper, 1)
 
-        self.set_view(barbotgui.views.ListRecipes(self))
+        self.set_view(barbotgui.views.BusyView(self))
         self.setFixedSize(480, 800)
         #show fullscreen on raspberry
         if "rasp" in os.name:
@@ -205,7 +206,10 @@ class MainWindow(QtWidgets.QWidget):
     def _bot_state_changed(self):
         if self.bot.state == barbot.State.idle:
             if self._last_idle_view != self._current_view:
-                self.set_view(self._last_idle_view)
+                if self._last_idle_view is None:
+                    self.set_view(barbotgui.views.ListRecipes(self))
+                else:
+                    self.set_view(self._last_idle_view)
         else:
             self.set_view(barbotgui.views.BusyView(self))
 

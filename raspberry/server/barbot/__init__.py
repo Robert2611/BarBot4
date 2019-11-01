@@ -9,13 +9,15 @@ import logging
 
 from enum import Enum, auto
 
+
 def run_command(cmd_str, cmd_str2=None):
     if cmd_str2:
         subprocess.Popen([cmd_str, cmd_str2], shell=True, stdin=None,
-                    stdout=None, stderr=None, close_fds=True)
+                         stdout=None, stderr=None, close_fds=True)
     else:
         subprocess.Popen([cmd_str], shell=True, stdin=None,
-                        stdout=None, stderr=None, close_fds=True)
+                         stdout=None, stderr=None, close_fds=True)
+
 
 class State(Enum):
     connecting = auto()
@@ -26,10 +28,12 @@ class State(Enum):
     cleaning_cycle = auto()
     single_ingredient = auto()
 
+
 class UserMessages(Enum):
     mixing_done_remove_glas = auto()
     place_glas = auto()
     ingredient_empty = auto()
+
 
 class StateMachine(threading.Thread):
     on_mixing_finished = None
@@ -37,25 +41,28 @@ class StateMachine(threading.Thread):
     on_state_changed = None
     on_message_changed = None
 
+    error_ingredient_empty = 13
     progress = None
     data = None
     abort = False
-    message:UserMessages = None
+    message: UserMessages = None
     _user_input = None
     rainbow_duration = 10
     max_speed = 100
     max_accel = 100
     demo = False
-    protocol:barbot.communication.Protocol = None
+    protocol: barbot.communication.Protocol = None
 
-    def __init__(self, port, baudrate, demo = False):
+    def __init__(self, port, baudrate, demo=False):
         threading.Thread.__init__(self)
         self.demo = demo
-        logging.debug("State machine started" + (" in demo mode" if demo else ""))
+        logging.debug("State machine started" +
+                      (" in demo mode" if demo else ""))
         if not demo:
             self.protocol = barbot.communication.Protocol(port, baudrate, 1)
             self.set_state(State.connecting)
-        self.set_state(State.idle)
+        else:
+            self.set_state(State.idle)
 
     # main loop, runs the whole time
     def run(self):
@@ -97,21 +104,21 @@ class StateMachine(threading.Thread):
         if not self.demo:
             self.protocol.close()
 
-    def set_user_input(self, value:bool):
+    def set_user_input(self, value: bool):
         self._user_input = value
-    
+
     def set_state(self, state):
         self.state = state
         logging.debug("State changed to '%s'" % self.state)
         if self.on_state_changed is not None:
             self.on_state_changed()
-    
+
     def _set_mixing_progress(self, progress):
         self.progress = progress
         if self.on_mixing_progress_changed is not None:
             self.on_mixing_progress_changed()
-    
-    def _set_message(self, message:UserMessages):        
+
+    def _set_message(self, message: UserMessages):
         self.message = message
         if self.on_message_changed is not None:
             self.on_message_changed()
@@ -136,18 +143,19 @@ class StateMachine(threading.Thread):
             #     time.sleep(2)
             # return
             self._set_message(UserMessages.ingredient_empty)
-            self.user_input = None
+            self._user_input = None
             # wait for user input
-            while self.user_input is None:
+            while self._user_input is None:
                 time.sleep(0.5)
             # remove the message
             self._set_message(None)
-            logging.debug(self.user_input)
+            logging.debug(self._user_input)
             return
         # wait for the glas
         self._set_message(UserMessages.place_glas)
         self.protocol.try_do("PlatformLED", 4)
-        while self.protocol.try_get("HasGlas") != "1":
+        self._user_input = None
+        while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
             pass
         # glas is there, wait a second to let the user take away the hand
         self.protocol.try_do("PlatformLED", 3)
@@ -162,41 +170,45 @@ class StateMachine(threading.Thread):
                 break
             self.data["recipe_item_index"] += 1
             maxProgress = len(self.data["recipe"]["items"]) - 1
-            self._set_mixing_progress(self.data["recipe_item_index"] / maxProgress)
+            self._set_mixing_progress(
+                self.data["recipe_item_index"] / maxProgress)
         self.protocol.try_do("Move", 0)
         self._set_message(UserMessages.mixing_done_remove_glas)
         self.protocol.try_do("PlatformLED", 2)
         self.protocol.try_set("SetLED", 2)
-        while self.protocol.try_get("HasGlas") != "0":
+        self._user_input = None
+        while self.protocol.try_get("HasGlas") != "0" or self._user_input == False:
             time.sleep(0.5)
         self._set_message(None)
         self.protocol.try_do("PlatformLED", 0)
-        if on_mixing_finished is not None:
+        if self.on_mixing_finished is not None:
             self.on_mixing_finished(self.data["recipe"]["id"])
         self.protocol.try_set("SetLED", 3)
 
     def _draft_one(self, item):
         if item["port"] == 12:
-            self.protocol.try_do("Stir", item["amount"] * 1000)
+            self.protocol.try_do("Stir", int(item["amount"] * 1000))
         else:
             while True:
                 weight = int(item["amount"] * item["calibration"])
                 result = self.protocol.try_do("Draft", item["port"], weight)
+                print(result)
                 if result == True:
                     # drafting successfull
                     return True
-                elif type(result) is list and len(result) >= 2 and int(result[0]) == 12:
-                    #ingredient is empty
+                elif type(result) is list and len(result) >= 2 and int(result[0]) == self.error_ingredient_empty:
+                    # ingredient is empty
                     # safe how much is left to draft
                     item["amount"] = int(result[1]) / item["calibration"]
                     self._set_message(UserMessages.ingredient_empty)
-                    self.user_input = None
+                    self._user_input = None
                     # wait for user input
-                    while self.user_input is None:
+                    while self._user_input is None:
                         time.sleep(0.5)
+                    print("Input is: '%s'" % self._user_input)
                     # remove the message
                     self._set_message(None)
-                    if not self.user_input:
+                    if not self._user_input:
                         return False
                     # repeat the loop
                 else:
@@ -208,7 +220,8 @@ class StateMachine(threading.Thread):
             time.sleep(2)
             return
         self._set_message(UserMessages.place_glas)
-        while self.protocol.try_get("HasGlas") != "1":
+        self._user_input = None
+        while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
             time.sleep(0.5)
         self._set_message(None)
         for item in self.data:
@@ -220,14 +233,16 @@ class StateMachine(threading.Thread):
         if self.demo:
             time.sleep(2)
             return
-        self.protocol.try_do("Draft", self.data["port"], int(self.data["weight"]))
+        self.protocol.try_do(
+            "Draft", self.data["port"], int(self.data["weight"]))
 
     def _do_single_ingredient(self):
         if self.demo:
             time.sleep(2)
             return
         self._set_message(UserMessages.place_glas)
-        while self.protocol.try_get("HasGlas") != "1":
+        self._user_input = None
+        while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
             time.sleep(0.5)
         self._set_message(None)
         self._draft_one(self.data)
@@ -250,12 +265,13 @@ class StateMachine(threading.Thread):
     def start_cleaning_cycle(self, data):
         self.data = data
         self.set_state(State.cleaning_cycle)
-    
+
 
 class Database(object):
-    con:lite.Connection
-    filename:str
-    _is_connected:bool = False
+    con: lite.Connection
+    filename: str
+    _is_connected: bool = False
+
     def __init__(self, filename):
         self.filename = filename
 
@@ -408,7 +424,7 @@ class Database(object):
         """, {"rid": rid})
         self.con.commit()
         self.close()
-        
+
     def _insert_recipe_items(self, rid, items):
         self.open()
         for item in items:
