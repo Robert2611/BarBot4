@@ -11,7 +11,8 @@ enum LEDType
     LED_TYPE_CONTINOUS = 1,
     LED_TYPE_BLINK = 2,
     LED_TYPE_RAINBOW = 3,
-    LED_TYPE_POSITION_WATERFALL = 4
+    LED_TYPE_POSITION_WATERFALL = 4,
+    LED_TYPE_DRAFT_POSITION = 5
 };
 
 class LEDController
@@ -21,11 +22,13 @@ public:
     void begin();
     void update(bool force = false);
     void setType(int type);
-    void setPosition(int position);
+    void setPlatformPosition(float position_in_mm);
+    void setDraftPosition(float position_in_mm);
 
 private:
     NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> *stripe;
-    int position;
+    int platform_position;
+    int draft_position;
     int data_pin;
     int type;
     unsigned long last_change;

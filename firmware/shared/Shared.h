@@ -1,5 +1,5 @@
-#ifndef MIXXER_SHARED_H
-#define MIXXER_SHARED_H
+#ifndef BAR_BOT_SHARED_H
+#define BAR_BOT_SHARED_H
 #include "Arduino.h"
 #include "Wire.h"
 

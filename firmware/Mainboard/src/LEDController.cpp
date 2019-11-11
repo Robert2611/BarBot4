@@ -86,10 +86,36 @@ void LEDController::update(bool force)
 			frame_start_millis = temp_millis;
 			for (int i = 0; i < PIXEL_COUNT; i++)
 			{
-				int dist = (abs(i - position) + frame) % period;
+				int dist = (abs(i - platform_position) + frame) % period;
 				if (dist > (period - 1) / 2)
 					dist = period - dist;
 				float brightness = max(1 - dist / 3.0, 0.0);
+				RgbColor color = {0, (byte)(255 * brightness * brightness), 0};
+				stripe->SetPixelColor(i, color);
+			}
+			stripe->Show();
+		}
+	}
+	break;
+
+	case LEDType::LED_TYPE_DRAFT_POSITION:
+	{
+		if (force || temp_millis > frame_start_millis + 80)
+		{
+			int period = 20;
+			if (!force)
+				frame++;
+			if (frame >= period)
+				frame = 0;
+			frame_start_millis = temp_millis;
+			for (int i = 0; i < PIXEL_COUNT; i++)
+			{
+				int dist = (abs(i - draft_position) + frame) % period;
+				if (dist > (period - 1) / 2)
+					dist = period - dist;
+				float brightness = max(1 - dist / 3.0, 0.0);
+				if (abs(i - draft_position) < 2)
+					brightness = 1;
 				RgbColor color = {0, (byte)(255 * brightness * brightness), 0};
 				stripe->SetPixelColor(i, color);
 			}
@@ -108,7 +134,12 @@ void LEDController::setType(int new_type)
 	update(true);
 }
 
-void LEDController::setPosition(int position_)
+void LEDController::setPlatformPosition(float position_in_mm)
 {
-	position = position_;
+	platform_position = position_in_mm / 1000 * PIXEL_COUNT;
+}
+
+void LEDController::setDraftPosition(float position_in_mm)
+{
+	draft_position = position_in_mm / 1000 * PIXEL_COUNT;
 }

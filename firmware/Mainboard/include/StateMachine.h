@@ -84,6 +84,7 @@ public:
 	void reset_error();
 	float get_last_draft_remaining_weight();
 	bool is_started();
+	int getDraftingPumpIndex();
 
 private:
 	bool update_balance();

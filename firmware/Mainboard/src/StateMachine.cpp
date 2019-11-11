@@ -40,8 +40,8 @@ void StateMachine::update()
 {
 	if (display_needs_update)
 	{
-		display_needs_update=false;
-		if(status != BarBotStatus_t::Idle)
+		display_needs_update = false;
+		if (status != BarBotStatus_t::Idle)
 			update_display();
 	}
 
@@ -457,4 +457,12 @@ void StateMachine::update_display()
 	display->print(balance->getWeight());
 
 	display->display();
+}
+
+int StateMachine::getDraftingPumpIndex()
+{
+	if (status == MoveToDraft || status == Drafting)
+		return pump_index;
+	else
+		return -1;
 }

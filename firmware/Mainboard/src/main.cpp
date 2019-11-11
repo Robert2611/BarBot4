@@ -60,7 +60,8 @@ void DoLEDTask(void *parameters)
 {
 	for (;;)
 	{
-		LEDContr.setPosition((state_m.position_in_mm() + HOME_DISTANCE) / 1000 * PIXEL_COUNT);
+		LEDContr.setPlatformPosition(state_m.position_in_mm() + HOME_DISTANCE);
+		LEDContr.setDraftPosition(HOME_DISTANCE + FIRST_PUMP_POSITION + PUMP_DISTANCE * state_m.getDraftingPumpIndex());
 		LEDContr.update();
 		delay(10);
 	}
