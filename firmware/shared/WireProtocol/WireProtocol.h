@@ -13,5 +13,6 @@ public:
     static bool getBool(uint8_t address, uint8_t command, bool *result);
     static bool getFloat(uint8_t address, uint8_t command, float *result);
     static bool getByte(uint8_t address, uint8_t command, uint8_t *result);
+    static void blinkAddress(byte address, byte pin);
 };
 #endif

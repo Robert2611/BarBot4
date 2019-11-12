@@ -5,6 +5,7 @@
 
 #define BALANCE_BOARD_ADDRESS 0x01
 #define MIXER_BOARD_ADDRESS 0x02
+#define STRAW_BOARD_ADRESSS 0x03
 
 #define BALANCE_CMD_HAS_NEW_DATA 1
 #define BALANCE_CMD_GET_DATA 2
@@ -26,6 +27,10 @@
 #define MIXER_CMD_MIX_ON 2
 #define MIXER_CMD_MIX_OFF 3
 #define MIXER_CMD_GET_POS 4
+
+#define STRAW_CMD_DISPENSE 1
+#define STRAW_CMD_GET_IS_DISPENSING 2
+#define STRAW_CMD_GET_SUCCESSFUL 3
 
 // fastled also declares a RGB type
 typedef struct

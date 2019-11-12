@@ -76,6 +76,7 @@ class BusyView(barbotgui.View):
                       lambda: self.bot.set_user_input(False))
             addButton("Erneut versuchen",
                       lambda: self.bot.set_user_input(True))
+
         elif self.bot.message == barbot.UserMessages.place_glas:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
 
@@ -88,6 +89,21 @@ class BusyView(barbotgui.View):
 
                 instruction = QtWidgets.QLabel(self.bot.data["recipe"]["instruction"])
                 self._message.layout().addWidget(instruction)
+
+        elif self.bot.message == barbot.UserMessages.ask_for_straw:
+            message_label.setText(
+                "Möchtest du einen Strohhalm haben?")
+
+            addButton("Ja", lambda: self.bot.set_user_input(True))
+            addButton("Nein", lambda: self.bot.set_user_input(False))
+        
+        elif self.bot.message == barbot.UserMessages.straws_empty:
+            message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
+
+            addButton("Egal",
+                      lambda: self.bot.set_user_input(False))
+            addButton("Erneut versuchen",
+                      lambda: self.bot.set_user_input(True))
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)

@@ -6,6 +6,7 @@
 #include "Configuration.h"
 #include "BalanceBoard.h"
 #include "MixerBoard.h"
+#include "StrawBoard.h"
 #include "MCP23X17.h"
 
 #include "Adafruit_GFX.h"
@@ -47,10 +48,14 @@ enum BarBotStatus_t
 	MoveToPos,
 	Delay,
 	SetBalanceLED,
-	Error,
+	DispenseStraw,
+	//errors
+	Error = 32,
 	ErrorIngredientEmpty,
 	ErrorCommunicationToBalance,
-	ErrorI2C
+	ErrorI2C,
+	ErrorTimeout,
+	ErrorStrawsEmpty,
 };
 
 extern "C"
@@ -61,7 +66,7 @@ extern "C"
 class StateMachine
 {
 public:
-	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt);
+	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt);
 	void begin();
 
 	BarBotStatus_t status;
@@ -79,6 +84,7 @@ public:
 	void start_moveto(long position_in_mm);
 	void start_delay(long duration);
 	void start_setBalanceLED(byte type);
+	void start_dispense_straw();
 	void set_max_speed(float speed);
 	void set_max_accel(float accel);
 	void reset_error();
@@ -103,6 +109,7 @@ private:
 	bool startup;
 	BalanceBoard *balance;
 	MixerBoard *mixer;
+	StrawBoard *straw_board;
 	MCP23X17 *mcp;
 	Adafruit_SSD1306 *display;
 	BluetoothSerial *bt;
@@ -121,5 +128,6 @@ private:
 	float target_draft_weight;
 	unsigned long draft_timeout_last_check_millis;
 	float draft_timeout_last_weight;
+	bool dispense_straw_sent;
 };
 #endif // ifndef BAR_BOT_H

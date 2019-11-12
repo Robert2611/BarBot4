@@ -49,15 +49,17 @@ class Protocol():
         self.is_connected = True
         return True
 
-    def _send_do(self, command, parameter1, parameter2=None):
+    def _send_do(self, command, parameter1=None, parameter2=None):
         # clear the input
         while self.has_data():
             self.read_message()
         # send the command
-        if parameter2 is not None:
+        if parameter1 is not None and parameter2 is not None:
             self.send_command(command, [parameter1, parameter2])
-        else:
+        elif parameter1 is not None:
             self.send_command(command, [parameter1])
+        else:
+            self.send_command(command)
         # wait for the response
         message = self.read_message()
         if message.command != command:
@@ -177,7 +179,7 @@ class Protocol():
                 return True
         return False
 
-    def try_do(self, command, parameter1, parameter2=None):
+    def try_do(self, command, parameter1=None, parameter2=None):
         for i in range(3):
             res = self._send_do(command, parameter1, parameter2)
             if res:

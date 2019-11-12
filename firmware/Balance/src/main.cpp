@@ -11,7 +11,7 @@
 #define BALANCE_PIN_CLOCK A3
 #define BALANCE_GAIN 128
 #define LED_DATA_PIN A0
-#define LED_PIN 1
+#define PIN_LED 1
 
 //#define SERIAL_DEBUG
 
@@ -58,7 +58,7 @@ void handleGetters()
     break;
   case BALANCE_CMD_GET_DATA:
     WireProtocol::sendFloat(filtered_value);
-    digitalWrite(LED_PIN, LED_high ? HIGH : LOW);
+    digitalWrite(PIN_LED, LED_high ? HIGH : LOW);
     LED_high = !LED_high;
     break;
   //no command byte set or unknown command
@@ -84,25 +84,8 @@ void recieved(int count)
   handleSetters(count - 1);
 }
 
-void setup()
+void initWire()
 {
-#ifdef SERIAL_DEBUG
-  Serial.begin(115200);
-  Serial.println("Serial debug enabled");
-#endif
-  pinMode(LED_PIN, OUTPUT);
-  //blink to signal ready
-  digitalWrite(LED_PIN, HIGH);
-  delay(100);
-  digitalWrite(LED_PIN, LOW);
-  delay(100);
-  digitalWrite(LED_PIN, HIGH);
-  delay(500);
-  digitalWrite(LED_PIN, LOW);
-  //initialize balance
-  balance.begin(BALANCE_PIN_DATA, BALANCE_PIN_CLOCK, BALANCE_GAIN);
-  //initialize filter
-  butterworth.calculateCoefficients((float)FILTER_CUTOFF_FREQUENCY / BALANCE_SAMPLING_RATE);
   //start i2c communication
   Wire.begin(BALANCE_BOARD_ADDRESS);
   //disable pullups for i2c
@@ -110,6 +93,22 @@ void setup()
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
   Wire.onRequest(handleGetters);
+  WireProtocol::blinkAddress(BALANCE_BOARD_ADDRESS, PIN_LED);
+}
+
+void setup()
+{
+#ifdef SERIAL_DEBUG
+  Serial.begin(115200);
+  Serial.println("Serial debug enabled");
+#endif
+  pinMode(PIN_LED, OUTPUT);
+  //initialize balance
+  balance.begin(BALANCE_PIN_DATA, BALANCE_PIN_CLOCK, BALANCE_GAIN);
+  //initialize filter
+  butterworth.calculateCoefficients((float)FILTER_CUTOFF_FREQUENCY / BALANCE_SAMPLING_RATE);
+  //initialize I2C
+  initWire();
   //start the LED Controller
   LEDC.begin();
 }

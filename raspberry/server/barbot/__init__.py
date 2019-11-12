@@ -33,6 +33,8 @@ class UserMessages(Enum):
     mixing_done_remove_glas = auto()
     place_glas = auto()
     ingredient_empty = auto()
+    ask_for_straw = auto()
+    straws_empty = auto()
 
 
 class StateMachine(threading.Thread):
@@ -41,7 +43,7 @@ class StateMachine(threading.Thread):
     on_state_changed = None
     on_message_changed = None
 
-    error_ingredient_empty = 13
+    error_ingredient_empty = 33
     progress = None
     data = None
     abort = False
@@ -151,9 +153,23 @@ class StateMachine(threading.Thread):
             self._set_message(None)
             logging.debug(self._user_input)
             return
+        self._set_message(UserMessages.ask_for_straw)
+        self._user_input = None
+        self.protocol.try_do("PlatformLED", 4)
+        while self._user_input is None:
+            time.sleep(0.1)
+        if self._user_input == True:
+            # ask for straw until it works or user aborts
+            while not self.protocol.try_do("Straw"):
+                self._user_input = None
+                self._set_message(UserMessages.straws_empty)
+                while self._user_input is None:
+                    time.sleep(0.1)
+                if self._user_input == False:
+                    break
+
         # wait for the glas
         self._set_message(UserMessages.place_glas)
-        self.protocol.try_do("PlatformLED", 4)
         self._user_input = None
         while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
             pass
@@ -162,9 +178,8 @@ class StateMachine(threading.Thread):
         self._set_message(None)
         time.sleep(1)
         self.protocol.try_do("PlatformLED", 5)
+        self.protocol.try_set("SetLED", 4)
         for item in self.data["recipe"]["items"]:
-            # don't do anything else if user has aborted
-            self.protocol.try_set("SetLED", 4)
             # do the actual draft, exit the loop if it did not succeed
             if not self._draft_one(item):
                 break

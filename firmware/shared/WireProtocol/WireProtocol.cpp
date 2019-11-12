@@ -63,3 +63,21 @@ bool WireProtocol::getFloat(uint8_t address, uint8_t command, float *result)
     Wire.readBytes((uint8_t *)result, sizeof(float));
     return true;
 }
+
+void WireProtocol::blinkAddress(byte address, byte pin)
+{
+    digitalWrite(pin, HIGH);
+    delay(500);
+    digitalWrite(pin, LOW);
+    delay(100);
+    for (int i = 0; i < address; i++)
+    {
+        digitalWrite(pin, HIGH);
+        delay(100);
+        digitalWrite(pin, LOW);
+        delay(100);
+    }
+    digitalWrite(pin, HIGH);
+    delay(500);
+    digitalWrite(pin, LOW);
+}

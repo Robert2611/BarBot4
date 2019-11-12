@@ -85,6 +85,7 @@ void recieved(int count)
   //handle messages that are only setters
   handleSetters(count - 1);
 }
+
 void initWire()
 {
   //start i2c communication
@@ -94,20 +95,12 @@ void initWire()
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
   Wire.onRequest(handleGetters);
+  WireProtocol::blinkAddress(MIXER_BOARD_ADDRESS, PIN_LED);
 }
 
 void setup()
 {
   pinMode(PIN_LED, OUTPUT);
-  //blink to signal ready
-  digitalWrite(PIN_LED, HIGH);
-  delay(500);
-  digitalWrite(PIN_LED, LOW);
-  delay(100);
-  digitalWrite(PIN_LED, HIGH);
-  delay(500);
-  digitalWrite(PIN_LED, LOW);
-
   pinMode(PIN_EN, OUTPUT);
   pinMode(PIN_MOTOR_1, OUTPUT);
   pinMode(PIN_MOTOR_2, OUTPUT);

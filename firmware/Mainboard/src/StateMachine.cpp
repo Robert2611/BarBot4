@@ -1,9 +1,10 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt)
 {
 	this->balance = _balance;
 	this->mixer = _mixer;
+	this->straw_board = _straw_board;
 	this->mcp = _mcp;
 	this->display = _display;
 	this->bt = _bt;
@@ -226,6 +227,28 @@ void StateMachine::update()
 		else
 			set_status(BarBotStatus_t::ErrorI2C);
 		break;
+	
+	case BarBotStatus_t::DispenseStraw:
+		if(!dispense_straw_sent){
+			//tell the board to start the dispensing
+			if(straw_board->StartDispense()){
+				current_action_start_millis = millis();
+				dispense_straw_sent = true;
+			}else{
+				set_status(BarBotStatus_t::ErrorI2C);
+			}
+		}else{
+			//check if dispensing is done yet
+			if(!straw_board->IsDispensing()){
+				if(straw_board->IsError()){
+					set_status(BarBotStatus_t::ErrorStrawsEmpty);
+				}else{
+					set_status(BarBotStatus_t::Idle);
+				}
+			}
+			//TODO: implement timeout
+		}
+		break;
 	}
 }
 
@@ -334,6 +357,12 @@ void StateMachine::start_setBalanceLED(byte type)
 	balance_LED_type = type;
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::SetBalanceLED);
+}
+
+void StateMachine::start_dispense_straw(){
+	dispense_straw_sent = false;
+	//status has to be set last to avoid multi core problems
+	set_status(BarBotStatus_t::DispenseStraw);
 }
 
 ///endregion: actions ///

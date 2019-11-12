@@ -8,6 +8,7 @@
 
 #include "Configuration.h"
 #include "BalanceBoard.h"
+#include "StrawBoard.h"
 #include "StateMachine.h"
 
 #include "Adafruit_GFX.h"
@@ -28,11 +29,13 @@ TaskHandle_t LEDTask;
 BluetoothSerial SerialBT;
 BalanceBoard balance;
 MixerBoard mixer;
+StrawBoard straw_board;
+
 SPIClass hspi(HSPI);
 MCP23X17 mcp(PIN_IO_CS, &hspi);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
-StateMachine state_m(&balance, &mixer, &mcp, &display, &SerialBT);
+StateMachine state_m(&balance, &mixer, &straw_board, &mcp, &display, &SerialBT);
 
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
@@ -151,6 +154,28 @@ void addCommands()
 						  },
 						  [](int *error_code, long *parameter) {
 							  if (state_m.status == BarBotStatus_t::Idle)
+								  return CommandStatus_t::Done;
+							  else
+								  return CommandStatus_t::Running;
+						  });
+	protocol.addDoCommand("Straw",
+						  [](int param_c, char **param_v, long *result) {
+							  if (param_c == 0)
+							  {
+								  state_m.start_dispense_straw();
+								  return true;
+							  }
+							  return false;
+						  },
+						  [](int *error_code, long *parameter) {
+							  if (state_m.status > BarBotStatus_t::Error)
+							  {
+								  (*error_code) = state_m.status;
+								  (*parameter) = 0; //error code sensefull??
+								  state_m.reset_error();
+								  return CommandStatus_t::Error;
+							  }
+							  else if (state_m.status == BarBotStatus_t::Idle)
 								  return CommandStatus_t::Done;
 							  else
 								  return CommandStatus_t::Running;
