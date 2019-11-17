@@ -4,19 +4,18 @@
 #include "WireProtocol.h"
 #include "Servo.h"
 
-#define PIN_SERVO_STRAW 9
-#define PIN_SERVO_SHUTTER 10
-#define PIN_MOTOR 7
+#define PIN_SERVO_STRAW 4
+#define PIN_SERVO_SHUTTER 2
+#define PIN_MOTOR 6
 #define PIN_LED 13
-#define PIN_BUTTON 5
-
-#define STATE_IDLE 0
-#define STATE_STARTED 1
+#define PIN_BUTTON A0
 
 #define SERVO_STRAW_TAKE 37
 #define SERVO_STRAW_DISPENSE 132
 #define SERVO_SHUTTER_OPEN 10
 #define SERVO_SHUTTER_CLOSED 100
+
+#define SERIAL_DEBUG
 
 bool error = false;
 bool dispensing = false;
@@ -36,6 +35,10 @@ void start_dispense()
 
 void handleSetters(int parameters_count)
 {
+#ifdef SERIAL_DEBUG
+  Serial.print("SET");
+  Serial.println(i2c_command);
+#endif
   switch (i2c_command)
   {
   case STRAW_CMD_DISPENSE:
@@ -46,6 +49,10 @@ void handleSetters(int parameters_count)
 
 void handleGetters()
 {
+#ifdef SERIAL_DEBUG
+  Serial.print("GET");
+  Serial.println(i2c_command);
+#endif
   switch (i2c_command)
   {
   case STRAW_CMD_GET_IS_DISPENSING:
@@ -93,6 +100,9 @@ void initWire()
 
 void setup()
 {
+#ifdef SERIAL_DEBUG
+  Serial.begin(115200);
+#endif
   pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
   //initialize servos
@@ -104,6 +114,20 @@ void setup()
   pinMode(PIN_MOTOR, OUTPUT);
   digitalWrite(PIN_MOTOR, LOW);
   initWire();
+#ifdef SERIAL_DEBUG
+  Serial.println("Straw board initialised");
+#endif
+}
+
+void wait(long ms, const char *text)
+{
+  unsigned long mic = micros();
+  for (int i = 0; i < ms; i++)
+  {
+    Serial.println(text);
+    delayMicroseconds(1000 - (micros() - mic));
+    mic = micros();
+  }
 }
 
 void loop()
@@ -114,6 +138,9 @@ void loop()
     delay(1);
   }
   dispensing = true;
+#ifdef SERIAL_DEBUG
+  Serial.println("start dispensing");
+#endif
   servo_straw.write(SERVO_STRAW_TAKE);
   delay(1000);
   servo_shutter.write(SERVO_SHUTTER_OPEN);
@@ -125,6 +152,9 @@ void loop()
   digitalWrite(PIN_MOTOR, HIGH);
   delay(3000);
   digitalWrite(PIN_MOTOR, LOW);
+#ifdef SERIAL_DEBUG
+  Serial.println("dispensing ended");
+#endif
   //TODO: error detection
   error = false;
   dispensing = false;
