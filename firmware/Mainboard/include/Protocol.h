@@ -37,6 +37,9 @@ public:
     void addSetCommand(const char *name, CommandStart_t command_start);
     void addGetCommand(const char *name, CommandStart_t command_start);
     void addDoCommand(const char *name, CommandStart_t command_start, CommandUpdate_t command_update);
+    bool acceptsCommands();
+    void setAcceptsCommand(bool accept);
+
 private:
     Stream *stream;
     uint8_t msg[MAX_MSG_SIZE];
@@ -52,4 +55,5 @@ private:
     void onCommand(const char *command, int param_c, char **param_v);
     Command_t *running_command;
     unsigned long last_send_millis;
+    bool accepts_commands = false;
 };

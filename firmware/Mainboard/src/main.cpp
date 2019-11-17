@@ -40,14 +40,15 @@ StateMachine state_m(&balance, &mixer, &straw_board, &mcp, &display, &SerialBT);
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
 
-void DoBluetoothTask(void *parameters)
+void DoLEDandBluetoothTask(void *parameters)
 {
 	for (;;)
 	{
-		//only listen to commands when startup is done
 		if (state_m.is_started())
 		{
-			protocol.update();
+			//only listen to commands when startup is done
+			if (!protocol.acceptsCommands())
+				protocol.setAcceptsCommand(true);
 		}
 		else
 		{
@@ -55,18 +56,16 @@ void DoBluetoothTask(void *parameters)
 			Serial.print(state_m.status);
 			Serial.println(")");
 		}
-		delay(10);
-	}
-}
+		//always update
+		protocol.update();
 
-void DoLEDTask(void *parameters)
-{
-	for (;;)
-	{
+		//update LED controller
 		LEDContr.setPlatformPosition(state_m.position_in_mm() + HOME_DISTANCE);
 		LEDContr.setDraftPosition(HOME_DISTANCE + FIRST_PUMP_POSITION + PUMP_DISTANCE * state_m.getDraftingPumpIndex());
 		LEDContr.update();
-		delay(10);
+
+		//make sure system tasks have time too
+		delay(1);
 	}
 }
 
@@ -336,22 +335,13 @@ void setup()
 #endif
 
 	//start bluetooth task on core 0, loop runs on core 1
-	xTaskCreatePinnedToCore(DoBluetoothTask, //Task function
-							"BluetoothTask", //Task name
+	xTaskCreatePinnedToCore(DoLEDandBluetoothTask, //Task function
+							"LEDandBluetoothTask", //Task name
 							10000,			 //stack depth
 							NULL,			 //parameters
 							1,				 //priority
 							&BluetoothTask,  //out: task handle
 							0);				 //core
-
-	//start LED task with high priority 1 on core 0
-	xTaskCreatePinnedToCore(DoLEDTask, //Task function
-							"LEDTask", //Task name
-							10000,	 //stack depth
-							NULL,	  //parameters
-							0,		   //priority
-							&LEDTask,  //out: task handle
-							0);		   //core
 	balance.setCalibration(BALANCE_CALIBRATION);
 	balance.setOffset(BALANCE_OFFSET);
 

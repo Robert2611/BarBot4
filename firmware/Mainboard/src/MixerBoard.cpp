@@ -31,7 +31,7 @@ bool MixerBoard::StartMove(byte pos)
     for (int i = 0; i < MIXER_SEND_RETRIES; i++)
     {
         //was it transmitted successfully?
-        if (WireProtocol::sendCommand(MIXER_BOARD_ADDRESS, MIXER_CMD_SET_TARGET_POS, (uint8_t)pos) ==0)
+        if (WireProtocol::sendCommand(MIXER_BOARD_ADDRESS, MIXER_CMD_SET_TARGET_POS, (uint8_t)pos) == 0)
             return true;
     }
     return false;

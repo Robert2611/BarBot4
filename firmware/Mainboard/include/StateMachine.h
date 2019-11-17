@@ -118,6 +118,9 @@ private:
 
 	unsigned long balance_last_check_millis;
 	unsigned long balance_last_data_millis;
+
+	unsigned long child_last_check_millis;
+
 	unsigned long current_action_start_millis;
 	unsigned long current_action_duration;
 
@@ -129,5 +132,6 @@ private:
 	unsigned long draft_timeout_last_check_millis;
 	float draft_timeout_last_weight;
 	bool dispense_straw_sent;
+	bool move_mixer_up_sent;
 };
 #endif // ifndef BAR_BOT_H

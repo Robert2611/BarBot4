@@ -31,10 +31,20 @@ void StateMachine::begin()
 	pinMode(PIN_SERVO, OUTPUT);
 	pinMode(PIN_LED, OUTPUT);
 
+	//initialize PWM for the pump on channel 0 with 10 bit resolution and 5kHz
+	ledcSetup(LEDC_CHANNEL_PUMP, PUMP_POWER_FREQUENCY, 10);
+	ledcAttachPin(PIN_PUMP_ENABLED, LEDC_CHANNEL_PUMP);
+	ledcWrite(LEDC_CHANNEL_PUMP, 0);
+
 	init_mcp();
 
-	mixer->StartMoveTop();
+	move_mixer_up_sent = false;
 	set_status(BarBotStatus_t::MoveMixerUp);
+	while (!mixer->StartMoveTop())
+	{
+		delay(100);
+	}
+	move_mixer_up_sent = true;
 }
 
 void StateMachine::update()
@@ -57,16 +67,29 @@ void StateMachine::update()
 	case BarBotStatus_t::ErrorIngredientEmpty:
 	case BarBotStatus_t::ErrorCommunicationToBalance:
 	case BarBotStatus_t::ErrorI2C:
+	case BarBotStatus_t::ErrorTimeout:
+	case BarBotStatus_t::ErrorStrawsEmpty:
 		//nothing to do here
 		break;
 
 	case BarBotStatus_t::MoveMixerUp:
-		if (mixer->IsAtTop())
+		if (!move_mixer_up_sent)
 		{
-			if (startup)
-				start_homing();
-			else
-				set_status(BarBotStatus_t::Idle);
+			//only set the flag if the sending actually worke
+			if (mixer->StartMoveTop())
+			{
+				move_mixer_up_sent = true;
+			}
+		}
+		else
+		{
+			if (mixer->IsAtTop())
+			{
+				if (startup)
+					start_homing();
+				else
+					set_status(BarBotStatus_t::Idle);
+			}
 		}
 		break;
 	/** HOMING START **/
@@ -87,7 +110,7 @@ void StateMachine::update()
 
 	case BarBotStatus_t::HomingFine:
 		//move to fulls step position, so pos = 0 is full step!
-		if (is_homed() || (current_microstep % PLATFORM_MOTOR_MICROSTEPS != 0))
+		if ((current_microstep % PLATFORM_MOTOR_MICROSTEPS != 0) || is_homed())
 		{
 			stepper->runSpeed();
 			current_microstep++;
@@ -127,7 +150,7 @@ void StateMachine::update()
 			draft_timeout_last_check_millis = millis();
 			//this is an old value!
 			draft_timeout_last_weight = balance->getWeight();
-			start_pump(pump_index, PUMP_POWER_PWM);
+			start_pump(pump_index, (PUMP_POWER_PERCENT * 1024) / 100);
 			set_status(BarBotStatus_t::Drafting);
 		}
 		else
@@ -137,6 +160,7 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::Drafting:
+		//new data avaiable?
 		if (update_balance())
 		{
 			//Serial.println(get_last_draft_remaining_weight());
@@ -146,28 +170,28 @@ void StateMachine::update()
 				stop_pumps();
 				set_status(BarBotStatus_t::Idle);
 			}
+			else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS)
+			{
+				if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT)
+				{
+					//error
+					stop_pumps();
+					set_status(BarBotStatus_t::ErrorIngredientEmpty);
+				}
+				else
+				{
+					//reset the timeout
+					draft_timeout_last_check_millis = millis();
+					draft_timeout_last_weight = balance->getWeight();
+				}
+			}
 		}
+		//does "no new data" mean there is a problem with the balance pcb?
 		else if (millis() > balance_last_check_millis + DRAFT_TIMOUT_MILLIS)
 		{
 			//error
 			stop_pumps();
 			set_status(BarBotStatus_t::ErrorCommunicationToBalance);
-		}
-		//check for timeout
-		else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS)
-		{
-			if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT)
-			{
-				//error
-				stop_pumps();
-				set_status(BarBotStatus_t::ErrorIngredientEmpty);
-			}
-			else
-			{
-				//reset the timeout
-				draft_timeout_last_check_millis = millis();
-				draft_timeout_last_weight = balance->getWeight();
-			}
 		}
 		//else just wait
 		break;
@@ -227,24 +251,39 @@ void StateMachine::update()
 		else
 			set_status(BarBotStatus_t::ErrorI2C);
 		break;
-	
+
 	case BarBotStatus_t::DispenseStraw:
-		if(!dispense_straw_sent){
+		if (!dispense_straw_sent)
+		{
 			//tell the board to start the dispensing
-			if(straw_board->StartDispense()){
+			if (straw_board->StartDispense())
+			{
 				current_action_start_millis = millis();
+				child_last_check_millis = millis();
 				dispense_straw_sent = true;
-			}else{
+			}
+			else
+			{
 				set_status(BarBotStatus_t::ErrorI2C);
 			}
-		}else{
+		}
+		else if (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD)
+		{
 			//check if dispensing is done yet
-			if(!straw_board->IsDispensing()){
-				if(straw_board->IsError()){
+			if (!straw_board->IsDispensing())
+			{
+				if (straw_board->IsError())
+				{
 					set_status(BarBotStatus_t::ErrorStrawsEmpty);
-				}else{
+				}
+				else
+				{
 					set_status(BarBotStatus_t::Idle);
 				}
+			}
+			else
+			{
+				child_last_check_millis = millis();
 			}
 			//TODO: implement timeout
 		}
@@ -263,7 +302,7 @@ bool StateMachine::update_balance()
 		{
 			//balance class saves the data so no need to copy it here
 			balance_last_data_millis = millis();
-			//Serial.println(balance->getWeight());
+			Serial.println(balance->getWeight());
 			return true;
 		}
 	}
@@ -304,7 +343,7 @@ void StateMachine::start_clean(int _pump_index, unsigned long _draft_time_millis
 {
 	current_action_start_millis = millis();
 	current_action_duration = _draft_time_millis;
-	start_pump(_pump_index, PUMP_POWER_PWM);
+	start_pump(pump_index, (PUMP_POWER_PERCENT * 1024) / 100);
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::Cleaning);
 }
@@ -322,6 +361,8 @@ void StateMachine::start_draft(int _pump_index, float target_weight)
 	pump_index = _pump_index;
 	weight_before_draft = balance->getWeight();
 	target_draft_weight = weight_before_draft + target_weight;
+	Serial.print("target_draft_weight = ");
+	Serial.println(target_draft_weight);
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
 
 	//status has to be set last to avoid multi core problems
@@ -359,7 +400,8 @@ void StateMachine::start_setBalanceLED(byte type)
 	set_status(BarBotStatus_t::SetBalanceLED);
 }
 
-void StateMachine::start_dispense_straw(){
+void StateMachine::start_dispense_straw()
+{
 	dispense_straw_sent = false;
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::DispenseStraw);
@@ -434,6 +476,7 @@ void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 	}
 	uint16_t pos = 0;
 	bitWrite(pos, _pump_index % 8, 1);
+	ledcWrite(LEDC_CHANNEL_PUMP, power_pwm);
 	//set only the bit associated with
 	mcp->writeRegister(MCP23X17_GPIOA, _pump_index < 8 ? pos : 0);
 	mcp->writeRegister(MCP23X17_GPIOB, _pump_index < 8 ? 0 : pos);
@@ -441,6 +484,7 @@ void StateMachine::start_pump(int _pump_index, uint32_t power_pwm)
 
 void StateMachine::stop_pumps()
 {
+	ledcWrite(LEDC_CHANNEL_PUMP, 0);
 	//all outputs off
 	mcp->writeRegister(MCP23X17_GPIOA, 0);
 	mcp->writeRegister(MCP23X17_GPIOB, 0);

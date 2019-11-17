@@ -96,7 +96,9 @@ void Protocol::process()
             stop = true;
         }
     } while ((param_c < 30) && !stop);
-    onCommand(command, param_c, param_v);
+    //only process the actual command if flag is set
+    if (accepts_commands)
+        onCommand(command, param_c, param_v);
 }
 
 void Protocol::onCommand(const char *command, int param_c, char **param_v)
@@ -241,4 +243,14 @@ void Protocol::sendLink()
     else
         stream->println("IDLE");
     last_send_millis = millis();
+}
+
+void Protocol::setAcceptsCommand(bool accept)
+{
+    accepts_commands = accept;
+}
+
+bool Protocol::acceptsCommands()
+{
+    return accepts_commands;
 }

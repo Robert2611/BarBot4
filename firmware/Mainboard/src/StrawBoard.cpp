@@ -7,7 +7,7 @@ bool StrawBoard:: StartDispense(){
     for (int i = 0; i < STRAW_SEND_RETRIES; i++)
     {
         //was it transmitted successfully?
-        if (WireProtocol::sendCommand(STRAW_BOARD_ADRESSS, STRAW_CMD_DISPENSE))
+        if (WireProtocol::sendCommand(STRAW_BOARD_ADRESSS, STRAW_CMD_DISPENSE) == 0)
             return true;
     }
     return false;
