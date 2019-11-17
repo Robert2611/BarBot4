@@ -32,6 +32,13 @@ class Protocol():
         self.devicename = port
         self.timeout = timeout
 
+    def clear_input(self):
+        # clear the input
+        while self.has_data():
+            self.read_message()
+        # if an arror accured, return false
+        return self.is_connected
+
     def connect(self):
         if self.ser is not None and self.ser.isOpen():
             self.ser.close()
@@ -50,9 +57,8 @@ class Protocol():
         return True
 
     def _send_do(self, command, parameter1=None, parameter2=None):
-        # clear the input
-        while self.has_data():
-            self.read_message()
+        if not self.clear_input():
+            return False
         # send the command
         if parameter1 is not None and parameter2 is not None:
             self.send_command(command, [parameter1, parameter2])
@@ -89,9 +95,8 @@ class Protocol():
                 return False
 
     def _send_set(self, command, parameter=None):
-        # clear the input
-        while self.has_data():
-            self.read_message()
+        if not self.clear_input():
+            return False
         # send the command
         self.send_command(command, [parameter])
         # wait for the response
@@ -108,9 +113,8 @@ class Protocol():
         return True
 
     def _send_get(self, command, parameters=None):
-        # clear the input
-        while self.has_data():
-            self.read_message()
+        if not self.clear_input():
+            return None
         # send the command
         self.send_command(command, parameters)
         # wait for the response
@@ -217,6 +221,8 @@ class Protocol():
         return False
 
     def update(self):
+        if not self.is_connected:
+            return False
         if self.ser == None or not self.ser.isOpen():
             self.is_connected = False
             return False

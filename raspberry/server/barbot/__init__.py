@@ -54,6 +54,7 @@ class StateMachine(threading.Thread):
     max_accel = 100
     demo = False
     protocol: barbot.communication.Protocol = None
+    use_straw = False
 
     def __init__(self, port, baudrate, demo=False):
         threading.Thread.__init__(self)
@@ -84,16 +85,16 @@ class StateMachine(threading.Thread):
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
-                self.set_state(State.idle)
+                self.go_to_idle()
             elif self.state == State.cleaning:
                 self._do_cleaning()
-                self.set_state(State.idle)
+                self.go_to_idle()
             elif self.state == State.cleaning_cycle:
                 self._do_cleaning_cycle()
-                self.set_state(State.idle)
+                self.go_to_idle()
             elif self.state == State.single_ingredient:
                 self._do_single_ingredient()
-                self.set_state(State.idle)
+                self.go_to_idle()
             else:
                 if not self.demo:
                     # update as long as there is data to be read
@@ -122,6 +123,10 @@ class StateMachine(threading.Thread):
 
     def _set_message(self, message: UserMessages):
         self.message = message
+        if message is None:
+            logging.debug("Remove user message")
+        else:
+            logging.debug("Show user message: %s" % self.message)
         if self.on_message_changed is not None:
             self.on_message_changed()
 
@@ -130,6 +135,22 @@ class StateMachine(threading.Thread):
 
     def can_edit_database(self):
         return self.state == State.connecting or self.state == State.idle
+
+    def wait_for(self, condition):
+        while not self.abort and not condition():
+            time.sleep(0.1)
+        return not self.abort
+
+    def wait_for_user_input(self):
+        logging.debug("Wait for user input")
+        while not self.abort and self._user_input == None:
+            time.sleep(0.1)
+        if self.abort:
+            logging.warn("Waiting aborted")
+            return False
+        else:
+            logging.debug("User answered: %s" % self._user_input)
+        return True
 
     # do commands
 
@@ -146,37 +167,34 @@ class StateMachine(threading.Thread):
             # return
             self._set_message(UserMessages.ingredient_empty)
             self._user_input = None
-            # wait for user input
-            while self._user_input is None:
-                time.sleep(0.5)
+            if not self.wait_for_user_input():
+                return
             # remove the message
             self._set_message(None)
             logging.debug(self._user_input)
             return
-        self._set_message(UserMessages.ask_for_straw)
-        self._user_input = None
-        self.protocol.try_do("PlatformLED", 4)
-        while self._user_input is None:
-            time.sleep(0.1)
-        if self._user_input == True:
-            # ask for straw until it works or user aborts
-            while not self.protocol.try_do("Straw"):
-                self._user_input = None
-                self._set_message(UserMessages.straws_empty)
-                while self._user_input is None:
-                    time.sleep(0.1)
-                if self._user_input == False:
-                    break
-
         # wait for the glas
         self._set_message(UserMessages.place_glas)
         self._user_input = None
-        while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
-            pass
+        # wait for glas or user abort
+        if not self.wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+            return
+        if self._user_input == False:
+            return
         # glas is there, wait a second to let the user take away the hand
         self.protocol.try_do("PlatformLED", 3)
         self._set_message(None)
+        # ask for straw
+        self._set_message(UserMessages.ask_for_straw)
+        self._user_input = None
+        self.protocol.try_do("PlatformLED", 4)
+        if not self.wait_for_user_input():
+            return
+        self._set_message(None)
+        self.use_straw = self._user_input
+        # wait a second before actually starting the mixing
         time.sleep(1)
+
         self.protocol.try_do("PlatformLED", 5)
         self.protocol.try_set("SetLED", 4)
         for item in self.data["recipe"]["items"]:
@@ -188,17 +206,34 @@ class StateMachine(threading.Thread):
             self._set_mixing_progress(
                 self.data["recipe_item_index"] / maxProgress)
         self.protocol.try_do("Move", 0)
+        if self.use_straw:
+            # ask for straw until it works or user aborts
+            while not self.protocol.try_do("Straw"):
+                self._user_input = None
+                self._set_message(UserMessages.straws_empty)
+                if not self.wait_for_user_input():
+                    return
+                self._set_message(None)
+                if self._user_input == False:
+                    break
         self._set_message(UserMessages.mixing_done_remove_glas)
         self.protocol.try_do("PlatformLED", 2)
         self.protocol.try_set("SetLED", 2)
         self._user_input = None
-        while self.protocol.try_get("HasGlas") != "0" or self._user_input == False:
-            time.sleep(0.5)
+        if not self.wait_for(lambda: self.protocol.try_get("HasGlas") != "1"):
+            return
         self._set_message(None)
         self.protocol.try_do("PlatformLED", 0)
         if self.on_mixing_finished is not None:
             self.on_mixing_finished(self.data["recipe"]["id"])
+
+    def go_to_idle(self):
+        self._set_message(None)
         self.protocol.try_set("SetLED", 3)
+        # first move to what is supposed to be zero, then home
+        self.protocol.try_do("Move", 0)
+        self.protocol.try_do("Home")
+        self.set_state(State.idle)
 
     def _draft_one(self, item):
         if item["port"] == 12:
@@ -207,7 +242,6 @@ class StateMachine(threading.Thread):
             while True:
                 weight = int(item["amount"] * item["calibration"])
                 result = self.protocol.try_do("Draft", item["port"], weight)
-                print(result)
                 if result == True:
                     # drafting successfull
                     return True
@@ -218,9 +252,8 @@ class StateMachine(threading.Thread):
                     self._set_message(UserMessages.ingredient_empty)
                     self._user_input = None
                     # wait for user input
-                    while self._user_input is None:
-                        time.sleep(0.5)
-                    print("Input is: '%s'" % self._user_input)
+                    if not self.wait_for_user_input():
+                        return
                     # remove the message
                     self._set_message(None)
                     if not self._user_input:
@@ -236,13 +269,15 @@ class StateMachine(threading.Thread):
             return
         self._set_message(UserMessages.place_glas)
         self._user_input = None
-        while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
-            time.sleep(0.5)
+        # wait for glas or user abort
+        if not self.wait_for(lambda: self.protocol.try_get("HasGlas") != "1" or self._user_input == False):
+            return
+        if self._user_input == False:
+            return
         self._set_message(None)
         for item in self.data:
             weight = int(item["amount"] * item["calibration"])
             self.protocol.try_do("Draft", item["port"], weight)
-        self.protocol.try_do("Move", 0)
 
     def _do_cleaning(self):
         if self.demo:
@@ -257,11 +292,13 @@ class StateMachine(threading.Thread):
             return
         self._set_message(UserMessages.place_glas)
         self._user_input = None
-        while self.protocol.try_get("HasGlas") != "1" or self._user_input == False:
-            time.sleep(0.5)
+        # wait for glas or user abort
+        if not self.wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+            return
+        if self._user_input == False:
+            return
         self._set_message(None)
         self._draft_one(self.data)
-        self.protocol.try_do("Move", 0)
 
     # start commands
 

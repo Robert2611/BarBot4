@@ -2,6 +2,7 @@ from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
 import barbotgui.plot
 import barbot
+import os
 
 
 class BusyView(barbotgui.View):
@@ -24,10 +25,10 @@ class BusyView(barbotgui.View):
         centered.setProperty("class", "CenteredContent")
         self.layout().addWidget(centered, 0, 0, QtCore.Qt.AlignCenter)
 
-        self._title_tabel = QtWidgets.QLabel("")
-        self._title_tabel.setAlignment(QtCore.Qt.AlignCenter)
-        self._title_tabel.setProperty("class", "Headline")
-        centered.layout().addWidget(self._title_tabel)
+        self._title_label = QtWidgets.QLabel("")
+        self._title_label.setAlignment(QtCore.Qt.AlignCenter)
+        self._title_label.setProperty("class", "Headline")
+        centered.layout().addWidget(self._title_label)
 
         self._content_container = QtWidgets.QWidget()
         self._content_container.setLayout(QtWidgets.QVBoxLayout())
@@ -47,9 +48,11 @@ class BusyView(barbotgui.View):
         if self._message is not None:
             self._message.setParent(None)
 
+        #if message is none show the content again
         if self.bot.message is None:
             self._message_container.setVisible(False)
             self._content_container.setVisible(True)
+            self._title_label.setVisible(True)
             return
 
         self._message = QtWidgets.QWidget()
@@ -107,10 +110,19 @@ class BusyView(barbotgui.View):
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
+        self._title_label.setVisible(False)
 
     def _init_by_status(self):
         # content
         if self.bot.state == barbot.State.mixing:
+
+            #spinner
+            label = QtWidgets.QLabel()
+            movie = QtGui.QMovie(os.path.join(barbotgui.css_path(), "Blocks.gif"))
+            label.setMovie(movie)
+            movie.start()
+            self._content_container.layout().addWidget(label)
+
             # progressbar
             self._progress_bar = QtWidgets.QProgressBar()
             self._progress_bar.setMinimum(0)
@@ -121,19 +133,25 @@ class BusyView(barbotgui.View):
             self._mixing_progress_trigger.connect(lambda: self._progress_bar.setValue(int(self.bot.progress * 100)))
             self.bot.on_mixing_progress_changed = lambda: self._mixing_progress_trigger.emit()
 
-            self._title_tabel.setText("Cocktail\n'%s'\nwird gemischt." % self.bot.data["recipe"]["name"])
+            #buttons
+            button = QtWidgets.QPushButton("Abbrechen")
+            button.clicked.connect(lambda: self.bot.set_user_input(False))
+            self._content_container.layout().addWidget(button)
+
+            self._title_label.setText("Cocktail\n'%s'\nwird gemischt." % self.bot.data["recipe"]["name"])
+
         elif self.bot.state == barbot.State.cleaning:
-            self._title_tabel.setText("Reinigung")
+            self._title_label.setText("Reinigung")
         elif self.bot.state == barbot.State.connecting:
-            self._title_tabel.setText("Verbinde...")
+            self._title_label.setText("Verbinde...")
         elif self.bot.state == barbot.State.cleaning_cycle:
-            self._title_tabel.setText("Reinigung (Zyklus)")
+            self._title_label.setText("Reinigung (Zyklus)")
         elif self.bot.state == barbot.State.single_ingredient:
-            self._title_tabel.setText("Dein Nachschlag wird hinzugefügt")
+            self._title_label.setText("Dein Nachschlag wird hinzugefügt")
         elif self.bot.state == barbot.State.startup:
-            self._title_tabel.setText("Starte BarBot, bitte warten")
+            self._title_label.setText("Starte BarBot, bitte warten")
         else:
-            self._title_tabel.setText("Unknown status: %s" % self.bot.state)
+            self._title_label.setText("Unknown status: %s" % self.bot.state)
 
 class IdleView(barbotgui.View):
     def __init__(self, window: barbotgui.MainWindow):
@@ -255,7 +273,11 @@ class ListRecipes(IdleView):
 
             # add items
             for item in recipe["items"]:
-                label = QtWidgets.QLabel("%i cl %s" % (item["amount"], item["name"]))
+                label = QtWidgets.QLabel()
+                if item["port"] == 12:
+                    label.setText("%i s %s" % (item["amount"], item["name"]))
+                else:
+                    label.setText("%i cl %s" % (item["amount"], item["name"]))
                 recipe_items_container.layout().addWidget(label)
 
     def _open_edit(self, id):
