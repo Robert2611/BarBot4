@@ -12,6 +12,9 @@ X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
 [ -d "$X_AUTOSTART_PATH" ]||mkdir --parent "$X_AUTOSTART_PATH"
 #copy autostart file
 cp $BIN_FOLDER/autostart $X_AUTOSTART_PATH
+#add correct links to the autostart file
+echo "@$BIN_FOLDER/touch_rotate.sh" >> $X_AUTOSTART_PATH/autostart
+echo "@$BIN_FOLDER/../server/main.py" >> $X_AUTOSTART_PATH/autostart
 
 #enable bluetooth
 systemctl start hciuart
