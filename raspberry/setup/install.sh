@@ -6,7 +6,10 @@ SETUP_FOLDER=`dirname $SCRIPT`
 PYTHON_FOLDER="$SETUP_FOLDER/../server"
 
 #make main program executable
-sudo chmod +x $PYTHON_FOLDER/main.py
+sudo chmod +x "$PYTHON_FOLDER/main.py"
+
+#make touch rotate executable
+sudo chmod +x "$SETUP_FOLDER/touch_rotate.sh"
 
 #add gui to x-servers startup if not yet so
 X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
