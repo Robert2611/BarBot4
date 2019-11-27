@@ -1,7 +1,9 @@
 #!/bin/sh
-
-BIN_FOLDER=$(dirname "$0")
-PYTHON_FOLDER="$BIN_FOLDER/../server"
+#get absolute path of this script
+SCRIPT=`realpath $0`
+#remove the filename
+SETUP_FOLDER=`dirname $SCRIPT`
+PYTHON_FOLDER="$SETUP_FOLDER/../server"
 
 #make main program executable
 sudo chmod +x $PYTHON_FOLDER/main.py
@@ -11,10 +13,10 @@ X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
 #create path if not exist
 [ -d "$X_AUTOSTART_PATH" ]||mkdir --parent "$X_AUTOSTART_PATH"
 #copy autostart file
-cp $BIN_FOLDER/autostart $X_AUTOSTART_PATH
+cp $SETUP_FOLDER/autostart $X_AUTOSTART_PATH
 #add correct links to the autostart file
-echo "@$BIN_FOLDER/touch_rotate.sh" >> $X_AUTOSTART_PATH/autostart
-echo "@$BIN_FOLDER/../server/main.py" >> $X_AUTOSTART_PATH/autostart
+echo "@$SETUP_FOLDER/touch_rotate.sh" >> $X_AUTOSTART_PATH/autostart
+echo "@$SETUP_FOLDER/../server/main.py" >> $X_AUTOSTART_PATH/autostart
 
 #enable bluetooth
 systemctl start hciuart
@@ -27,14 +29,3 @@ fi
 
 sudo apt-get install python3-pyqt5 -y
 pip3 install qdarkstyle
-
-
-#remove startup messages
-cp $BIN_FOLDER/cmdline.txt /boot/cmdline.txt
-
-
-#to connect to a device with password:
-#	bluetoothctl
-#	agent on
-#	pair 20:16:04:14:60:60
-#it should now prompt for the password
