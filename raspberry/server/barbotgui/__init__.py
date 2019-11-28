@@ -3,6 +3,10 @@ import barbot
 import os
 import barbotgui
 import logging
+import platform
+
+def is_raspberry():
+   return platform.system() == "Linux" and "raspberry" in os.uname().nodename
 
 def set_no_spacing(layout):
     layout.setSpacing(0)
@@ -168,7 +172,7 @@ class MainWindow(QtWidgets.QWidget):
         self.update_view()
         self.setFixedSize(480, 800)
         #show fullscreen on raspberry
-        if "rasp" in os.name:
+        if is_raspberry():
             self.showFullScreen()
             self.setCursor(QtCore.Qt.BlankCursor)
         else:
