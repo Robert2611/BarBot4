@@ -125,12 +125,14 @@ class MainWindow(QtWidgets.QWidget):
     _last_idle_view = None
     _keyboard: Keyboard = None
     is_admin = False
+    _admin_password = ""
     
-    def __init__(self, _db:barbot.Database, _bot:barbot.StateMachine):
+    def __init__(self, _db:barbot.Database, _bot:barbot.StateMachine, _admin_password):
         super().__init__()
         import barbotgui.views
         self.db = _db
         self.bot = _bot
+        self._admin_password = _admin_password
 
         styles = open(os.path.join(css_path(), 'main.qss')).read()
         styles = styles.replace("#iconpath#", css_path().replace("\\","\\\\"))
@@ -139,7 +141,7 @@ class MainWindow(QtWidgets.QWidget):
         self.mousePressEvent = lambda event: self.close_keyboard()
 
         #forward status changed
-        self._barbot_state_trigger.connect(self._bot_state_changed)
+        self._barbot_state_trigger.connect(self.update_view)
         self.bot.on_state_changed = lambda: self._barbot_state_trigger.emit()
 
         #remove borders and title bar
@@ -153,6 +155,7 @@ class MainWindow(QtWidgets.QWidget):
 
         label = QtWidgets.QLabel("Bar-Bot 4.0")
         label.setProperty("class", "BarBotHeader")
+        label.mouseDoubleClickEvent = lambda e: self.header_clicked(e)
         header.layout().addWidget(label, 0, 0, QtCore.Qt.AlignCenter)
 
         #content
@@ -162,7 +165,7 @@ class MainWindow(QtWidgets.QWidget):
         self._content_wrapper.layout().setContentsMargins(0,0,0,0)
         self.layout().addWidget(self._content_wrapper, 1)
 
-        self.set_view(barbotgui.views.BusyView(self))
+        self.update_view()
         self.setFixedSize(480, 800)
         #show fullscreen on raspberry
         if "rasp" in os.name:
@@ -170,6 +173,60 @@ class MainWindow(QtWidgets.QWidget):
             self.setCursor(QtCore.Qt.BlankCursor)
         else:
             self.show()
+
+    def add_system_view(self, container):
+        if container.layout() is None:
+            container.setLayout(QtWidgets.QVBoxLayout())
+
+        # title
+        title = QtWidgets.QLabel("System")
+        title.setProperty("class", "Headline")
+        container.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        container.layout().addWidget(title)
+
+        label = QtWidgets.QLabel("Software")
+        container.layout().addWidget(label)
+        # reopen software
+        button = QtWidgets.QPushButton("Neu Starten")
+        button.clicked.connect(lambda: self.restart_GUI())
+        container.layout().addWidget(button)
+
+        # close software
+        button = QtWidgets.QPushButton("Schließen")
+        button.clicked.connect(lambda: self.window.close())
+        container.layout().addWidget(button)
+
+        label = QtWidgets.QLabel("PI")
+        container.layout().addWidget(label)
+
+        # shutdown
+        button = QtWidgets.QPushButton("Herunterfahren")
+        button.clicked.connect(lambda: barbot.run_command("sudo shutdown now"))
+        container.layout().addWidget(button)
+
+        # reboot
+        button = QtWidgets.QPushButton("Neu Starten")
+        button.clicked.connect(lambda: barbot.run_command("sudo reboot"))
+        container.layout().addWidget(button)
+
+        # dummy
+        container.layout().addWidget(QtWidgets.QWidget(), 1)
+
+    def restart_GUI(self):
+        self.window.close()
+        barbot.run_command("python3 /home/pi/bar_bot/server/main.py")
+
+    def header_clicked(self, e):
+        if self.bot.state == barbot.State.idle:
+            if self.is_admin:
+                self.is_admin = False
+                self.update_view(True)
+            else:
+                self.set_view(barbotgui.views.AdminLogin(self))
+        else:
+            view = QtWidgets.QWidget()
+            self.add_system_view(view)           
+            self.set_view(view)
 
     def close_keyboard(self):
         if self._keyboard is not None:
@@ -203,10 +260,12 @@ class MainWindow(QtWidgets.QWidget):
             self._last_idle_view = view
         self._content_wrapper.layout().addWidget(self._current_view)
 
-    def _bot_state_changed(self):
+    def update_view(self, force_reload = False):
         if self.bot.state == barbot.State.idle:
-            if self._last_idle_view != self._current_view:
-                if self._last_idle_view is None:
+            if self.is_admin:
+                self.set_view(barbotgui.views.AdminLogin(self))
+            elif self._last_idle_view != self._current_view or self._last_idle_view is None or force_reload:
+                if self._last_idle_view is None or force_reload:
                     self.set_view(barbotgui.views.ListRecipes(self))
                 else:
                     self.set_view(self._last_idle_view)

@@ -46,7 +46,7 @@ bot.start()
 try:
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-    form = barbotgui.MainWindow(db, bot)
+    form = barbotgui.MainWindow(db, bot, config.admin_password)
     form.show()
     app.exec_()
     # tell the statemachine to stop

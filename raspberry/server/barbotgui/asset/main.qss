@@ -10,6 +10,15 @@ QWidget{
 .RecipeTitle{
     font-size: 20px;
 }
+.NumpadButton{
+    font-size: 30px;
+    width: 100px;
+    height: 100px;
+}
+.PasswordBox{
+    font-size: 30px;
+    width: 200px;
+}
 .AdminCheckbox::indicator{
     image: url("#iconpath#/admin.png");
     width: 20px;

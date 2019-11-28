@@ -393,6 +393,7 @@ class Database(object):
 			SELECT name, id
 			FROM Recipes
 			WHERE successor_id IS NULL
+            ORDER BY id DESC
 		""")
         recipes = []
         for row in self.cursor.fetchall():
