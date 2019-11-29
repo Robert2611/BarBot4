@@ -174,14 +174,15 @@ class StateMachine(threading.Thread):
             logging.debug(self._user_input)
             return
         # wait for the glas
-        self._set_message(UserMessages.place_glas)
-        self._user_input = None
-        # wait for glas or user abort
-        if not self.wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
-            return
-        if self._user_input == False:
-            return
-        # glas is there, wait a second to let the user take away the hand
+        if self.protocol.try_get("HasGlas") != "1":
+            self.protocol.try_do("PlatformLED", 2)
+            self._set_message(UserMessages.place_glas)
+            self._user_input = None
+            # wait for glas or user abort
+            if not self.wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+                return
+            if self._user_input == False:
+                return
         self.protocol.try_do("PlatformLED", 3)
         self._set_message(None)
         # ask for straw
@@ -196,7 +197,7 @@ class StateMachine(threading.Thread):
         time.sleep(1)
 
         self.protocol.try_do("PlatformLED", 5)
-        self.protocol.try_set("SetLED", 4)
+        self.protocol.try_set("SetLED", 5)
         for item in self.data["recipe"]["items"]:
             # do the actual draft, exit the loop if it did not succeed
             if not self._draft_one(item):
@@ -218,7 +219,7 @@ class StateMachine(threading.Thread):
                     break
         self._set_message(UserMessages.mixing_done_remove_glas)
         self.protocol.try_do("PlatformLED", 2)
-        self.protocol.try_set("SetLED", 2)
+        self.protocol.try_set("SetLED", 4)
         self._user_input = None
         if not self.wait_for(lambda: self.protocol.try_get("HasGlas") != "1"):
             return

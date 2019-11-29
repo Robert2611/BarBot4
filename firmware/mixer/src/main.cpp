@@ -3,14 +3,14 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-#define PIN_EN A7
-#define PIN_MOTOR_1 A0 //PC0
-#define PIN_MOTOR_2 A1 //PC1
-#define PIN_ENDSTOP_TOP 2
-#define PIN_ENDSTOP_BOTTOM 3
-#define PIN_MIXER_EN 1
-#define PIN_MIXER 0
-#define PIN_LED 4
+#define PIN_EN A1
+#define PIN_MOTOR_1 A0
+#define PIN_MOTOR_2 13
+#define PIN_ENDSTOP_TOP 0
+#define PIN_ENDSTOP_BOTTOM 1
+#define PIN_MIXER_EN A2
+#define PIN_MIXER A3
+//#define PIN_LED 13
 
 byte movingDirection;
 byte targetPosition;
@@ -95,12 +95,13 @@ void initWire()
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
   Wire.onRequest(handleGetters);
-  WireProtocol::blinkAddress(MIXER_BOARD_ADDRESS, PIN_LED);
+  //Pin 13 is the internal LED, but it is set as output
+  //WireProtocol::blinkAddress(MIXER_BOARD_ADDRESS, PIN_LED);
 }
 
 void setup()
 {
-  pinMode(PIN_LED, OUTPUT);
+  //pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_EN, OUTPUT);
   pinMode(PIN_MOTOR_1, OUTPUT);
   pinMode(PIN_MOTOR_2, OUTPUT);

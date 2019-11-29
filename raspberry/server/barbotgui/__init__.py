@@ -197,7 +197,7 @@ class MainWindow(QtWidgets.QWidget):
 
         # close software
         button = QtWidgets.QPushButton("Schließen")
-        button.clicked.connect(lambda: self.window.close())
+        button.clicked.connect(lambda: self.destroy())
         container.layout().addWidget(button)
 
         label = QtWidgets.QLabel("PI")

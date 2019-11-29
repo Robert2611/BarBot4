@@ -31,7 +31,7 @@ void LEDController::update(bool force)
 	{
 		if (force)
 		{
-			stripe->ClearTo({255, 0, 0});
+			stripe->ClearTo({0, 255, 0});
 			stripe->Show();
 		}
 	}
@@ -43,7 +43,7 @@ void LEDController::update(bool force)
 		{
 			//blink green
 			if (frame == 1)
-				stripe->ClearTo({255, 0, 0});
+				stripe->ClearTo({255, 255, 0});
 			else
 				stripe->ClearTo({0, 0, 0});
 
@@ -90,7 +90,7 @@ void LEDController::update(bool force)
 				if (dist > (period - 1) / 2)
 					dist = period - dist;
 				float brightness = max(1 - dist / 3.0, 0.0);
-				RgbColor color = {0, (byte)(255 * brightness * brightness), 0};
+				RgbColor color = {0, 0, (byte)(255 * brightness * brightness)};
 				stripe->SetPixelColor(i, color);
 			}
 			stripe->Show();

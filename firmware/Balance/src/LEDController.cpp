@@ -47,7 +47,7 @@ void LEDController::update(bool force)
 		{
 			//blink green
 			if (frame == 1)
-				stripe->ClearTo({255, 0, 0});
+				stripe->ClearTo({100, 255, 0});
 			else
 				stripe->ClearTo({0, 0, 0});
 
