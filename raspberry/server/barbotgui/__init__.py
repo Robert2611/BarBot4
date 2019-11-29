@@ -197,7 +197,7 @@ class MainWindow(QtWidgets.QWidget):
 
         # close software
         button = QtWidgets.QPushButton("Schließen")
-        button.clicked.connect(lambda: self.destroy())
+        button.clicked.connect(lambda: QtWidgets.QApplication.instance().quit())
         container.layout().addWidget(button)
 
         label = QtWidgets.QLabel("PI")
@@ -217,7 +217,7 @@ class MainWindow(QtWidgets.QWidget):
         container.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def restart_GUI(self):
-        self.window.close()
+        QtWidgets.QApplication.instance().quit()
         barbot.run_command("python3 /home/pi/bar_bot/server/main.py")
 
     def header_clicked(self, e):
