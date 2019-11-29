@@ -47,13 +47,13 @@ class Protocol():
                 self.devicename, self.baud, timeout=self.timeout)
             # wait for Arduino to initialize
             time.sleep(1)
+            while self.ser.in_waiting:
+                self.ser.read()
+            self.is_connected = True
+            logging.info("connection to %s successfull" % (self.devicename))
         except Exception:
             logging.warn("connection to %s failed" % (self.devicename))
             return False
-        logging.info("connection to %s successfull" % (self.devicename))
-        while self.ser.in_waiting:
-            self.ser.read()
-        self.is_connected = True
         return True
 
     def _send_do(self, command, parameter1=None, parameter2=None):
