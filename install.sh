@@ -3,11 +3,10 @@
 SCRIPT=`realpath $0`
 #remove the filename
 SETUP_FOLDER=`dirname $SCRIPT`
-PYTHON_FOLDER="$SETUP_FOLDER/../server"
+PYTHON_FOLDER="$SETUP_FOLDER/python"
 
 #make main program executable
 sudo chmod +x "$PYTHON_FOLDER/main.py"
-
 #make touch rotate executable
 sudo chmod +x "$SETUP_FOLDER/touch_rotate.sh"
 
@@ -23,11 +22,10 @@ echo "@pcmanfm --desktop --profile LXDE-pi" >> $X_AUTOSTART_PATH/autostart
 echo "@xscreensaver -no-splash" >> $X_AUTOSTART_PATH/autostart
 echo "point-rpi" >> $X_AUTOSTART_PATH/autostart
 echo "@$SETUP_FOLDER/touch_rotate.sh" >> $X_AUTOSTART_PATH/autostart
-echo "@$SETUP_FOLDER/../server/main.py" >> $X_AUTOSTART_PATH/autostart
+echo "@$PYTHON_FOLDER/main.py" >> $X_AUTOSTART_PATH/autostart
 
 #enable bluetooth
 systemctl start hciuart
-#sudo nano /etc/systemd/system/dbus-org.bluez.service
 
 #rotate the display
 if ! grep -q 'display_rotate' "/boot/config.txt"; then
@@ -35,4 +33,4 @@ if ! grep -q 'display_rotate' "/boot/config.txt"; then
 fi
 
 sudo apt-get install python3-pyqt5 -y
-pip3 install qdarkstyle
+pip3 install -r "$PYTHON_FOLDER/requirements.txt"
