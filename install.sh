@@ -18,6 +18,10 @@ X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
 #copy autostart file
 cp $SETUP_FOLDER/autostart $X_AUTOSTART_PATH
 #add correct links to the autostart file
+echo "@lxpanel --profile LXDE-pi" >> $X_AUTOSTART_PATH/autostart
+echo "@pcmanfm --desktop --profile LXDE-pi" >> $X_AUTOSTART_PATH/autostart
+echo "@xscreensaver -no-splash" >> $X_AUTOSTART_PATH/autostart
+echo "point-rpi" >> $X_AUTOSTART_PATH/autostart
 echo "@$SETUP_FOLDER/touch_rotate.sh" >> $X_AUTOSTART_PATH/autostart
 echo "@$SETUP_FOLDER/../server/main.py" >> $X_AUTOSTART_PATH/autostart
 
