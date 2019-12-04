@@ -239,6 +239,7 @@ class StateMachine(threading.Thread):
     def _draft_one(self, item):
         if item["port"] == 12:
             self.protocol.try_do("Stir", int(item["amount"] * 1000))
+            return True
         else:
             while True:
                 weight = int(item["amount"] * item["calibration"])
