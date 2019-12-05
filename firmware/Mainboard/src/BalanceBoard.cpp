@@ -12,16 +12,14 @@ bool BalanceBoard::setLEDType(byte type)
 	return WireProtocol::sendCommand(BALANCE_BOARD_ADDRESS, BALANCE_CMD_SET_LED_TYPE, &type, 1) == 0;
 }
 
-void BalanceBoard::LEDOff()
+bool BalanceBoard::LEDOff()
 {
-	setLEDType(BALANCE_LED_TYPE_OFF);
+	return setLEDType(BALANCE_LED_TYPE_OFF);
 }
 
-bool BalanceBoard::hasNewData()
+bool BalanceBoard::hasNewData(bool *has_data)
 {
-	bool has_data;
-	bool success = WireProtocol::getBool(BALANCE_BOARD_ADDRESS, BALANCE_CMD_HAS_NEW_DATA, &has_data);
-	return success && has_data;
+	return WireProtocol::getBool(BALANCE_BOARD_ADDRESS, BALANCE_CMD_HAS_NEW_DATA, has_data);
 }
 
 void BalanceBoard::setCalibration(float _calibration)
@@ -34,22 +32,36 @@ void BalanceBoard::setOffset(float _offset)
 	this->offset = _offset;
 }
 
-bool BalanceBoard::readData()
+float BalanceBoard::getWeight()
 {
-	if (!hasNewData())
-		return false;
+	return ((float)(raw_data - offset)) / calibration;
+}
+
+BalanceUpdateResult_t BalanceBoard::update()
+{
+	//ask for new data every 3 ms to avoid blocking the bus
+	if (millis() < last_check_millis + 3)
+		return Balance_NoData;
+
+	bool has_data = false;
+	if (!hasNewData(&has_data))
+		return Balance_CommunicationError;
+	last_check_millis = millis();
+	if (!has_data)
+	{
+		if (millis() > last_data_millis + BALANCE_DATA_TIMEOUT)
+			return Balance_Timeout;
+		else
+			return Balance_NoData;
+	}
 	float data;
 	bool success = WireProtocol::getFloat(BALANCE_BOARD_ADDRESS, BALANCE_CMD_GET_DATA, &data);
 	//only safe the data if it is valid and not higher than it can possibly be (24 bit of the HX711)
 	if (success && !isnan(data) && data < (2 << 24))
 	{
 		raw_data = data;
-		return true;
+		last_data_millis = millis();
+		return Balance_DataRead;
 	}
-	return false;
-}
-
-float BalanceBoard::getWeight()
-{
-	return ((float)(raw_data - offset)) / calibration;
+	return Balance_CommunicationError;
 }

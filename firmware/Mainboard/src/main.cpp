@@ -11,12 +11,6 @@
 #include "StrawBoard.h"
 #include "StateMachine.h"
 
-#include "Adafruit_GFX.h"
-#include "Adafruit_SSD1306.h"
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
@@ -33,9 +27,8 @@ StrawBoard straw_board;
 
 SPIClass hspi(HSPI);
 MCP23X17 mcp(PIN_IO_CS, &hspi);
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
-StateMachine state_m(&balance, &mixer, &straw_board, &mcp, &display, &SerialBT);
+StateMachine state_m(&balance, &mixer, &straw_board, &mcp, &SerialBT);
 
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
@@ -337,11 +330,11 @@ void setup()
 	//start bluetooth task on core 0, loop runs on core 1
 	xTaskCreatePinnedToCore(DoLEDandBluetoothTask, //Task function
 							"LEDandBluetoothTask", //Task name
-							10000,			 //stack depth
-							NULL,			 //parameters
-							1,				 //priority
-							&BluetoothTask,  //out: task handle
-							0);				 //core
+							10000,				   //stack depth
+							NULL,				   //parameters
+							1,					   //priority
+							&BluetoothTask,		   //out: task handle
+							0);					   //core
 	balance.setCalibration(BALANCE_CALIBRATION);
 	balance.setOffset(BALANCE_OFFSET);
 
@@ -352,13 +345,6 @@ void setup()
 	//disable pullups for i2c
 	digitalWrite(SCL, LOW);
 	digitalWrite(SDA, LOW);
-
-	if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-	{
-		Serial.println("error");
-		for (;;)
-			yield();
-	}
 	hspi.begin();
 	state_m.begin();
 }

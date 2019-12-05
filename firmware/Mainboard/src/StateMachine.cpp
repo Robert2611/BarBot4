@@ -1,12 +1,11 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, BluetoothSerial *_bt)
 {
 	this->balance = _balance;
 	this->mixer = _mixer;
 	this->straw_board = _straw_board;
 	this->mcp = _mcp;
-	this->display = _display;
 	this->bt = _bt;
 	startup = true;
 	status = BarBotStatus_t::Idle;
@@ -49,26 +48,18 @@ void StateMachine::begin()
 
 void StateMachine::update()
 {
-	if (display_needs_update)
-	{
-		display_needs_update = false;
-		if (status != BarBotStatus_t::Idle)
-			update_display();
-	}
-
 	switch (status)
 	{
 	case BarBotStatus_t::Idle:
-		update_balance();
-		update_display();
+		// we do not check for any errors here!
+		balance->update();
 		break;
 
 	case BarBotStatus_t::Error:
 	case BarBotStatus_t::ErrorIngredientEmpty:
-	case BarBotStatus_t::ErrorCommunicationToBalance:
 	case BarBotStatus_t::ErrorI2C:
-	case BarBotStatus_t::ErrorTimeout:
 	case BarBotStatus_t::ErrorStrawsEmpty:
+	case BarBotStatus_t::ErrorGlasRemoved:
 		//nothing to do here
 		break;
 
@@ -147,11 +138,27 @@ void StateMachine::update()
 		if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			//draft position is reached
-			draft_timeout_last_check_millis = millis();
-			//this is an old value!
-			draft_timeout_last_weight = balance->getWeight();
-			start_pump(pump_index, (PUMP_POWER_PERCENT * 1024) / 100);
-			set_status(BarBotStatus_t::Drafting);
+			//get new weight from the balance or throw error
+			BalanceUpdateResult_t res = balance->update();
+			//TODO: read until weight is stable
+			if (res == Balance_DataRead)
+			{
+				if (balance->getWeight() > GLASS_WEIGHT_MIN)
+				{
+					draft_timeout_last_check_millis = millis();
+					draft_timeout_last_weight = balance->getWeight();
+					start_pump(pump_index, (PUMP_POWER_PERCENT * 1024) / 100);
+					set_status(BarBotStatus_t::Drafting);
+				}
+				else
+				{
+					set_status(BarBotStatus_t::ErrorGlasRemoved);
+				}
+			}
+			else if (res == Balance_CommunicationError)
+				set_status(BarBotStatus_t::ErrorI2C);
+			else if (res == Balance_Timeout)
+				set_status(BarBotStatus_t::ErrorCommunicationToBalance);
 		}
 		else
 		{
@@ -160,8 +167,10 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::Drafting:
+	{
 		//new data avaiable?
-		if (update_balance())
+		BalanceUpdateResult_t res = balance->update();
+		if (res == Balance_DataRead)
 		{
 			//Serial.println(get_last_draft_remaining_weight());
 			if (balance->getWeight() > target_draft_weight)
@@ -186,15 +195,21 @@ void StateMachine::update()
 				}
 			}
 		}
-		//does "no new data" mean there is a problem with the balance pcb?
-		else if (millis() > balance_last_check_millis + DRAFT_TIMOUT_MILLIS)
+		//forward i2c error
+		else if (res == Balance_CommunicationError)
 		{
-			//error
+			stop_pumps();
+			set_status(BarBotStatus_t::ErrorI2C);
+		}
+		//forward timeout
+		else if (res == Balance_Timeout)
+		{
 			stop_pumps();
 			set_status(BarBotStatus_t::ErrorCommunicationToBalance);
 		}
 		//else just wait
-		break;
+	}
+	break;
 
 	case BarBotStatus_t::Cleaning:
 		if (millis() > current_action_start_millis + current_action_duration)
@@ -289,24 +304,6 @@ void StateMachine::update()
 		}
 		break;
 	}
-}
-
-bool StateMachine::update_balance()
-{
-	//ask for new data every 3 ms to avoid blocking the bus
-	if (millis() > balance_last_check_millis + 3)
-	{
-		balance_last_check_millis = millis();
-		//check if balance has new data
-		if (balance->readData())
-		{
-			//balance class saves the data so no need to copy it here
-			balance_last_data_millis = millis();
-			Serial.println(balance->getWeight());
-			return true;
-		}
-	}
-	return false;
 }
 
 ///region: getters ///
@@ -415,7 +412,6 @@ void StateMachine::set_status(BarBotStatus_t new_status)
 	if (new_status != status)
 	{
 		status = new_status;
-		display_needs_update = true;
 		if (onStatusChanged != NULL)
 			onStatusChanged(status);
 	}
@@ -490,47 +486,6 @@ void StateMachine::stop_pumps()
 	mcp->writeRegister(MCP23X17_GPIOB, 0);
 }
 ///endregion: pump ///
-
-void StateMachine::update_display()
-{
-	display->clearDisplay();
-	display->setTextColor(SSD1306_WHITE); // Draw white text
-
-	//write status
-	display->setTextSize(1);
-	display->setCursor(0, 0);
-	display->print("Status: ");
-	display->print(StatusNames[status]);
-
-	//write mac adress
-	display->setTextSize(1);
-	display->setCursor(0, 16);
-	const uint8_t *point = esp_bt_dev_get_address();
-	for (int i = 0; i < 6; i++)
-	{
-		char str[3];
-		sprintf(str, "%02X", (int)point[i]);
-		display->print(str);
-		if (i < 5)
-			display->print(":");
-	}
-
-	//bt status
-	display->setTextSize(1);
-	display->setCursor(0, 2 * 16);
-	display->print("BT: ");
-	if (!bt->hasClient())
-		display->print("not ");
-	display->print("connected");
-
-	//weight
-	display->setTextSize(1);
-	display->setCursor(0, 3 * 16);
-	display->print("Weight:");
-	display->print(balance->getWeight());
-
-	display->display();
-}
 
 int StateMachine::getDraftingPumpIndex()
 {

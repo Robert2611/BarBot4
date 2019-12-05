@@ -8,31 +8,9 @@
 #include "MixerBoard.h"
 #include "StrawBoard.h"
 #include "MCP23X17.h"
-
-#include "Adafruit_GFX.h"
-#include "Adafruit_SSD1306.h"
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
 #include "BluetoothSerial.h"
-
-const char StatusNames[][32] = {
-	"Idle",
-	"MoveMixerUp",
-	"HomingRough",
-	"HomingFine",
-	"MoveToDraft",
-	"Drafting",
-	"Stirring",
-	"Cleaning",
-	"MoveToStir",
-	"MoveToPos",
-	"Delay",
-	"SetBalanceLED",
-	"Error",
-	"ErrorIngredientEmpty",
-	"ErrorBalanceComm",
-	"ErrorI2C",
-};
 
 enum BarBotStatus_t
 {
@@ -54,8 +32,8 @@ enum BarBotStatus_t
 	ErrorIngredientEmpty,
 	ErrorCommunicationToBalance,
 	ErrorI2C,
-	ErrorTimeout,
 	ErrorStrawsEmpty,
+	ErrorGlasRemoved
 };
 
 extern "C"
@@ -66,7 +44,7 @@ extern "C"
 class StateMachine
 {
 public:
-	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, Adafruit_SSD1306 *_display, BluetoothSerial *_bt);
+	StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, BluetoothSerial *_bt);
 	void begin();
 
 	BarBotStatus_t status;
@@ -93,7 +71,6 @@ public:
 	int getDraftingPumpIndex();
 
 private:
-	bool update_balance();
 	bool is_homed();
 	void start_pump(int pump_index, uint32_t power_pwm);
 	void stop_pumps();
@@ -102,7 +79,6 @@ private:
 	void set_target_position(long pos_in_mm);
 	long mm_to_steps(float mm);
 	void init_mcp();
-	void update_display();
 
 	byte balance_LED_type;
 	int current_microstep;
@@ -111,13 +87,7 @@ private:
 	MixerBoard *mixer;
 	StrawBoard *straw_board;
 	MCP23X17 *mcp;
-	Adafruit_SSD1306 *display;
 	BluetoothSerial *bt;
-
-	bool display_needs_update;
-
-	unsigned long balance_last_check_millis;
-	unsigned long balance_last_data_millis;
 
 	unsigned long child_last_check_millis;
 
