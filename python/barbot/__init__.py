@@ -44,6 +44,8 @@ class StateMachine(threading.Thread):
     on_message_changed = None
 
     error_ingredient_empty = 33
+	error_straws_empty = 36
+	error_glas_removed = 37
     progress = None
     data = None
     abort = False
@@ -247,22 +249,32 @@ class StateMachine(threading.Thread):
                 if result == True:
                     # drafting successfull
                     return True
-                elif type(result) is list and len(result) >= 2 and int(result[0]) == self.error_ingredient_empty:
-                    # ingredient is empty
-                    # safe how much is left to draft
-                    item["amount"] = int(result[1]) / item["calibration"]
-                    self._set_message(UserMessages.ingredient_empty)
-                    self._user_input = None
-                    # wait for user input
-                    if not self.wait_for_user_input():
-                        return
-                    # remove the message
-                    self._set_message(None)
-                    if not self._user_input:
+                elif type(result) is list and len(result) >= 2:
+                    error_code = int(result[0])
+                    logging.error("Error while drafting: '%s'" % error_code)
+                    if error_code == self.error_ingredient_empty:
+                        # ingredient is empty
+                        # safe how much is left to draft
+                        item["amount"] = int(result[1]) / item["calibration"]
+                        self._set_message(UserMessages.ingredient_empty)
+                        self._user_input = None
+                        # wait for user input
+                        if not self.wait_for_user_input():
+                            return
+                        # remove the message
+                        self._set_message(None)
+                        if not self._user_input:
+                            return False
+                        # repeat the loop
+
+                    elif error_code == error_glas_removed:
+                        #TODO: Show message to user
+                        logging.info("Glas was removed while drafting")
                         return False
-                    # repeat the loop
+                        
                 else:
-                    # unhandled error while drafting
+                    # unhandled return value
+                    logging.error("Unhandled result while drafting: '%s'" % result)
                     return False
 
     def _do_cleaning_cycle(self):
