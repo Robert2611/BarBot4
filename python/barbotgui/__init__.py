@@ -298,8 +298,8 @@ class MainWindow(QtWidgets.QWidget):
             i = i+1
         return wAmount
 
-    def combobox_ingredients(self, selectedData = None):
-        ing = self.db.list_ingredients().values()
+    def combobox_ingredients(self, selectedData = None, only_available = False):
+        ing = self.db.list_ingredients(only_available).values()
         #add ingredient name
         wIngredient = QtWidgets.QComboBox()
         wIngredient.addItem("-", -1)

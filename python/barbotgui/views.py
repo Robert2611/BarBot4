@@ -72,8 +72,9 @@ class BusyView(barbotgui.View):
             buttons_container.layout().addWidget(button)
 
         if self.bot.message == barbot.UserMessages.ingredient_empty:
-            message_label.setText(
-                "Die Zutat ist leer.\nBitte neue Flasche anschließen.")
+            message_string = "Die Zutat '%s' ist leer.\n" % self.bot.current_recipe_item.name
+            message_string = message_string + "Bitte neue Flasche anschließen."
+            message_label.setText(message_string)
 
             addButton("Cocktail abbrechen",
                       lambda: self.bot.set_user_input(False))
@@ -85,14 +86,16 @@ class BusyView(barbotgui.View):
 
         elif self.bot.message == barbot.UserMessages.mixing_done_remove_glas:
             message_label.setText(
-                "Der Cocktail ist fertig gemischt.\nDu kannst ihn von der Platform nehmen.")
+                "Der Cocktail ist fertig gemischt.\n" +
+                "Du kannst ihn von der Platform nehmen." 
+            )
 
-            if self.bot.data["recipe"]["instruction"]:
+            if self.bot.current_recipe.instruction:
                 label = QtWidgets.QLabel("Zusätzliche Informationen:")
                 self._message.layout().addWidget(label)
 
                 instruction = QtWidgets.QLabel(
-                    self.bot.data["recipe"]["instruction"])
+                    self.bot.current_recipe.instruction)
                 self._message.layout().addWidget(instruction)
 
         elif self.bot.message == barbot.UserMessages.ask_for_straw:
@@ -143,7 +146,7 @@ class BusyView(barbotgui.View):
             self._content_container.layout().addWidget(button)
 
             self._title_label.setText(
-                "Cocktail\n'%s'\nwird gemischt." % self.bot.data["recipe"]["name"])
+                "Cocktail\n'%s'\nwird gemischt." % self.bot.current_recipe.name)
 
         elif self.bot.state == barbot.State.cleaning:
             self._title_label.setText("Reinigung")
@@ -285,20 +288,20 @@ class ListRecipes(IdleView):
             icon = barbotgui.qt_icon_from_file_name("edit.png")
             edit_button = QtWidgets.QPushButton(icon, "")
             edit_button.clicked.connect(
-                lambda checked, rid=recipe["id"]: self._open_edit(rid))
+                lambda checked, rid=recipe.id: self._open_edit(rid))
             recipe_title_container.layout().addWidget(edit_button, 0)
 
             # title
-            recipe_title = QtWidgets.QLabel(recipe["name"])
+            recipe_title = QtWidgets.QLabel(recipe.name)
             recipe_title.setProperty("class", "RecipeTitle")
             recipe_title_container.layout().addWidget(recipe_title, 1)
 
             # order button
-            if recipe["available"]:
+            if recipe.available:
                 icon = barbotgui.qt_icon_from_file_name("order.png")
                 edit_button = QtWidgets.QPushButton(icon, "")
                 edit_button.clicked.connect(
-                    lambda checked, rid=recipe["id"]: self._order(rid))
+                    lambda checked, rid=recipe.id: self._order(rid))
                 recipe_title_container.layout().addWidget(edit_button, 0)
 
             # items container for holding the recipe items
@@ -307,12 +310,12 @@ class ListRecipes(IdleView):
             recipe_box.layout().addWidget(recipe_items_container, 1)
 
             # add items
-            for item in recipe["items"]:
+            for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item["port"] == 12:
-                    label.setText("%i s %s" % (item["amount"], item["name"]))
+                if item.port == 12:
+                    label.setText("%i s %s" % (item.amount, item.name))
                 else:
-                    label.setText("%i cl %s" % (item["amount"], item["name"]))
+                    label.setText("%i cl %s" % (item.amount, item.name))
                 recipe_items_container.layout().addWidget(label)
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
@@ -329,7 +332,7 @@ class ListRecipes(IdleView):
         if recipe == None:
             self.window.show_message("Rezept nicht gefunden")
             return
-        self.db.start_order(recipe["id"])
+        self.db.start_order(recipe.id)
         self.bot.start_mixing(recipe)
         self.window.show_message("Mixen gestartet")
 
@@ -338,9 +341,9 @@ class RecipeNewOrEdit(IdleView):
         super().__init__(window)
         self._id = recipe_id
         if self._id is not None:
-            self._recipe_data = self.db.recipe(self._id)
+            self._recipe = self.db.recipe(self._id)
         else:
-            self._recipe_data = {"name": "", "instruction": ""}
+            self._recipe = barbot.Recipe("", -1, "", True)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
@@ -352,14 +355,14 @@ class RecipeNewOrEdit(IdleView):
 
         # name
         self._content.layout().addWidget(QtWidgets.QLabel("Name:"))
-        self._name_widget = QtWidgets.QLineEdit(self._recipe_data["name"])
+        self._name_widget = QtWidgets.QLineEdit(self._recipe.name)
         self._name_widget.mousePressEvent = lambda event: self.window.open_keyboard(
             self._name_widget)
         self._content.layout().addWidget(self._name_widget)
         # instruction
         self._content.layout().addWidget(QtWidgets.QLabel("Zusatzinfo:"))
         self.InstructionWidget = QtWidgets.QLineEdit(
-            self._recipe_data["instruction"])
+            self._recipe.instruction)
         self.InstructionWidget.mousePressEvent = lambda event: self.window.open_keyboard(
             self.InstructionWidget)
         self._content.layout().addWidget(self.InstructionWidget)
@@ -372,9 +375,9 @@ class RecipeNewOrEdit(IdleView):
         # fill grid
         self._ingredient_widgets = []
         for i in range(10):
-            if self._id is not None and i < len(self._recipe_data["items"]):
-                selected_amount = self._recipe_data["items"][i]["amount"]
-                selected_ingredient = self._recipe_data["items"][i]["iid"]
+            if self._id is not None and i < len(self._recipe.items):
+                selected_amount = self._recipe.items[i].amount
+                selected_ingredient = self._recipe.items[i].iid
             else:
                 selected_amount = 0
                 selected_ingredient = 0
@@ -450,7 +453,7 @@ class SingleIngredient(IdleView):
         self._content.layout().addWidget(row)
 
         # ingredient selector
-        self._ingredient_widget = self.window.combobox_ingredients()
+        self._ingredient_widget = self.window.combobox_ingredients(only_available=True)
         row.layout().addWidget(self._ingredient_widget)
 
         # ingredient selector
@@ -481,11 +484,12 @@ class SingleIngredient(IdleView):
         if port_cal == None:
             self.window.show_message("Diese Zutat ist nicht anschlossen")
             return
-        self.bot.start_single_ingredient({
-            "port": port_cal["port"],
-            "calibration": port_cal["calibration"],
-            "amount": amount
-        })
+        item = barbot.RecipeItem()
+        item.port = port_cal["port"]
+        item.calibration = port_cal["calibration"]
+        item.name = port_cal["name"]
+        item.amount = amount
+        self.bot.start_single_ingredient(item)
         self.window.show_message("Zutat wird hinzugefügt")
         return
 
@@ -654,7 +658,7 @@ class AdminOverview(IdleView):
         table.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(table)
         # fill table
-        ingredients = self.db.list_ingredients()
+        ingredients = self.db.list_ingredients(True)
         ports = self.db.ingredient_of_port()
         for i in range(12):
             label = QtWidgets.QLabel("Position %i" % (i+1))
@@ -738,9 +742,6 @@ class Cleaning(IdleView):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
-
-        self.ingredients = self.db.list_ingredients()
-        self.ports = self.db.ingredient_of_port()
         self.amount = 50
         # assume calibration value of water
         self.calibration = 1000
@@ -855,7 +856,7 @@ class RemoveRecipe(IdleView):
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
 
-        recipes = self.db.list_recipes()
+        recipes = self.db.list_recipes(self.window.recipe_filter)
         for recipe in recipes:
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
@@ -863,7 +864,7 @@ class RemoveRecipe(IdleView):
             self._list.layout().addWidget(recipe_box)
 
             # title
-            recipe_title = QtWidgets.QLabel(recipe["name"])
+            recipe_title = QtWidgets.QLabel(recipe.name)
             recipe_title.setProperty("class", "RecipeTitle")
             recipe_box.layout().addWidget(recipe_title, 1)
 
@@ -871,7 +872,7 @@ class RemoveRecipe(IdleView):
             icon = barbotgui.qt_icon_from_file_name("remove.png")
             remove_button = QtWidgets.QPushButton(icon, "")
             remove_button.clicked.connect(
-                lambda checked, rid=recipe["id"]: self._show_confirmation(rid))
+                lambda checked, rid=recipe.id: self._show_confirmation(rid))
             recipe_box.layout().addWidget(remove_button, 0)
 
     def _show_confirmation(self, id):

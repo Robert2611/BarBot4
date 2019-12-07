@@ -37,6 +37,31 @@ class UserMessages(Enum):
     straws_empty = auto()
 
 
+class RecipeItem(object):
+    id = -1
+    amount = 0
+    name = ""
+    iid = -1
+    calibration = 0
+    port = -1
+    available = False
+
+
+class Recipe(object):
+    name = ""
+    id = -1
+    instruction = ""
+    available = False
+    items = None
+
+    def __init__(self, name, id, instruction, available):
+        self.name = name
+        self.id = id
+        self.instruction = instruction
+        self.available = available
+        self.items = []
+
+
 class StateMachine(threading.Thread):
     on_mixing_finished = None
     on_mixing_progress_changed = None
@@ -47,7 +72,6 @@ class StateMachine(threading.Thread):
     error_straws_empty = 36
     error_glas_removed = 37
     progress = None
-    data = None
     abort = False
     message: UserMessages = None
     _user_input = None
@@ -57,6 +81,8 @@ class StateMachine(threading.Thread):
     demo = False
     protocol: barbot.communication.Protocol = None
     use_straw = False
+    current_recipe: barbot.Recipe = None
+    current_recipe_item: RecipeItem = None
 
     def __init__(self, port, baudrate, demo=False):
         threading.Thread.__init__(self)
@@ -158,15 +184,6 @@ class StateMachine(threading.Thread):
 
     def _do_mixing(self):
         if self.demo:
-            # self._set_message(UserMessages.mixing_done_remove_glas)
-            # time.sleep(2)
-            # self._set_message(None)
-            # for item in self.data["recipe"]["items"]:
-            #     self.data["recipe_item_index"] += 1
-            #     maxProgress = len(self.data["recipe"]["items"])
-            #     self._set_mixing_progress(self.data["recipe_item_index"] / maxProgress)
-            #     time.sleep(2)
-            # return
             self._set_message(UserMessages.ingredient_empty)
             self._user_input = None
             if not self.wait_for_user_input():
@@ -200,14 +217,16 @@ class StateMachine(threading.Thread):
 
         self.protocol.try_do("PlatformLED", 5)
         self.protocol.try_set("SetLED", 5)
-        for item in self.data["recipe"]["items"]:
+
+        maxProgress = max(len(self.current_recipe.items) - 1, 1)
+        recipe_item_index = 0
+        for item in self.current_recipe.items:
+            self.current_recipe_item = item
             # do the actual draft, exit the loop if it did not succeed
             if not self._draft_one(item):
                 break
-            self.data["recipe_item_index"] += 1
-            maxProgress = len(self.data["recipe"]["items"]) - 1
-            self._set_mixing_progress(
-                self.data["recipe_item_index"] / maxProgress)
+            recipe_item_index += 1
+            self._set_mixing_progress(recipe_item_index / maxProgress)
         self.protocol.try_do("Move", 0)
         if self.use_straw:
             # ask for straw until it works or user aborts
@@ -228,7 +247,7 @@ class StateMachine(threading.Thread):
         self._set_message(None)
         self.protocol.try_do("PlatformLED", 0)
         if self.on_mixing_finished is not None:
-            self.on_mixing_finished(self.data["recipe"]["id"])
+            self.on_mixing_finished(self.current_recipe.id)
 
     def go_to_idle(self):
         self._set_message(None)
@@ -238,14 +257,14 @@ class StateMachine(threading.Thread):
         self.protocol.try_do("Home")
         self.set_state(State.idle)
 
-    def _draft_one(self, item):
-        if item["port"] == 12:
-            self.protocol.try_do("Stir", int(item["amount"] * 1000))
+    def _draft_one(self, item: RecipeItem):
+        if item.port == 12:
+            self.protocol.try_do("Stir", int(item.amount * 1000))
             return True
         else:
             while True:
-                weight = int(item["amount"] * item["calibration"])
-                result = self.protocol.try_do("Draft", item["port"], weight)
+                weight = int(item.amount * item.calibration)
+                result = self.protocol.try_do("Draft", item.port, weight)
                 if result == True:
                     # drafting successfull
                     return True
@@ -255,7 +274,7 @@ class StateMachine(threading.Thread):
                     if error_code == self.error_ingredient_empty:
                         # ingredient is empty
                         # safe how much is left to draft
-                        item["amount"] = int(result[1]) / item["calibration"]
+                        item.amount = int(result[1]) / item.calibration
                         self._set_message(UserMessages.ingredient_empty)
                         self._user_input = None
                         # wait for user input
@@ -290,16 +309,16 @@ class StateMachine(threading.Thread):
         if self._user_input == False:
             return
         self._set_message(None)
-        for item in self.data:
-            weight = int(item["amount"] * item["calibration"])
-            self.protocol.try_do("Draft", item["port"], weight)
+        for item in self.current_recipe:
+            weight = int(item.amount * item.calibration)
+            self.protocol.try_do("Draft", item.port, weight)
 
     def _do_cleaning(self):
         if self.demo:
             time.sleep(2)
             return
         self.protocol.try_do(
-            "Draft", self.data["port"], int(self.data["weight"]))
+            "Draft", self.current_recipe_item.port, int(self.current_recipe_item.weight))
 
     def _do_single_ingredient(self):
         if self.demo:
@@ -313,24 +332,24 @@ class StateMachine(threading.Thread):
         if self._user_input == False:
             return
         self._set_message(None)
-        self._draft_one(self.data)
+        self._draft_one(self.current_recipe_item)
 
     # start commands
 
-    def start_mixing(self, recipe):
-        self.data = {"recipe": recipe, "recipe_item_index": 0}
+    def start_mixing(self, recipe: barbot.Recipe):
+        self.current_recipe = recipe
         self.set_state(State.mixing)
 
-    def start_single_ingredient(self, recipe_item):
-        self.data = recipe_item
+    def start_single_ingredient(self, recipe_item: RecipeItem):
+        self.current_recipe_item = recipe_item
         self.set_state(State.single_ingredient)
 
     def start_cleaning(self, port, weight):
-        self.data = {"port": port, "weight": weight}
+        self.current_recipe_item = {"port": port, "weight": weight}
         self.set_state(State.cleaning)
 
     def start_cleaning_cycle(self, data):
-        self.data = data
+        self.current_recipe = data
         self.set_state(State.cleaning_cycle)
 
 
@@ -388,7 +407,9 @@ class Database(object):
     def port_and_calibration(self, iid):
         self.open()
         self.cursor.execute("""
-			SELECT p.id as port,  i.calibration AS calibration
+			SELECT  p.id as port, 
+                    i.calibration AS calibration,
+                    i.name AS name
 			FROM Ports p
 			JOIN Ingredients i
 			ON p.ingredient = i.id
@@ -400,14 +421,17 @@ class Database(object):
             return None
         return dict(res)
 
-    def list_ingredients(self):
+    def list_ingredients(self, only_available=False):
         self.open()
-        self.cursor.execute("""
+        sql = """
 			SELECT i.id, i.name, i.type, i.calibration, p.id as port
 			FROM Ingredients i
 			LEFT JOIN Ports p
 			ON p.ingredient = i.id
-		""")
+		"""
+        if only_available:
+            sql = sql + "WHERE i.id in (SELECT ingredient FROM Ports)"
+        self.cursor.execute(sql)
         res = dict()
         for ingredient in self.cursor.fetchall():
             res[ingredient["id"]] = dict(ingredient)
@@ -416,7 +440,14 @@ class Database(object):
 
     def list_recipes(self, filter: RecipeFilter):
         sql = """
-            SELECT r.name as name, r.id AS id
+            SELECT  r.name AS name,
+                    r.id AS id,
+                    r.instruction AS instruction,
+                    (
+                        SELECT MIN(ri.ingredient in (SELECT ingredient FROM Ports)) > 0
+                        FROM RecipeItems ri
+                        WHERE ri.recipe = r.id
+                    ) AS available
             FROM RecipeItems ri
             JOIN Ingredients i
             ON i.id = ri.ingredient
@@ -448,43 +479,52 @@ class Database(object):
         self.cursor.execute(sql)
         recipes = []
         for row in self.cursor.fetchall():
-            recipe = dict(row)
+            recipe = Recipe(row["name"], row["id"],
+                            row["instruction"], row["available"])
             self._add_items_to_recipe(recipe)
             recipes.append(recipe)
         self.close()
         return recipes
 
-    def _add_items_to_recipe(self, recipe):
-        availableIngredients = self.ingredient_of_port().values()
+    def _add_items_to_recipe(self, recipe: Recipe):
         self.cursor.execute("""
-			SELECT ri.id, ri.amount, i.name, ri.Ingredient AS iid, i.calibration AS calibration, p.id as port
+			SELECT  ri.id,
+                    ri.amount,
+                    i.name,
+                    ri.Ingredient AS iid,
+                    i.calibration AS calibration,
+                    p.id as port,
+                    (i.id in (SELECT ingredient FROM Ports)) AS available
 			FROM RecipeItems ri
 			JOIN Ingredients i
 			ON i.id = ri.Ingredient
 			LEFT JOIN Ports p
 			ON p.ingredient = ri.Ingredient
 			WHERE ri.Recipe = :rid
-		""", {"rid": recipe["id"]})
-        rows = self.cursor.fetchall()
-        recipe["items"] = []
-        if len(rows) == 0:
-            recipe["available"] = False
-            return
-        recipe_available = True
-        for item_row in rows:
-            # get all fields from the query and make a dictionary
-            item = dict(item_row)
-            item["available"] = item["iid"] in availableIngredients
-            if not item["available"]:
-                recipe_available = False
-            recipe["items"].append(item)
-        recipe["available"] = recipe_available
+		""", {"rid": recipe.id})
+        for row in self.cursor.fetchall():
+            item = RecipeItem()
+            item.id = row["id"]
+            item.amount = row["amount"]
+            item.name = row["name"]
+            item.iid = row["iid"]
+            item.calibration = row["calibration"]
+            item.port = row["port"]
+            item.available = row["available"]
+            recipe.items.append(item)
 
     def recipe(self, rid):
         self.open()
         self.cursor.execute("""
-			SELECT name, id, instruction
-			FROM Recipes
+			SELECT  name,
+                    id,
+                    instruction,
+                    (
+                        SELECT MIN(ri.ingredient in (SELECT ingredient FROM Ports)) > 0
+                        FROM RecipeItems ri
+                        WHERE ri.recipe = r.id
+                    ) AS available
+			FROM Recipes r
 			WHERE successor_id IS NULL
 			AND id = :rid
 		""", {"rid": rid})
@@ -493,7 +533,8 @@ class Database(object):
         if res == None:
             self.close()
             return None
-        recipe = dict(res)
+        recipe = Recipe(res["name"], res["id"],
+                        res["instruction"], res["available"])
         # fetch items
         self._add_items_to_recipe(recipe)
         self.close()
@@ -535,7 +576,7 @@ class Database(object):
             self.cursor.execute("""
 				INSERT INTO RecipeItems ( Recipe, ingredient, amount )
 				VALUES ( :rid, :ingredient, :amount )
-			""", {"rid": rid, "ingredient": item["ingredient"], "amount": item["amount"]})
+			""", {"rid": rid, "ingredient": item.ingredient, "amount": item.amount})
         self.con.commit()
         self.close()
 
