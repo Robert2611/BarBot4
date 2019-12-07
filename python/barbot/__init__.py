@@ -44,8 +44,8 @@ class StateMachine(threading.Thread):
     on_message_changed = None
 
     error_ingredient_empty = 33
-	error_straws_empty = 36
-	error_glas_removed = 37
+    error_straws_empty = 36
+    error_glas_removed = 37
     progress = None
     data = None
     abort = False
@@ -267,14 +267,15 @@ class StateMachine(threading.Thread):
                             return False
                         # repeat the loop
 
-                    elif error_code == error_glas_removed:
-                        #TODO: Show message to user
+                    elif error_code == self.error_glas_removed:
+                        # TODO: Show message to user
                         logging.info("Glas was removed while drafting")
                         return False
-                        
+
                 else:
                     # unhandled return value
-                    logging.error("Unhandled result while drafting: '%s'" % result)
+                    logging.error(
+                        "Unhandled result while drafting: '%s'" % result)
                     return False
 
     def _do_cleaning_cycle(self):
@@ -331,6 +332,18 @@ class StateMachine(threading.Thread):
     def start_cleaning_cycle(self, data):
         self.data = data
         self.set_state(State.cleaning_cycle)
+
+
+class RecipeOrder(Enum):
+    Newest = auto()
+    Makes = auto()
+
+
+class RecipeFilter(object):
+    Alcoholic: bool = True
+    Order: RecipeOrder = RecipeOrder.Newest
+    AvailableOnly: bool = True
+    DESC: bool = False
 
 
 class Database(object):
@@ -401,14 +414,38 @@ class Database(object):
         self.close()
         return res
 
-    def list_recipes(self):
+    def list_recipes(self, filter: RecipeFilter):
+        sql = """
+            SELECT r.name as name, r.id AS id
+            FROM RecipeItems ri
+            JOIN Ingredients i
+            ON i.id = ri.ingredient
+            JOIN Recipes r
+            ON r.id == ri.recipe
+            WHERE r.successor_id IS NULL
+        """
+        sql = sql + "GROUP BY ri.recipe\n"
+        # filter alcoholic
+        sql = sql + "HAVING MAX(i.type = 'spirit') = "
+        if filter.Alcoholic:
+            sql = sql + "1\n"
+        else:
+            sql = sql + "0\n"
+        # available
+        if filter.AvailableOnly:
+            sql = sql + "AND MIN(i.id in (SELECT ingredient FROM Ports))\n"
+        # ordering
+        ordering = False
+        if filter.Order == RecipeOrder.Newest:
+            ordering = "ORDER BY id "
+        if ordering:
+            # sorting DESC or ASC
+            if filter.DESC:
+                sql = sql + ordering + "DESC\n"
+            else:
+                sql = sql + ordering + "ASC\n"
         self.open()
-        self.cursor.execute("""
-			SELECT name, id
-			FROM Recipes
-			WHERE successor_id IS NULL
-            ORDER BY id DESC
-		""")
+        self.cursor.execute(sql)
         recipes = []
         for row in self.cursor.fetchall():
             recipe = dict(row)

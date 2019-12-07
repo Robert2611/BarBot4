@@ -123,13 +123,15 @@ class Keyboard(QtWidgets.QWidget):
 
 class MainWindow(QtWidgets.QWidget):
     db:barbot.Database
-    bot:barbot.StateMachine    
+    bot:barbot.StateMachine
+    recipe_filter: barbot.RecipeFilter
     _current_view = None
     _barbot_state_trigger = QtCore.pyqtSignal()
     _last_idle_view = None
     _keyboard: Keyboard = None
     is_admin = False
     _admin_password = ""
+
     
     def __init__(self, _db:barbot.Database, _bot:barbot.StateMachine, _admin_password):
         super().__init__()
@@ -137,10 +139,12 @@ class MainWindow(QtWidgets.QWidget):
         self.db = _db
         self.bot = _bot
         self._admin_password = _admin_password
+        self.recipe_filter = barbot.RecipeFilter()
 
         styles = open(os.path.join(css_path(), 'main.qss')).read()
         styles = styles.replace("#iconpath#", css_path().replace("\\","\\\\"))
         self.setStyleSheet(styles)
+        self.setProperty("class", "MainWindow")
 
         self.mousePressEvent = lambda event: self.close_keyboard()
 
@@ -150,8 +154,9 @@ class MainWindow(QtWidgets.QWidget):
 
         #remove borders and title bar
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-
         self.setLayout(QtWidgets.QVBoxLayout())
+        set_no_spacing(self.layout())
+
         #header
         header = QtWidgets.QWidget()
         header.setLayout(QtWidgets.QGridLayout())

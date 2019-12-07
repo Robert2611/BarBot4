@@ -158,6 +158,7 @@ class BusyView(barbotgui.View):
         else:
             self._title_label.setText("Unknown status: %s" % self.bot.state)
 
+
 class IdleView(barbotgui.View):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
@@ -187,7 +188,8 @@ class IdleView(barbotgui.View):
 
         for text, _class in self.navigation_items:
             button = QtWidgets.QPushButton(text)
-            btn_click = lambda checked, c=_class: self.window.set_view(c(self.window))  
+            btn_click = lambda checked, c=_class: self.window.set_view(
+                c(self.window))
             button.clicked.connect(btn_click)
             self.navigation.layout().addWidget(button, 1)
 
@@ -199,7 +201,8 @@ class IdleView(barbotgui.View):
 
         for text, _class in self.admin_navigation_items:
             button = QtWidgets.QPushButton(text)
-            btn_click = lambda checked, c=_class: self.window.set_view(c(self.window))                
+            btn_click = lambda checked, c=_class: self.window.set_view(
+                c(self.window))
             button.clicked.connect(btn_click)
             self.admin_navigation.layout().addWidget(button, 1)
 
@@ -209,7 +212,12 @@ class IdleView(barbotgui.View):
         content_wrapper.setLayout(QtWidgets.QGridLayout())
         barbotgui.set_no_spacing(content_wrapper.layout())
 
+        #fixed content
+        self._fixed_content = QtWidgets.QWidget()
+        content_wrapper.layout().addWidget(self._fixed_content)
+
         scroller = QtWidgets.QScrollArea()
+        scroller.setProperty("class", "ContentScroller")
         scroller.setWidgetResizable(True)
         scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         content_wrapper.layout().addWidget(scroller)
@@ -224,14 +232,49 @@ class IdleView(barbotgui.View):
 class ListRecipes(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
-        recipes = self.db.list_recipes()
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
+        #filter: alcoholic
+        self._cb_alcoholic = QtWidgets.QCheckBox("Alkoholisch")
+        self._fixed_content.layout().addWidget(self._cb_alcoholic)
+        self._cb_alcoholic.setChecked(self.window.recipe_filter.Alcoholic)
+        def cb_alcoholic_toggled(s):
+            self.window.recipe_filter.Alcoholic = self._cb_alcoholic.isChecked()
+            self._update_list()
+        self._cb_alcoholic.toggled.connect(cb_alcoholic_toggled)
+        
+        #filter:available
+        self._cb_available = QtWidgets.QCheckBox("Nur verfügbare")
+        self._fixed_content.layout().addWidget(self._cb_available)
+        self._cb_available.setChecked(self.window.recipe_filter.AvailableOnly)
+        def cb_available_toggled(s):
+            self.window.recipe_filter.AvailableOnly = self._cb_available.isChecked()
+            self._update_list()
+        self._cb_available.toggled.connect(cb_available_toggled)
+
+        self._listbox = QtWidgets.QWidget()
+        self._listbox.setLayout(QtWidgets.QVBoxLayout())
+        self._content.layout().addWidget(self._listbox)
+
+        barbotgui.set_no_spacing(self._listbox.layout())
+
+        self._update_list()
+
+    def _update_list(self):
+        recipes = self.db.list_recipes(self.window.recipe_filter)
+        #clear the list
+        while self._listbox.layout().count():
+            item = self._listbox.layout().takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+        #fill it with the recipes
         for recipe in recipes:
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QVBoxLayout())
-            self._content.layout().addWidget(recipe_box)
+            self._listbox.layout().addWidget(recipe_box)
 
             # title with buttons
             recipe_title_container = QtWidgets.QWidget()
@@ -271,6 +314,8 @@ class ListRecipes(IdleView):
                 else:
                     label.setText("%i cl %s" % (item["amount"], item["name"]))
                 recipe_items_container.layout().addWidget(label)
+        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+
 
     def _open_edit(self, id):
         self.window.set_view(RecipeNewOrEdit(self.window, id))
@@ -297,12 +342,13 @@ class RecipeNewOrEdit(IdleView):
         else:
             self._recipe_data = {"name": "", "instruction": ""}
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel(
             "Neues Rezept" if self._id is None else "Rezept bearbeiten")
         title.setProperty("class", "Headline")
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # name
         self._content.layout().addWidget(QtWidgets.QLabel("Name:"))
@@ -386,11 +432,12 @@ class SingleIngredient(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Nachschlag")
         title.setProperty("class", "Headline")
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # text
         text = QtWidgets.QLabel(
@@ -448,11 +495,12 @@ class Statistics(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Statistik")
         title.setProperty("class", "Headline")
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # date selector
         row = QtWidgets.QWidget()
@@ -530,11 +578,12 @@ class AdminLogin(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Admin Login")
         title.setProperty("class", "Headline")
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # edit
         self.password_widget = QtWidgets.QLabel()
@@ -552,17 +601,17 @@ class AdminLogin(IdleView):
                 button.setProperty("class", "NumpadButton")
                 button.clicked.connect(lambda checked, value=num: self.numpad_button_clicked(value))
                 numpad.layout().addWidget(button, y, x)
-        #clear
+        # clear
         button = QtWidgets.QPushButton("Clear")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self.clear_password())
         numpad.layout().addWidget(button, 3, 0)
-        #zero
+        # zero
         button = QtWidgets.QPushButton("0")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self.numpad_button_clicked(0))
         numpad.layout().addWidget(button, 3, 1)
-        #zero
+        # zero
         button = QtWidgets.QPushButton("Enter")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self.check_password())
@@ -593,11 +642,12 @@ class AdminOverview(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Übersicht")
         title.setProperty("class", "Headline")
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # table
         table = QtWidgets.QWidget()
@@ -631,11 +681,12 @@ class Ports(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Positionen")
         title.setProperty("class", "Headline")
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # table
         table = QtWidgets.QWidget()
@@ -678,12 +729,15 @@ class Calibration(IdleView):
     def __init__(self, window: barbotgui.MainWindow, portId=-1):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._content.layout().addWidget(QtWidgets.QLabel("Kalibrierung"))
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+
+        self._fixed_content.layout().addWidget(QtWidgets.QLabel("Kalibrierung"))
 
 class Cleaning(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         self.ingredients = self.db.list_ingredients()
         self.ports = self.db.ingredient_of_port()
@@ -695,7 +749,7 @@ class Cleaning(IdleView):
         title = QtWidgets.QLabel("Reinigung")
         title.setProperty("class", "Headline")
         self._content.layout().setAlignment(title, QtCore.Qt.AlignTop)
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().addWidget(title)
 
         # clean left
         button = QtWidgets.QPushButton("Reinigen linke Hälfte")
@@ -744,6 +798,7 @@ class System(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         self.window.add_system_view(self._content)
 
@@ -753,12 +808,13 @@ class RemoveRecipe(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Positionen")
         title.setProperty("class", "Headline")
-        self._content.layout().setAlignment(title, QtCore.Qt.AlignTop)
-        self._content.layout().addWidget(title)
+        self._fixed_content.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        self._fixed_content.layout().addWidget(title)
 
         # confirmationDialog
         self._add_confirmation_dialog()
