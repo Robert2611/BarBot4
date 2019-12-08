@@ -35,6 +35,7 @@ bot.on_mixing_finished = lambda rid: db.close_order(rid)
 bot.rainbow_duration = config.rainbow_duration
 bot.max_speed = config.max_speed
 bot.max_accel = config.max_accel
+bot.max_cocktail_size = config.max_cocktail_size
 bot.start()
 
 # show gui and join the threads

@@ -1,3 +1,6 @@
+.HasError{
+    color: red;
+}
 QWidget{
     font-size: 20px;
 }

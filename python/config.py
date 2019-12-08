@@ -6,3 +6,4 @@ rainbow_duration = 30 * 1000
 max_speed = 200
 max_accel = 300
 admin_password = "0000"
+max_cocktail_size = 30

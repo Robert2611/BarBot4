@@ -78,6 +78,7 @@ class StateMachine(threading.Thread):
     rainbow_duration = 10
     max_speed = 100
     max_accel = 100
+    max_cocktail_size = 30
     demo = False
     protocol: barbot.communication.Protocol = None
     use_straw = False

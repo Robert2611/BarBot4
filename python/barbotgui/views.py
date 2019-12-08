@@ -247,7 +247,7 @@ class ListRecipes(IdleView):
             self._update_list()
         self._cb_alcoholic.toggled.connect(cb_alcoholic_toggled)
         
-        #filter:available
+        #filter: available
         self._cb_available = QtWidgets.QCheckBox("Nur verfügbare")
         self._fixed_content.layout().addWidget(self._cb_available)
         self._cb_available.setChecked(self.window.recipe_filter.AvailableOnly)
@@ -317,7 +317,7 @@ class ListRecipes(IdleView):
                 else:
                     label.setText("%i cl %s" % (item.amount, item.name))
                 recipe_items_container.layout().addWidget(label)
-        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+        self._listbox.layout().addWidget(QtWidgets.QWidget(), 1)
 
 
     def _open_edit(self, id):
@@ -353,19 +353,27 @@ class RecipeNewOrEdit(IdleView):
         title.setProperty("class", "Headline")
         self._fixed_content.layout().addWidget(title)
 
+        # wrapper for name and instruction
+        wrapper = QtWidgets.QWidget()
+        wrapper.setLayout(QtWidgets.QFormLayout())
+        wrapper.layout().setContentsMargins(0,0,0,0)
+        self._content.layout().addWidget(wrapper)
+
         # name
-        self._content.layout().addWidget(QtWidgets.QLabel("Name:"))
         self._name_widget = QtWidgets.QLineEdit(self._recipe.name)
-        self._name_widget.mousePressEvent = lambda event: self.window.open_keyboard(
-            self._name_widget)
-        self._content.layout().addWidget(self._name_widget)
+        def open_keyboard_for_name(event):
+            self.window.open_keyboard(self._name_widget)
+        self._name_widget.mousePressEvent = open_keyboard_for_name
+        label = QtWidgets.QLabel("Name:")
+        wrapper.layout().addRow(label, self._name_widget)
         # instruction
-        self._content.layout().addWidget(QtWidgets.QLabel("Zusatzinfo:"))
-        self.InstructionWidget = QtWidgets.QLineEdit(
-            self._recipe.instruction)
-        self.InstructionWidget.mousePressEvent = lambda event: self.window.open_keyboard(
-            self.InstructionWidget)
-        self._content.layout().addWidget(self.InstructionWidget)
+        self._instruction_widget = QtWidgets.QLineEdit()
+        self._instruction_widget.setText(self._recipe.instruction)
+        def open_keyboard_for_instruction(event):
+            self.window.open_keyboard(self._instruction_widget)
+        self._instruction_widget.mousePressEvent = open_keyboard_for_instruction
+        label = QtWidgets.QLabel("Zusatzinfo:")
+        wrapper.layout().addRow(label, self._instruction_widget)
 
         # ingredients
         self._content.layout().addWidget(QtWidgets.QLabel("Zutaten:"))
@@ -384,22 +392,55 @@ class RecipeNewOrEdit(IdleView):
             # add ingredient name
             ingredient_widget = self.window.combobox_ingredients(
                 selected_ingredient)
+            ingredient_widget.currentIndexChanged.connect(lambda: self._update_cocktail_size())
             ingredients_container.layout().addWidget(ingredient_widget, i, 0)
             # add ingredient amount
             amount_widget = self.window.combobox_amounts(selected_amount)
+            amount_widget.currentIndexChanged.connect(lambda: self._update_cocktail_size())
             ingredients_container.layout().addWidget(amount_widget, i, 1)
 
             # safe references for later
             self._ingredient_widgets.append([ingredient_widget, amount_widget])
 
+        # row for label and button
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        self._content.layout().addWidget(row)
+        # label
+        self._filling_label = QtWidgets.QLabel()
+        row.layout().addWidget(self._filling_label)
         # save button
         button = QtWidgets.QPushButton("Speichern")
         button.clicked.connect(lambda: self._save())
-        self._content.layout().addWidget(button)
-        self._content.layout().setAlignment(button, QtCore.Qt.AlignCenter)
+        row.layout().addWidget(button)
+        row.layout().setAlignment(button, QtCore.Qt.AlignCenter)
 
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+
+        self._update_cocktail_size()
+    
+    def _get_cocktail_size(self):
+        size = 0
+        for ingredient_widget, amount_widget in self._ingredient_widgets:
+            ingredient = int(ingredient_widget.currentData())
+            amount = int(amount_widget.currentData())
+            #ignore the stirring when accumulating size
+            if ingredient >= 0 and ingredient != 255 and amount >= 0:
+                size = size + amount
+        return size
+
+    def _update_cocktail_size(self):
+        size = self._get_cocktail_size()
+        max_size = self.window.bot.max_cocktail_size
+        self._filling_label.setText("%i von %i cl" % (size, max_size))
+        if size > max_size:
+            self._filling_label.setProperty("class", "HasError")
+        else:
+            self._filling_label.setProperty("class", "")
+        # the style has changed so we need to update it
+        self._filling_label.style().unpolish(self._filling_label)
+        self._filling_label.style().polish(self._filling_label)
 
     def _save(self):
         # check data
@@ -407,7 +448,10 @@ class RecipeNewOrEdit(IdleView):
         if name == None or name == "":
             self.window.show_message("Bitte einen Namen eingeben")
             return
-        instruction = self.InstructionWidget.text()
+        if self._get_cocktail_size() > self.window.bot.max_cocktail_size:
+            self.window.show_message("Dein Cocktail ist zu groß.")
+            return
+        instruction = self._instruction_widget.text()
         # prepare data
         items = []
         for ingredient_widget, amount_widget in self._ingredient_widgets:
@@ -625,16 +669,16 @@ class AdminLogin(IdleView):
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
     
-    def update(self):        
+    def _update(self):        
         self.password_widget.setText("".join("*" for letter in self._entered_password))
     
     def numpad_button_clicked(self, value):
         self._entered_password = self._entered_password + str(value)
-        self.update()
+        self._update()
     
     def clear_password(self):
         self._entered_password = ""
-        self.update()
+        self._update()
     
     def check_password(self):
         if self._entered_password == self.window._admin_password:
