@@ -79,6 +79,10 @@ class StateMachine(threading.Thread):
     max_speed = 100
     max_accel = 100
     max_cocktail_size = 30
+    pump_power = 100
+    balance_cal = 1
+    balance_offset = 0
+    _get_weight_at_next_idle = False
     demo = False
     protocol: barbot.communication.Protocol = None
     use_straw = False
@@ -113,9 +117,13 @@ class StateMachine(threading.Thread):
                 if not self.protocol.is_connected:
                     self.set_state(State.connecting)
                 elif self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
-                    self.protocol.try_set("SetLED", 3)
-                    self.protocol.try_set("SetSpeed", self.max_speed)
-                    self.protocol.try_set("SetAccel", self.max_accel)
+                    p = self.protocol
+                    p.try_set("SetLED", 3)
+                    p.try_set("SetSpeed", self.max_speed)
+                    p.try_set("SetAccel", self.max_accel)
+                    p.try_set("SetPumpPower", self.pump_power)
+                    p.try_set("SetBalanceCalibration", self.balance_cal)
+                    p.try_set("SetBalanceOffset", self.balance_offset)
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
@@ -136,6 +144,10 @@ class StateMachine(threading.Thread):
                         pass
                     if not self.protocol.is_connected:
                         self.set_state(State.connecting)
+                    # get weight if flag is set
+                    if self._get_weight_at_next_idle:
+                        self.weight = self.protocol.try_get("GetWeight")
+                        self._get_weight_at_next_idle = False
                 else:
                     time.sleep(0.1)
         if not self.demo:
@@ -170,12 +182,12 @@ class StateMachine(threading.Thread):
     def can_edit_database(self):
         return self.state == State.connecting or self.state == State.idle
 
-    def wait_for(self, condition):
+    def _wait_for(self, condition):
         while not self.abort and not condition():
             time.sleep(0.1)
         return not self.abort
 
-    def wait_for_user_input(self):
+    def _wait_for_user_input(self):
         logging.debug("Wait for user input")
         while not self.abort and self._user_input == None:
             time.sleep(0.1)
@@ -192,7 +204,7 @@ class StateMachine(threading.Thread):
         if self.demo:
             self._set_message(UserMessages.ingredient_empty)
             self._user_input = None
-            if not self.wait_for_user_input():
+            if not self._wait_for_user_input():
                 return
             # remove the message
             self._set_message(None)
@@ -204,7 +216,7 @@ class StateMachine(threading.Thread):
             self._set_message(UserMessages.place_glas)
             self._user_input = None
             # wait for glas or user abort
-            if not self.wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+            if not self._wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
                 return
             if self._user_input == False:
                 return
@@ -214,7 +226,7 @@ class StateMachine(threading.Thread):
         self._set_message(UserMessages.ask_for_straw)
         self._user_input = None
         self.protocol.try_do("PlatformLED", 4)
-        if not self.wait_for_user_input():
+        if not self._wait_for_user_input():
             return
         self._set_message(None)
         self.use_straw = self._user_input
@@ -239,7 +251,7 @@ class StateMachine(threading.Thread):
             while not self.protocol.try_do("Straw"):
                 self._user_input = None
                 self._set_message(UserMessages.straws_empty)
-                if not self.wait_for_user_input():
+                if not self._wait_for_user_input():
                     return
                 self._set_message(None)
                 if self._user_input == False:
@@ -248,7 +260,7 @@ class StateMachine(threading.Thread):
         self.protocol.try_do("PlatformLED", 2)
         self.protocol.try_set("SetLED", 4)
         self._user_input = None
-        if not self.wait_for(lambda: self.protocol.try_get("HasGlas") != "1"):
+        if not self._wait_for(lambda: self.protocol.try_get("HasGlas") != "1"):
             return
         self._set_message(None)
         self.protocol.try_do("PlatformLED", 0)
@@ -284,7 +296,7 @@ class StateMachine(threading.Thread):
                         self._set_message(UserMessages.ingredient_empty)
                         self._user_input = None
                         # wait for user input
-                        if not self.wait_for_user_input():
+                        if not self._wait_for_user_input():
                             return
                         # remove the message
                         self._set_message(None)
@@ -310,7 +322,7 @@ class StateMachine(threading.Thread):
         self._set_message(UserMessages.place_glas)
         self._user_input = None
         # wait for glas or user abort
-        if not self.wait_for(lambda: self.protocol.try_get("HasGlas") != "1" or self._user_input == False):
+        if not self._wait_for(lambda: self.protocol.try_get("HasGlas") != "1" or self._user_input == False):
             return
         if self._user_input == False:
             return
@@ -333,7 +345,7 @@ class StateMachine(threading.Thread):
         self._set_message(UserMessages.place_glas)
         self._user_input = None
         # wait for glas or user abort
-        if not self.wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+        if not self._wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
             return
         if self._user_input == False:
             return
@@ -357,6 +369,14 @@ class StateMachine(threading.Thread):
     def start_cleaning_cycle(self, data):
         self.current_recipe = data
         self.set_state(State.cleaning_cycle)
+
+    def get_weight(self):
+        if self.state != State.idle:
+            return None
+        self._get_weight_at_next_idle = True
+        while(self._get_weight_at_next_idle):
+            time.sleep(0.01)
+        return self.weight
 
 
 class RecipeOrder(Enum):

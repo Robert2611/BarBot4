@@ -719,11 +719,27 @@ class AdminOverview(IdleView):
                 button.clicked.connect(
                     lambda checked, portId=i: self._open_calibration(portId))
                 table.layout().addWidget(button, i, 3, QtCore.Qt.AlignLeft)
+        # weight label
+        self._weight_label = QtWidgets.QLabel()
+        self._content.layout().addWidget(self._weight_label)
+
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
+        self._update_weight()
+        
+        self._update_timer = QtCore.QTimer(self)
+        self._update_timer.timeout.connect(self._update_weight)
+        self._update_timer.start(500)
+
     def _open_calibration(self, id):
         self.window.set_view(Calibration(self.window, id))
+    
+    def _update_weight(self):
+        res = self.window.bot.get_weight()
+        if res is not None:
+            text = "Gewicht: {} g".format(res)
+            self._weight_label.setText(text)
 
 class Ports(IdleView):
     def __init__(self, window: barbotgui.MainWindow):

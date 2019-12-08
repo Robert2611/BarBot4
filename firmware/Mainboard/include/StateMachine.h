@@ -65,6 +65,7 @@ public:
 	void start_dispense_straw();
 	void set_max_speed(float speed);
 	void set_max_accel(float accel);
+	void set_pump_power(byte percent);
 	void reset_error();
 	float get_last_draft_remaining_weight();
 	bool is_started();
@@ -103,5 +104,6 @@ private:
 	float draft_timeout_last_weight;
 	bool dispense_straw_sent;
 	bool move_mixer_up_sent;
+	byte pump_power_percent;
 };
 #endif // ifndef BAR_BOT_H

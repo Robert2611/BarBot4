@@ -232,7 +232,7 @@ class MainWindow(QtWidgets.QWidget):
         barbot.run_command("python3 /home/pi/bar_bot/server/main.py")
 
     def header_clicked(self, e):
-        if self.bot.state == barbot.State.idle:
+        if not self.bot.is_busy():
             if self.is_admin:
                 self.is_admin = False
                 self.update_view(True)
@@ -276,9 +276,9 @@ class MainWindow(QtWidgets.QWidget):
         self._content_wrapper.layout().addWidget(self._current_view)
 
     def update_view(self, force_reload = False):
-        if self.bot.state == barbot.State.idle:
+        if not self.bot.is_busy():
             if self.is_admin:
-                self.set_view(barbotgui.views.AdminLogin(self))
+                self.set_view(barbotgui.views.AdminOverview(self))
             elif self._last_idle_view != self._current_view or self._last_idle_view is None or force_reload:
                 if self._last_idle_view is None or force_reload:
                     self.set_view(barbotgui.views.ListRecipes(self))

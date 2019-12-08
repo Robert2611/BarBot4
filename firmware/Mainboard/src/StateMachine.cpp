@@ -16,6 +16,9 @@ StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoar
 	stepper->setPinsInverted(true);
 	set_max_speed(100);
 	set_max_accel(20);
+	set_pump_power(80);
+	balance->setCalibration(-1040);
+	balance->setOffset(-123865);
 }
 
 void StateMachine::begin()
@@ -60,6 +63,7 @@ void StateMachine::update()
 	case BarBotStatus_t::ErrorI2C:
 	case BarBotStatus_t::ErrorStrawsEmpty:
 	case BarBotStatus_t::ErrorGlasRemoved:
+	case BarBotStatus_t::ErrorCommunicationToBalance:
 		//nothing to do here
 		break;
 
@@ -147,7 +151,7 @@ void StateMachine::update()
 				{
 					draft_timeout_last_check_millis = millis();
 					draft_timeout_last_weight = balance->getWeight();
-					start_pump(pump_index, (PUMP_POWER_PERCENT * 1024) / 100);
+					start_pump(pump_index, (pump_power_percent * 1024) / 100);
 					set_status(BarBotStatus_t::Drafting);
 				}
 				else
@@ -340,7 +344,7 @@ void StateMachine::start_clean(int _pump_index, unsigned long _draft_time_millis
 {
 	current_action_start_millis = millis();
 	current_action_duration = _draft_time_millis;
-	start_pump(pump_index, (PUMP_POWER_PERCENT * 1024) / 100);
+	start_pump(pump_index, (pump_power_percent * 1024) / 100);
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::Cleaning);
 }
@@ -441,6 +445,11 @@ void StateMachine::set_max_speed(float speed)
 void StateMachine::set_max_accel(float accel)
 {
 	stepper->setAcceleration(mm_to_steps(accel));
+}
+
+void StateMachine::set_pump_power(byte percent)
+{
+	pump_power_percent = percent;
 }
 ///endregion: setters ///
 

@@ -250,14 +250,27 @@ void addCommands()
 							   }
 							   return false;
 						   });
+	protocol.addSetCommand("SetAccel",
+						   [](int param_c, char **param_v, long *result) {
+							   if (param_c == 1)
+							   {
+								   long a = atoi(param_v[0]);
+								   if (a > 0 && a < 5000)
+								   {
+									   state_m.set_max_accel(a);
+									   return true;
+								   }
+							   }
+							   return false;
+						   });
 	protocol.addSetCommand("SetBalanceCalibration",
 						   [](int param_c, char **param_v, long *result) {
 							   if (param_c == 1)
 							   {
-								   long cal = atoi(param_v[0]);
-								   if (cal > 0 && cal < 10000)
+								   long cal = atol(param_v[0]);
+								   if (cal != 0)
 								   {
-									   balance.setCalibration(-cal);
+									   balance.setCalibration(cal);
 									   return true;
 								   }
 							   }
@@ -267,23 +280,20 @@ void addCommands()
 						   [](int param_c, char **param_v, long *result) {
 							   if (param_c == 1)
 							   {
-								   long offset = atoi(param_v[0]);
-								   if (offset > 0 && offset < 10000)
-								   {
-									   balance.setCalibration(-offset);
-									   return true;
-								   }
+								   long offset = atol(param_v[0]);
+								   balance.setOffset(offset);
+								   return true;
 							   }
 							   return false;
 						   });
-	protocol.addSetCommand("SetAccel",
+	protocol.addSetCommand("SetPumpPower",
 						   [](int param_c, char **param_v, long *result) {
 							   if (param_c == 1)
 							   {
 								   long a = atoi(param_v[0]);
-								   if (a > 0 && a < 5000)
+								   if (a > 0 && a <= 100)
 								   {
-									   state_m.set_max_accel(a);
+									   state_m.set_pump_power(a);
 									   return true;
 								   }
 							   }
@@ -304,7 +314,7 @@ void addCommands()
 						   });
 	protocol.addGetCommand("GetWeight",
 						   [](int param_c, char **param_v, long *result) {
-							   (*result) = balance.getWeight();
+							   (*result) = (long)balance.getWeight();
 							   return true;
 						   });
 	protocol.addGetCommand("HasGlas",
@@ -335,8 +345,6 @@ void setup()
 							1,					   //priority
 							&BluetoothTask,		   //out: task handle
 							0);					   //core
-	balance.setCalibration(BALANCE_CALIBRATION);
-	balance.setOffset(BALANCE_OFFSET);
 
 	addCommands();
 
