@@ -94,6 +94,11 @@ class StateMachine(threading.Thread):
             self.set_state(State.connecting)
         else:
             self.set_state(State.idle)
+        # workaround for pylint, otherwise the functions are marked as not callable
+        self.on_mixing_finished = lambda _: None
+        self.on_mixing_progress_changed = lambda: None
+        self.on_state_changed = lambda: None
+        self.on_message_changed = lambda: None
 
     # main loop, runs the whole time
     def run(self):

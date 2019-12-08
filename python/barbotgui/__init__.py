@@ -6,7 +6,13 @@ import logging
 import platform
 
 def is_raspberry():
-   return platform.system() == "Linux" and "raspberry" in os.uname().nodename
+    if platform.system() != "Linux":
+        return False
+    try:
+        uname = getattr(os, "uname")
+    except AttributeError:
+        return False
+    return "raspberry" in uname.nodename
 
 def set_no_spacing(layout):
     layout.setSpacing(0)

@@ -171,20 +171,20 @@ class Protocol():
             return ProtocolMessage(MessageTypes.COMM_ERROR, e)
 
     def try_get(self, command, parameters=None):
-        for i in range(3):
+        for _ in range(3):
             res = self._send_get(command, parameters)
             if res is not None:
                 return res
         return None
 
     def try_set(self, command, parameters=None):
-        for i in range(3):
+        for _ in range(3):
             if self._send_set(command, parameters):
                 return True
         return False
 
     def try_do(self, command, parameter1=None, parameter2=None):
-        for i in range(3):
+        for _ in range(3):
             res = self._send_do(command, parameter1, parameter2)
             if res:
                 return res
