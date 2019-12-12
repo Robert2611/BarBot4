@@ -94,7 +94,7 @@ class Keyboard(QtWidgets.QWidget):
             button = QtWidgets.QPushButton("←")
             button.clicked.connect(lambda: self.button_clicked("delete"))
             row.layout().addWidget(button)
-            self.layout().addWidget(row)
+            self.center.layout().addWidget(row)
 
         self._is_widgets_created = True
 
@@ -127,7 +127,7 @@ class Keyboard(QtWidgets.QWidget):
         self.layout().addWidget(row)
         return res
 
-class MainWindow(QtWidgets.QWidget):
+class MainWindow(QtWidgets.QMainWindow):
     db:barbot.Database
     bot:barbot.StateMachine
     recipe_filter: barbot.RecipeFilter
@@ -147,10 +147,13 @@ class MainWindow(QtWidgets.QWidget):
         self._admin_password = _admin_password
         self.recipe_filter = barbot.RecipeFilter()
 
-        styles = open(os.path.join(css_path(), 'main.qss')).read()
-        styles = styles.replace("#iconpath#", css_path().replace("\\","\\\\"))
-        self.setStyleSheet(styles)
+        self.center = QtWidgets.QWidget()
+        self.setCentralWidget(self.center)
+
         self.setProperty("class", "MainWindow")
+        styles = open(os.path.join(css_path(), 'main.qss')).read()
+        styles = styles.replace("#iconpath#", css_path().replace("\\","/"))
+        self.setStyleSheet(styles)
 
         self.mousePressEvent = lambda event: self.close_keyboard()
 
@@ -160,25 +163,21 @@ class MainWindow(QtWidgets.QWidget):
 
         #remove borders and title bar
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setLayout(QtWidgets.QVBoxLayout())
-        set_no_spacing(self.layout())
+        self.center.setLayout(QtWidgets.QVBoxLayout())
+        set_no_spacing(self.center.layout())
 
         #header
         header = QtWidgets.QWidget()
         header.setLayout(QtWidgets.QGridLayout())
-        self.layout().addWidget(header, 0)
-
-        label = QtWidgets.QLabel("Bar-Bot 4.0")
-        label.setProperty("class", "BarBotHeader")
-        label.mouseDoubleClickEvent = lambda e: self.header_clicked(e)
-        header.layout().addWidget(label, 0, 0, QtCore.Qt.AlignCenter)
+        header.setProperty("class", "BarBotHeader")
+        header.mouseDoubleClickEvent = lambda e: self.header_clicked(e)
+        self.center.layout().addWidget(header, 0)
 
         #content
         self._content_wrapper = QtWidgets.QWidget()
         self._content_wrapper.setLayout(QtWidgets.QGridLayout())
-        self._content_wrapper.layout().setSpacing(0)
-        self._content_wrapper.layout().setContentsMargins(0,0,0,0)
-        self.layout().addWidget(self._content_wrapper, 1)
+        set_no_spacing(self._content_wrapper.layout())
+        self.center.layout().addWidget(self._content_wrapper, 1)
 
         self.update_view()
         self.setFixedSize(480, 800)

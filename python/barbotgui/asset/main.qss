@@ -3,14 +3,34 @@
 }
 QWidget{
     font-size: 20px;
+    color: #CCCCCC;
 }
-.ContentScroller{
+QPushButton{
+    background: rgba(0,0,0,5%);
+    border-radius: 5px;
+    border: 2px solid gray;
+    padding: 2px 10px;
+}
+.BtnOrder{
+    padding:2px;
+    icon-size: 64px;
+}
+.BtnEdit{
+    padding:2px;
+    icon-size: 16px;
+}
+QScrollArea, .ContentWrapper, .IdleContent{    
+    background-color:transparent;
+}
+QScrollArea{
+    border: 0px;
+    border-top: 2px solid gray;
 }
 .MainWindow{
+    background: url("#iconpath#/Background.png");
 }
 .BarBotHeader{
-    font-size: 30px;
-    margin:0;
+    min-height: 65px;
 }
 .Headline{
     font-size: 20px;
@@ -22,6 +42,7 @@ QWidget{
     font-size: 30px;
     width: 100px;
     height: 100px;
+    background: rgba(0,0,0,30%);
 }
 .PasswordBox{
     font-size: 30px;
@@ -33,4 +54,22 @@ QWidget{
 .BarChartWrapper{
     border-color: gray;
     border-width: 1px;
+}
+
+QScrollBar:vertical {
+    border: 0;
+    background: transparent;
+}
+
+QScrollBar::sub-page, QScrollBar::add-page{
+    background: transparent;    
+}
+
+QScrollBar::handle{
+    background: rgba(0,0,0,10%);
+    border: 1px solid gray;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line{
+    height: 0px;
 }

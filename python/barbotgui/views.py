@@ -199,6 +199,7 @@ class IdleView(barbotgui.View):
         # admin navigation
         self.admin_navigation = QtWidgets.QWidget()
         self.admin_navigation.setLayout(QtWidgets.QHBoxLayout())
+        #only make it visible if admin
         self.admin_navigation.setVisible(self.window.is_admin)
         self.layout().addWidget(self.admin_navigation)
 
@@ -230,6 +231,7 @@ class IdleView(barbotgui.View):
         )
 
         self._content = QtWidgets.QWidget()
+        self._content.setProperty("class", "IdleContent")
         scroller.setWidget(self._content)
 
 class ListRecipes(IdleView):
@@ -287,6 +289,7 @@ class ListRecipes(IdleView):
             # edit button
             icon = barbotgui.qt_icon_from_file_name("edit.png")
             edit_button = QtWidgets.QPushButton(icon, "")
+            edit_button.setProperty("class", "BtnEdit")
             edit_button.clicked.connect(
                 lambda checked, rid=recipe.id: self._open_edit(rid))
             recipe_title_container.layout().addWidget(edit_button, 0)
@@ -299,10 +302,11 @@ class ListRecipes(IdleView):
             # order button
             if recipe.available:
                 icon = barbotgui.qt_icon_from_file_name("order.png")
-                edit_button = QtWidgets.QPushButton(icon, "")
-                edit_button.clicked.connect(
+                order_button = QtWidgets.QPushButton(icon, "")
+                order_button.setProperty("class", "BtnOrder")
+                order_button.clicked.connect(
                     lambda checked, rid=recipe.id: self._order(rid))
-                recipe_title_container.layout().addWidget(edit_button, 0)
+                recipe_title_container.layout().addWidget(order_button, 0)
 
             # items container for holding the recipe items
             recipe_items_container = QtWidgets.QWidget()

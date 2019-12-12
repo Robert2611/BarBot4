@@ -68,7 +68,6 @@ bot.start()
 # show gui and join the threads
 try:
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     form = barbotgui.MainWindow(
         db, bot, config.get("default", "admin_password"))
     form.show()
