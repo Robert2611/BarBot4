@@ -77,7 +77,4 @@ void WireProtocol::blinkAddress(byte address, byte pin)
         digitalWrite(pin, LOW);
         delay(100);
     }
-    digitalWrite(pin, HIGH);
-    delay(500);
-    digitalWrite(pin, LOW);
 }

@@ -429,7 +429,7 @@ class RecipeNewOrEdit(IdleView):
         for ingredient_widget, amount_widget in self._ingredient_widgets:
             ingredient = int(ingredient_widget.currentData())
             amount = int(amount_widget.currentData())
-            #ignore the stirring when accumulating size
+            #ignore the mixing when accumulating size
             if ingredient >= 0 and ingredient != 255 and amount >= 0:
                 size = size + amount
         return size

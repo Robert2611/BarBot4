@@ -25,7 +25,7 @@ Servo servo_shutter;
 
 byte i2c_command = 0xFF;
 
-void start_dispense()
+void startDispense()
 {
   if (dispensing)
     return;
@@ -42,7 +42,7 @@ void handleSetters(int parameters_count)
   switch (i2c_command)
   {
   case STRAW_CMD_DISPENSE:
-    start_dispense();
+    startDispense();
     break;
   }
 }

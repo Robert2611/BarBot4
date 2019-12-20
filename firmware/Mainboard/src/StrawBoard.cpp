@@ -13,14 +13,10 @@ bool StrawBoard:: StartDispense(){
     return false;
 }
 
-bool StrawBoard:: IsDispensing(){
-	bool is_dispensing;
-	bool success = WireProtocol::getBool(STRAW_BOARD_ADRESSS, STRAW_CMD_GET_IS_DISPENSING, &is_dispensing);
-	return success && is_dispensing;
+bool StrawBoard:: IsDispensing(bool* dispensing){
+	return WireProtocol::getBool(STRAW_BOARD_ADRESSS, STRAW_CMD_GET_IS_DISPENSING, dispensing);
 }
 
-bool StrawBoard:: IsError(){
-    bool dispense_successfull;
-	bool success = WireProtocol::getBool(STRAW_BOARD_ADRESSS, STRAW_CMD_GET_SUCCESSFUL, &dispense_successfull);
-	return success ? !dispense_successfull : true;
+bool StrawBoard:: WasSuccessfull(bool* successfull){
+	return WireProtocol::getBool(STRAW_BOARD_ADRESSS, STRAW_CMD_GET_SUCCESSFUL, successfull);
 }

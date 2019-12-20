@@ -277,7 +277,7 @@ class StateMachine(threading.Thread):
 
     def _draft_one(self, item: RecipeItem):
         if item.port == 12:
-            self.protocol.try_do("Stir", int(item.amount * 1000))
+            self.protocol.try_do("mix", int(item.amount))
             return True
         else:
             while True:

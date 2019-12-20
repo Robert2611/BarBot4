@@ -111,14 +111,14 @@ void addCommands()
 							  else
 								  return CommandStatus_t::Running;
 						  });
-	protocol.addDoCommand("Stir",
+	protocol.addDoCommand("Mix",
 						  [](int param_c, char **param_v, long *result) {
 							  if (param_c == 1)
 							  {
-								  long d = atoi(param_v[0]);
+								  long d = atol(param_v[0]);
 								  if (d > 0)
 								  {
-									  state_m.start_stir(min(d, 10000l));
+									  state_m.start_mixing(min(d, 255l));
 									  return true;
 								  }
 							  }

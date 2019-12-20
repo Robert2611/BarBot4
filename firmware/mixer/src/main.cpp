@@ -3,66 +3,85 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-#define PIN_EN A1
-#define PIN_MOTOR_1 A0
-#define PIN_MOTOR_2 13
-#define PIN_ENDSTOP_TOP 0
-#define PIN_ENDSTOP_BOTTOM 1
-#define PIN_MIXER_EN A2
-#define PIN_MIXER A3
-//#define PIN_LED 13
+#define PIN_EN A7            //ADC7
+#define PIN_MOTOR_1 A0       //PC0
+#define PIN_MOTOR_2 A1       //PC1
+#define PIN_ENDSTOP_TOP 2    //PD2
+#define PIN_ENDSTOP_BOTTOM 3 //PD3
+#define PIN_MIXER_EN 1       //PD1
+#define PIN_MIXER 0          //PD0
+#define PIN_LED 4            //PD4
+#define PIN_BUTTON 10        //PB2
+//not used but still on the PCB
+#define PIN_SERVO_1 5 //PD5
+#define PIN_SREVO_2 6 //PD6
 
-byte movingDirection;
-byte targetPosition;
-byte oldPosition;
+#define MIXING_MIN_TIME 500      // avoid very short...
+#define MIXING_MAX_TIME 5000     // ... and very long mixes
+#define MIXING_MOVE_TIMEOUT 3000 //no success if move takes too long
+#define MIXING_DEFAULT_TIME 2000 //will be used if no time is set
 
 byte i2c_command = 0xFF;
 
-byte getPosition()
+bool do_mixing;
+bool error;
+long mixing_time = 1000;
+
+void startMixing(long _mixing_time)
 {
-  bool top = !digitalRead(PIN_ENDSTOP_TOP) && !digitalRead(PIN_ENDSTOP_TOP);
-  bool bottom = !digitalRead(PIN_ENDSTOP_BOTTOM) && !digitalRead(PIN_ENDSTOP_BOTTOM);
-  if (top && !bottom)
-    return MIXER_POSITION_TOP;
-  else if (bottom && !top)
-    return MIXER_POSITION_BOTTOM;
-  else
-    return MIXER_POSITION_UNDEFINED;
+  if (do_mixing)
+    return;
+  error = false;
+  do_mixing = true;
+  mixing_time = constrain(_mixing_time, MIXING_MIN_TIME, MIXING_MAX_TIME);
+  digitalWrite(PIN_LED, HIGH);
 }
 
-void setMixer(bool mix)
+void stopMixing(bool _error)
 {
-  digitalWrite(PIN_MIXER, HIGH);
-  digitalWrite(PIN_MIXER_EN, mix ? HIGH : LOW);
+  error = _error;
+  do_mixing = false;
+  digitalWrite(PIN_LED, LOW);
 }
 
 void handleSetters(int parameters_count)
 {
+#ifdef SERIAL_DEBUG
+  Serial.print("SET");
+  Serial.println(i2c_command);
+#endif
   switch (i2c_command)
   {
-  case MIXER_CMD_SET_TARGET_POS:
-    if (parameters_count != 1)
-      break;
-    byte data;
-    data = Wire.read();
-    targetPosition = data;
-    break;
-  case MIXER_CMD_MIX_ON:
-    setMixer(true);
-    break;
-  case MIXER_CMD_MIX_OFF:
-    setMixer(false);
+  case MIXER_CMD_START_MIXING:
+    if (parameters_count == 0)
+    {
+      startMixing(MIXING_DEFAULT_TIME);
+    }
+    else if (parameters_count == 1)
+    {
+      byte time_in_seconds = Wire.read();
+      startMixing((unsigned long)time_in_seconds * 1000);
+    }
     break;
   }
 }
 
 void handleGetters()
 {
+#ifdef SERIAL_DEBUG
+  Serial.print("GET");
+  Serial.println(i2c_command);
+#endif
   switch (i2c_command)
   {
-  case MIXER_CMD_GET_POS:
-    Wire.write(getPosition());
+  case MIXER_CMD_GET_IS_MIXING:
+    Wire.write(do_mixing);
     break;
+
+  case MIXER_CMD_GET_SUCCESSFUL:
+    Wire.write(!error);
+    break;
+
   //no command byte set or unknown command
   case 0xFF:
   default:
@@ -95,13 +114,15 @@ void initWire()
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
   Wire.onRequest(handleGetters);
-  //Pin 13 is the internal LED, but it is set as output
-  //WireProtocol::blinkAddress(MIXER_BOARD_ADDRESS, PIN_LED);
+  WireProtocol::blinkAddress(MIXER_BOARD_ADDRESS, PIN_LED);
 }
 
 void setup()
 {
-  //pinMode(PIN_LED, OUTPUT);
+#ifdef SERIAL_DEBUG
+  Serial.begin(115200);
+#endif
+  pinMode(PIN_LED, OUTPUT);
   pinMode(PIN_EN, OUTPUT);
   pinMode(PIN_MOTOR_1, OUTPUT);
   pinMode(PIN_MOTOR_2, OUTPUT);
@@ -109,36 +130,83 @@ void setup()
   pinMode(PIN_ENDSTOP_BOTTOM, INPUT);
   pinMode(PIN_MIXER_EN, OUTPUT);
   pinMode(PIN_MIXER, OUTPUT);
-  initWire();
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
   //disable the driver
   digitalWrite(PIN_MOTOR_1, HIGH);
   digitalWrite(PIN_MOTOR_2, HIGH);
   digitalWrite(PIN_EN, HIGH);
   digitalWrite(PIN_MIXER_EN, LOW);
-  oldPosition = MIXER_POSITION_UNDEFINED;
+  initWire();
+#ifdef SERIAL_DEBUG
+  Serial.println("Mixer board initialised");
+#endif
+}
+
+bool isAtTop()
+{
+  return !digitalRead(PIN_ENDSTOP_TOP) && !digitalRead(PIN_ENDSTOP_TOP);
+}
+
+bool isAtBottom()
+{
+  return !digitalRead(PIN_ENDSTOP_BOTTOM) && !digitalRead(PIN_ENDSTOP_BOTTOM);
+}
+
+void startMotor(bool up)
+{
+  digitalWrite(PIN_MOTOR_1, up ? HIGH : LOW);
+  digitalWrite(PIN_MOTOR_2, up ? LOW : HIGH);
+}
+
+void stopMotor()
+{
+  digitalWrite(PIN_MOTOR_1, HIGH);
+  digitalWrite(PIN_MOTOR_2, HIGH);
+}
+
+void toggleMixer(bool on)
+{
+  digitalWrite(PIN_MIXER, HIGH);
+  digitalWrite(PIN_MIXER_EN, on ? HIGH : LOW);
 }
 
 void loop()
 {
-  //do we need to move up or down?
-  if (((targetPosition == MIXER_POSITION_TOP) || (targetPosition == MIXER_POSITION_BOTTOM)) && (getPosition() != targetPosition))
+  //wait for i2c command or button press, stay in top position
+  while (!do_mixing && digitalRead(PIN_BUTTON) == HIGH)
   {
-    digitalWrite(PIN_MOTOR_1, (targetPosition == MIXER_POSITION_TOP) ? HIGH : LOW);
-    digitalWrite(PIN_MOTOR_2, (targetPosition == MIXER_POSITION_TOP) ? LOW : HIGH);
+    if (!isAtTop())
+      startMotor(true);
+    else
+      stopMotor();
+    delay(1);
   }
-  else
+  if (!do_mixing)
+    startMixing(MIXING_DEFAULT_TIME);
+
+  //move down
+  startMotor(false);
+  unsigned long before_move = millis();
+  while (!isAtBottom())
   {
-    //target position reached
-    //disable output
-    digitalWrite(PIN_MOTOR_1, HIGH);
-    digitalWrite(PIN_MOTOR_2, HIGH);
-    delay(100);
-    if (oldPosition != targetPosition)
+    if (millis() > before_move + MIXING_MOVE_TIMEOUT)
     {
-      oldPosition = targetPosition;
-      //reset wire protocol after each stop of the motor
-      TWCR = 0; // reset TwoWire Control Register to default, inactive state
-      initWire();
+      //TIMEOUT,
+      stopMixing(true);
+      return;
     }
+    delay(1);
   }
+
+  stopMotor();
+
+  //mix
+  toggleMixer(true);
+  delay(mixing_time);
+  toggleMixer(false);
+
+  //move up
+  startMotor(true);
+
+  stopMixing(false);
 }

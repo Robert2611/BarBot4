@@ -9,19 +9,11 @@ class MixerBoard
 {
 public:
   MixerBoard();
-  bool StartMoveTop();
-  bool StartMoveBottom();
-  bool IsAtTop();
-  bool IsAtBottom();
-  bool IsMixing();
-  void StartMixing();
-  void StopMixing();
-  byte GetTargetPosition();
+  bool IsMixing(bool *mixing);
+  bool StartMixing(byte seconds);
+  bool WasSuccessfull(bool* successfull);
 
 private:
-  bool StartMove(byte pos);
-  byte GetPosition();
-  byte _targetPosition;
-  bool _isMixing;
+
 };
 #endif

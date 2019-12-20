@@ -15,14 +15,13 @@
 enum BarBotStatus_t
 {
 	Idle,
-	MoveMixerUp,
 	HomingRough,
 	HomingFine,
 	MoveToDraft,
 	Drafting,
-	Stirring,
+	Mixing,
 	Cleaning,
-	MoveToStir,
+	MoveToMixer,
 	MoveToPos,
 	Delay,
 	SetBalanceLED,
@@ -33,7 +32,8 @@ enum BarBotStatus_t
 	ErrorCommunicationToBalance,
 	ErrorI2C,
 	ErrorStrawsEmpty,
-	ErrorGlasRemoved
+	ErrorGlasRemoved,
+	ErrorMixingFailed,
 };
 
 extern "C"
@@ -58,7 +58,7 @@ public:
 	void start_homing();
 	void start_clean(int _pump_index, unsigned long _draft_time_millis);
 	void start_draft(int _pump_index, float _draft_weight);
-	void start_stir(long duration);
+	void start_mixing(long duration);
 	void start_moveto(long position_in_mm);
 	void start_delay(long duration);
 	void start_setBalanceLED(byte type);
@@ -95,7 +95,7 @@ private:
 	unsigned long current_action_start_millis;
 	unsigned long current_action_duration;
 
-	long stirring_time;
+	byte mixing_seconds;
 	long delay_time;
 	float weight_glas;
 	float weight_before_draft;
@@ -103,7 +103,7 @@ private:
 	unsigned long draft_timeout_last_check_millis;
 	float draft_timeout_last_weight;
 	bool dispense_straw_sent;
-	bool move_mixer_up_sent;
+	bool mixer_start_sent;
 	byte pump_power_percent;
 };
 #endif // ifndef BAR_BOT_H

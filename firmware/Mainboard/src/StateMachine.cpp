@@ -40,17 +40,12 @@ void StateMachine::begin()
 
 	init_mcp();
 
-	move_mixer_up_sent = false;
-	set_status(BarBotStatus_t::MoveMixerUp);
-	while (!mixer->StartMoveTop())
-	{
-		delay(100);
-	}
-	move_mixer_up_sent = true;
+	start_homing();
 }
 
 void StateMachine::update()
 {
+	bool transmit_successfull;
 	switch (status)
 	{
 	case BarBotStatus_t::Idle:
@@ -64,29 +59,10 @@ void StateMachine::update()
 	case BarBotStatus_t::ErrorStrawsEmpty:
 	case BarBotStatus_t::ErrorGlasRemoved:
 	case BarBotStatus_t::ErrorCommunicationToBalance:
+	case BarBotStatus_t::ErrorMixingFailed:
 		//nothing to do here
 		break;
 
-	case BarBotStatus_t::MoveMixerUp:
-		if (!move_mixer_up_sent)
-		{
-			//only set the flag if the sending actually worke
-			if (mixer->StartMoveTop())
-			{
-				move_mixer_up_sent = true;
-			}
-		}
-		else
-		{
-			if (mixer->IsAtTop())
-			{
-				if (startup)
-					start_homing();
-				else
-					set_status(BarBotStatus_t::Idle);
-			}
-		}
-		break;
 	/** HOMING START **/
 	case BarBotStatus_t::HomingRough:
 		if (!is_homed())
@@ -223,44 +199,54 @@ void StateMachine::update()
 		}
 		break;
 
-	case BarBotStatus_t::MoveToStir:
+	case BarBotStatus_t::MoveToMixer:
 		if (stepper->currentPosition() == stepper->targetPosition())
-		{
-			//x-position is reached
-			if (mixer->GetTargetPosition() != MIXER_POSITION_BOTTOM)
-			{
-				mixer->StartMoveBottom();
-			}
-			else if (mixer->IsAtBottom())
-			{
-				current_action_start_millis = millis();
-				mixer->StartMixing();
-				set_status(BarBotStatus_t::Stirring);
-			}
-		}
+			set_status(BarBotStatus_t::Mixing);
 		else
-		{
 			stepper->run();
-		}
 		break;
 
-	case BarBotStatus_t::Stirring:
-		if (millis() > (unsigned long)(current_action_start_millis + stirring_time))
+	case BarBotStatus_t::Mixing:
+		if (!mixer_start_sent)
 		{
-			if (mixer->IsMixing())
+			//tell the board to start the mixing
+			transmit_successfull = mixer->StartMixing(mixing_seconds);
+			if (!transmit_successfull)
 			{
-				mixer->StopMixing();
+				set_status(BarBotStatus_t::ErrorI2C);
+				break;
 			}
-			else if (mixer->GetTargetPosition() != MIXER_POSITION_TOP)
-			{ //stopped but movement not yet triggered
-				if (!mixer->StartMoveTop())
+			current_action_start_millis = millis();
+			child_last_check_millis = millis();
+			mixer_start_sent = true;
+		}
+		else if (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD)
+		{
+			//check if mixing is done yet
+			bool is_mixing;
+			transmit_successfull = mixer->IsMixing(&is_mixing);
+			if (!transmit_successfull)
+			{
+				set_status(BarBotStatus_t::ErrorI2C);
+				break;
+			}
+			if (!is_mixing)
+			{
+				bool dispense_successfull;
+				transmit_successfull = mixer->WasSuccessfull(&dispense_successfull);
+				if (!transmit_successfull)
 				{
 					set_status(BarBotStatus_t::ErrorI2C);
+					break;
 				}
+				if (dispense_successfull)
+					set_status(BarBotStatus_t::ErrorMixingFailed);
+				else
+					set_status(BarBotStatus_t::Idle);
 			}
-			else if (mixer->IsAtTop()) //stopped, movement triggered, top position reached
-				set_status(BarBotStatus_t::Idle);
-			//else: top position not reached yet -> do nothing
+			else
+				child_last_check_millis = millis();
+			//TODO: implement timeout
 		}
 		break;
 
@@ -275,35 +261,42 @@ void StateMachine::update()
 		if (!dispense_straw_sent)
 		{
 			//tell the board to start the dispensing
-			if (straw_board->StartDispense())
-			{
-				current_action_start_millis = millis();
-				child_last_check_millis = millis();
-				dispense_straw_sent = true;
-			}
-			else
+			transmit_successfull = straw_board->StartDispense();
+			if (!transmit_successfull)
 			{
 				set_status(BarBotStatus_t::ErrorI2C);
+				break;
 			}
+			current_action_start_millis = millis();
+			child_last_check_millis = millis();
+			dispense_straw_sent = true;
 		}
 		else if (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD)
 		{
 			//check if dispensing is done yet
-			if (!straw_board->IsDispensing())
+			bool is_dispensing;
+			transmit_successfull = straw_board->IsDispensing(&is_dispensing);
+			if (!transmit_successfull)
 			{
-				if (straw_board->IsError())
+				set_status(BarBotStatus_t::ErrorI2C);
+				break;
+			}
+			if (!is_dispensing)
+			{
+				bool dispense_successfull;
+				transmit_successfull = straw_board->WasSuccessfull(&dispense_successfull);
+				if (!transmit_successfull)
 				{
+					set_status(BarBotStatus_t::ErrorI2C);
+					break;
+				}
+				if (dispense_successfull)
 					set_status(BarBotStatus_t::ErrorStrawsEmpty);
-				}
 				else
-				{
 					set_status(BarBotStatus_t::Idle);
-				}
 			}
 			else
-			{
 				child_last_check_millis = millis();
-			}
 			//TODO: implement timeout
 		}
 		break;
@@ -370,13 +363,14 @@ void StateMachine::start_draft(int _pump_index, float target_weight)
 	set_status(BarBotStatus_t::MoveToDraft);
 }
 
-void StateMachine::start_stir(long duration)
+void StateMachine::start_mixing(long seconds)
 {
-	//move to stirring position
-	stirring_time = duration;
-	set_target_position(STIRRING_POSITION);
+	//move to mixing position
+	mixing_seconds = seconds;
+	mixer_start_sent = false;
+	set_target_position(MIXING_POSITION);
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToStir);
+	set_status(BarBotStatus_t::MoveToMixer);
 }
 
 void StateMachine::start_delay(long duration)
