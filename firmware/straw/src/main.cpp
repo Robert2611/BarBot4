@@ -4,11 +4,13 @@
 #include "WireProtocol.h"
 #include "Servo.h"
 
-#define PIN_SERVO_STRAW 4
-#define PIN_SERVO_SHUTTER 2
-#define PIN_MOTOR 6
-#define PIN_LED 13
-#define PIN_BUTTON A0
+#define PIN_FEEDER_EN 1       //PD1
+#define PIN_FEEDER 0          //PD0
+#define PIN_LED 4            //PD4
+#define PIN_BUTTON 10        //PB2
+//not used but still on the PCB
+#define PIN_SERVO_STRAW 5 //PD5
+#define PIN_SERVO_SHUTTER 6 //PD6
 
 #define SERVO_STRAW_TAKE 37
 #define SERVO_STRAW_DISPENSE 132
@@ -111,8 +113,10 @@ void setup()
   servo_straw.attach(PIN_SERVO_STRAW);
   servo_straw.write(SERVO_STRAW_DISPENSE);
   //initialize motor
-  pinMode(PIN_MOTOR, OUTPUT);
-  digitalWrite(PIN_MOTOR, LOW);
+  pinMode(PIN_FEEDER_EN, OUTPUT);
+  pinMode(PIN_FEEDER, OUTPUT);
+  digitalWrite(PIN_FEEDER, LOW);
+  digitalWrite(PIN_FEEDER_EN, HIGH);
   initWire();
 #ifdef SERIAL_DEBUG
   Serial.println("Straw board initialised");
@@ -138,6 +142,7 @@ void loop()
     delay(1);
   }
   dispensing = true;
+  digitalWrite(PIN_LED, HIGH);
 #ifdef SERIAL_DEBUG
   Serial.println("start dispensing");
 #endif
@@ -149,13 +154,14 @@ void loop()
   delay(500);
   servo_straw.write(SERVO_STRAW_DISPENSE);
   delay(1000);
-  digitalWrite(PIN_MOTOR, HIGH);
+  digitalWrite(PIN_FEEDER, HIGH);
   delay(3000);
-  digitalWrite(PIN_MOTOR, LOW);
+  digitalWrite(PIN_FEEDER, LOW);
 #ifdef SERIAL_DEBUG
   Serial.println("dispensing ended");
 #endif
   //TODO: error detection
   error = false;
-  dispensing = false;
+  dispensing = false; 
+  digitalWrite(PIN_LED, LOW);
 }
