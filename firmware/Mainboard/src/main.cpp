@@ -130,7 +130,7 @@ void addCommands()
 							  else
 								  return CommandStatus_t::Running;
 						  });
-	protocol.addDoCommand("Pump",
+	protocol.addDoCommand("Clean",
 						  [](int param_c, char **param_v, long *result) {
 							  if (param_c == 2)
 							  {
@@ -212,7 +212,7 @@ void addCommands()
 							  else
 								  return CommandStatus_t::Running;
 						  });
-	//PlatformLED needs to be sent via I2C, so it is done in the main loop so it must be a Do command
+	//PlatformLED needs to be sent via I2C in the main loop, so it must be a "Do" command
 	protocol.addDoCommand("PlatformLED",
 						  [](int param_c, char **param_v, long *result) {
 							  if (param_c == 1)

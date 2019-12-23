@@ -101,10 +101,7 @@ void StateMachine::update()
 
 	case BarBotStatus_t::MoveToPos:
 		if (stepper->currentPosition() == stepper->targetPosition())
-		{
-			//x-position is reached
 			set_status(BarBotStatus_t::Idle);
-		}
 		else
 			stepper->run();
 		break;
@@ -190,6 +187,17 @@ void StateMachine::update()
 		//else just wait
 	}
 	break;
+
+	case BarBotStatus_t::MoveToClean:
+		if (stepper->currentPosition() == stepper->targetPosition())
+		{
+			current_action_start_millis = millis();
+			start_pump(pump_index, (pump_power_percent * 1024) / 100);
+			set_status(BarBotStatus_t::Cleaning);
+		}
+		else
+			stepper->run();
+		break;
 
 	case BarBotStatus_t::Cleaning:
 		if (millis() > current_action_start_millis + current_action_duration)
@@ -335,11 +343,12 @@ float StateMachine::get_last_draft_remaining_weight()
 ///region: actions ///
 void StateMachine::start_clean(int _pump_index, unsigned long _draft_time_millis)
 {
-	current_action_start_millis = millis();
+	pump_index = _pump_index;
 	current_action_duration = _draft_time_millis;
-	start_pump(pump_index, (pump_power_percent * 1024) / 100);
+	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
+
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::Cleaning);
+	set_status(BarBotStatus_t::MoveToClean);
 }
 
 void StateMachine::start_homing()
@@ -355,8 +364,6 @@ void StateMachine::start_draft(int _pump_index, float target_weight)
 	pump_index = _pump_index;
 	weight_before_draft = balance->getWeight();
 	target_draft_weight = weight_before_draft + target_weight;
-	Serial.print("target_draft_weight = ");
-	Serial.println(target_draft_weight);
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
 
 	//status has to be set last to avoid multi core problems

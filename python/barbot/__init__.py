@@ -35,6 +35,7 @@ class UserMessages(Enum):
     ingredient_empty = auto()
     ask_for_straw = auto()
     straws_empty = auto()
+    cleaning_adapter = auto()
 
 
 class RecipeItem(object):
@@ -82,12 +83,15 @@ class StateMachine(threading.Thread):
     pump_power = 100
     balance_cal = 1
     balance_offset = 0
+    cleaning_time = 1000
+    weight_timeout = 0.5
     _get_weight_at_next_idle = False
     demo = False
     protocol: barbot.communication.Protocol = None
     use_straw = False
     current_recipe: barbot.Recipe = None
     current_recipe_item: RecipeItem = None
+    pumps_to_clean = []
 
     def __init__(self, port, baudrate, demo=False):
         threading.Thread.__init__(self)
@@ -127,9 +131,6 @@ class StateMachine(threading.Thread):
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
-                self.go_to_idle()
-            elif self.state == State.cleaning:
-                self._do_cleaning()
                 self.go_to_idle()
             elif self.state == State.cleaning_cycle:
                 self._do_cleaning_cycle()
@@ -216,7 +217,7 @@ class StateMachine(threading.Thread):
             self._set_message(UserMessages.place_glas)
             self._user_input = None
             # wait for glas or user abort
-            if not self._wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+            if not self._wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input is not None)):
                 return
             if self._user_input == False:
                 return
@@ -269,10 +270,11 @@ class StateMachine(threading.Thread):
 
     def go_to_idle(self):
         self._set_message(None)
-        self.protocol.try_set("SetLED", 3)
-        # first move to what is supposed to be zero, then home
-        self.protocol.try_do("Move", 0)
-        self.protocol.try_do("Home")
+        if self.protocol:
+            self.protocol.try_set("SetLED", 3)
+            # first move to what is supposed to be zero, then home
+            self.protocol.try_do("Move", 0)
+            self.protocol.try_do("Home")
         self.set_state(State.idle)
 
     def _draft_one(self, item: RecipeItem):
@@ -316,27 +318,26 @@ class StateMachine(threading.Thread):
                     return False
 
     def _do_cleaning_cycle(self):
-        if self.demo:
-            time.sleep(2)
-            return
-        self._set_message(UserMessages.place_glas)
+        self._set_message(UserMessages.cleaning_adapter)
+        # ask user if the cleanig adapter is there
         self._user_input = None
-        # wait for glas or user abort
-        if not self._wait_for(lambda: self.protocol.try_get("HasGlas") != "1" or self._user_input == False):
+        if not self._wait_for(lambda: (self._user_input is not None)):
             return
         if self._user_input == False:
             return
         self._set_message(None)
-        for item in self.current_recipe:
-            weight = int(item.amount * item.calibration)
-            self.protocol.try_do("Draft", item.port, weight)
+        if self.demo:
+            time.sleep(2)
+            return
+        for pump_index in self.pumps_to_clean:
+            self.protocol.try_do("Clean", pump_index, self.cleaning_time)
 
     def _do_cleaning(self):
         if self.demo:
             time.sleep(2)
             return
-        self.protocol.try_do(
-            "Draft", self.current_recipe_item.port, int(self.current_recipe_item.weight))
+        weight = int(self.current_recipe_item.weight)
+        self.protocol.try_do("Clean", self.current_recipe_item.port, weight)
 
     def _do_single_ingredient(self):
         if self.demo:
@@ -345,7 +346,7 @@ class StateMachine(threading.Thread):
         self._set_message(UserMessages.place_glas)
         self._user_input = None
         # wait for glas or user abort
-        if not self._wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input == False)):
+        if not self._wait_for(lambda: (self.protocol.try_get("HasGlas") == "1") or (self._user_input is not None)):
             return
         if self._user_input == False:
             return
@@ -362,20 +363,24 @@ class StateMachine(threading.Thread):
         self.current_recipe_item = recipe_item
         self.set_state(State.single_ingredient)
 
-    def start_cleaning(self, port, weight):
-        self.current_recipe_item = {"port": port, "weight": weight}
-        self.set_state(State.cleaning)
+    def start_cleaning(self, port):
+        self.pumps_to_clean = [port]
+        self.set_state(State.cleaning_cycle)
 
-    def start_cleaning_cycle(self, data):
-        self.current_recipe = data
+    def start_cleaning_cycle(self, _pumps_to_clean):
+        self.pumps_to_clean = _pumps_to_clean
         self.set_state(State.cleaning_cycle)
 
     def get_weight(self):
         if self.state != State.idle:
             return None
         self._get_weight_at_next_idle = True
-        while(self._get_weight_at_next_idle):
+        start_time = time.time()
+        while(self._get_weight_at_next_idle and time.time() < start_time + self.weight_timeout):
             time.sleep(0.01)
+        if self._get_weight_at_next_idle:
+            self._get_weight_at_next_idle = False
+            return None
         return self.weight
 
 

@@ -112,6 +112,16 @@ class BusyView(barbotgui.View):
                       lambda: self.bot.set_user_input(False))
             addButton("Erneut versuchen",
                       lambda: self.bot.set_user_input(True))
+        
+        elif self.bot.message == barbot.UserMessages.cleaning_adapter:
+            text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
+            text = text + "Ist der Adapter angeschlossen?"
+            message_label.setText(text)
+
+            addButton("Ja",
+                      lambda: self.bot.set_user_input(True))
+            addButton("Abbrechen",
+                      lambda: self.bot.set_user_input(False))
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
@@ -195,20 +205,6 @@ class IdleView(barbotgui.View):
                 c(self.window))
             button.clicked.connect(btn_click)
             self.navigation.layout().addWidget(button, 1)
-
-        # admin navigation
-        self.admin_navigation = QtWidgets.QWidget()
-        self.admin_navigation.setLayout(QtWidgets.QHBoxLayout())
-        #only make it visible if admin
-        self.admin_navigation.setVisible(self.window.is_admin)
-        self.layout().addWidget(self.admin_navigation)
-
-        for text, _class in self.admin_navigation_items:
-            button = QtWidgets.QPushButton(text)
-            btn_click = lambda checked, c=_class: self.window.set_view(
-                c(self.window))
-            button.clicked.connect(btn_click)
-            self.admin_navigation.layout().addWidget(button, 1)
 
         # content
         content_wrapper = QtWidgets.QWidget()
@@ -663,7 +659,7 @@ class AdminLogin(IdleView):
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self.numpad_button_clicked(0))
         numpad.layout().addWidget(button, 3, 1)
-        # zero
+        # enter
         button = QtWidgets.QPushButton("Enter")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self.check_password())
@@ -695,7 +691,7 @@ class AdminOverview(IdleView):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
-
+        
         # title
         title = QtWidgets.QLabel("Übersicht")
         title.setProperty("class", "Headline")
@@ -705,6 +701,7 @@ class AdminOverview(IdleView):
         table = QtWidgets.QWidget()
         table.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(table)
+
         # fill table
         ingredients = self.db.list_ingredients(True)
         ports = self.db.ingredient_of_port()
@@ -723,9 +720,24 @@ class AdminOverview(IdleView):
                 button.clicked.connect(
                     lambda checked, portId=i: self._open_calibration(portId))
                 table.layout().addWidget(button, i, 3, QtCore.Qt.AlignLeft)
+                
         # weight label
         self._weight_label = QtWidgets.QLabel()
         self._content.layout().addWidget(self._weight_label)
+
+        # admin navigation
+        self.admin_navigation = QtWidgets.QWidget()
+        self.admin_navigation.setLayout(QtWidgets.qlayout())
+        #only make it visible if admin
+        self.admin_navigation.setVisible(self.window.is_admin)
+        self.layout().addWidget(self.admin_navigation)
+
+        for text, _class in self.admin_navigation_items:
+            button = QtWidgets.QPushButton(text)
+            btn_click = lambda checked, c=_class: self.window.set_view(
+                c(self.window))
+            button.clicked.connect(btn_click)
+            self.admin_navigation.layout().addWidget(button, 1)
 
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
@@ -843,21 +855,15 @@ class Cleaning(IdleView):
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def _clean_left(self):
-        data = []
-        for i in range(0, 6):
-            data.append({"port": i, "amount": self.amount,
-                         "calibration": self.calibration})
+        data = range(0, 6)
         self.bot.start_cleaning_cycle(data)
 
     def _clean_right(self):
-        data = []
-        for i in range(6, 12):
-            data.append({"port": i, "amount": self.amount,
-                         "calibration": self.calibration})
+        data = range(6, 12)
         self.bot.start_cleaning_cycle(data)
 
     def _clean_single(self, port):
-        self.bot.start_cleaning(port, self.amount * self.calibration)
+        self.bot.start_cleaning(port)
 
 class System(IdleView):
     def __init__(self, window: barbotgui.MainWindow):

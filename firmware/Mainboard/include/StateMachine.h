@@ -20,6 +20,7 @@ enum BarBotStatus_t
 	MoveToDraft,
 	Drafting,
 	Mixing,
+	MoveToClean,
 	Cleaning,
 	MoveToMixer,
 	MoveToPos,
