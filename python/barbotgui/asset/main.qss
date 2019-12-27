@@ -73,3 +73,7 @@ QScrollBar::handle{
 QScrollBar::add-line, QScrollBar::sub-line{
     height: 0px;
 }
+
+.Splash{
+    font-size: 20px;
+}

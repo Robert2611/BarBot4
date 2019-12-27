@@ -340,7 +340,7 @@ class ListRecipes(IdleView):
     def _order(self, id):
         if self.bot.is_busy():
             self.window.show_message(
-                "Bitte warten bis die laufende Aktion abgeschlossen ist.")
+                "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
         recipe = self.db.recipe(id)
         if recipe == None:
@@ -533,13 +533,13 @@ class SingleIngredient(IdleView):
     def _start(self):
         if self.bot.is_busy():
             self.window.show_message(
-                "Bitte warten bis die laufende Aktion abgeschlossen ist.")
+                "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
         ingredient_id = self._ingredient_widget.currentData()
         amount = self._amount_widget.currentData()
         if ingredient_id < 0 or amount < 0:
             self.window.show_message(
-                "Bitte eine Zutat und eine Menge auswählen")
+                "Bitte eine Zutat und\neine Menge auswählen")
             return
         port_cal = self.db.port_and_calibration(ingredient_id)
         if port_cal == None:
@@ -828,7 +828,7 @@ class Ports(IdleView):
                 ports[port] = ingredient
             else:
                 self.window.show_message(
-                    "Jede Zutat darf nur einer Position zugewiesen werden!")
+                    "Jede Zutat darf nur einer\nPosition zugewiesen werden!")
                 return
         self.window.show_message("Positionen wurden gespeichert.")
         self.db.update_ports(ports)

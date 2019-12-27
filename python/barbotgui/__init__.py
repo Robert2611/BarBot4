@@ -151,9 +151,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.center)
 
         self.setProperty("class", "MainWindow")
-        styles = open(os.path.join(css_path(), 'main.qss')).read()
-        styles = styles.replace("#iconpath#", css_path().replace("\\","/"))
-        self.setStyleSheet(styles)
+        self.styles = open(os.path.join(css_path(), 'main.qss')).read()
+        self.styles = self.styles.replace("#iconpath#", css_path().replace("\\","/"))
+        self.setStyleSheet(self.styles)
 
         self.mousePressEvent = lambda event: self.close_keyboard()
 
@@ -246,6 +246,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._keyboard is not None:
             self._keyboard.close()
         self._keyboard = Keyboard(target)
+        self._keyboard.setStyleSheet(self.styles)
         self._keyboard.show()
 
     def set_view(self, view):
@@ -282,7 +283,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self.set_view(barbotgui.views.BusyView(self))
 
     def show_message(self, message):
-        splash = QtWidgets.QLabel(message, flags=QtCore.Qt.WindowStaysOnTopHint|QtCore.Qt.FramelessWindowHint)
+        splash = QtWidgets.QSplashScreen()
+        splash.showMessage(message, alignment=QtCore.Qt.AlignCenter)
+        splash.setProperty("class", "Splash")
+        splash.setStyleSheet(self.styles)
+        path = os.path.join(css_path(), "splash.png")
+        splash.setPixmap(Qt.QPixmap(path))
         splash.show()
         QtCore.QTimer.singleShot(1000, lambda splash=splash: splash.close())
 
@@ -348,7 +354,7 @@ class GlasIndicator(QtWidgets.QLabel):
         self.setMinimumSize(QtCore.QSize(
             self._top_width, self._height + 2 * self._roundness))
 
-    def drawFilling(self, painter, start, end, draw_top=True):
+    def draw_filling(self, painter, start, end, draw_top=True):
         # create some support variables so the points are easier to read
         w_b = self._bottom_width
         w_t = self._top_width
@@ -401,16 +407,16 @@ class GlasIndicator(QtWidgets.QLabel):
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         total = 0
-        self.drawGlas(painter)
+        self.draw_glas(painter)
         for filling in self.list:
             # transparent pen
             painter.setPen(QtGui.QColor("#FF999999"))
             painter.setBrush(QtGui.QColor(filling.color))
-            self.drawFilling(painter, total, total + filling.fraction)
+            self.draw_filling(painter, total, total + filling.fraction)
             total = total + filling.fraction
         painter.end()
 
-    def drawGlas(self, painter):
+    def draw_glas(self, painter):
         painter.setPen(QtGui.QColor("#FF999999"))
         painter.setBrush(QtGui.QColor("#55FFFFFF"))
 
