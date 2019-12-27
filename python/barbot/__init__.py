@@ -42,10 +42,11 @@ class RecipeItem(object):
     id = -1
     amount = 0
     name = ""
-    iid = -1
+    ingredient_id = -1
     calibration = 0
     port = -1
     available = False
+    color = "#00000000"
 
 
 class Recipe(object):
@@ -203,6 +204,7 @@ class StateMachine(threading.Thread):
 
     def _do_mixing(self):
         if self.demo:
+            self.current_recipe_item = self.current_recipe.items[0]
             self._set_message(UserMessages.ingredient_empty)
             self._user_input = None
             if not self._wait_for_user_input():
@@ -236,7 +238,6 @@ class StateMachine(threading.Thread):
 
         self.protocol.try_do("PlatformLED", 5)
         self.protocol.try_set("SetLED", 5)
-
         maxProgress = max(len(self.current_recipe.items) - 1, 1)
         recipe_item_index = 0
         for item in self.current_recipe.items:
@@ -425,27 +426,27 @@ class Database(object):
         if not wasOpen:
             self.open()
         self.cursor.execute("""
-			SELECT ingredient as iid, id as port
-			FROM Ports
+			SELECT ingredient_id, id as port
+			FROM ports
 		""")
         res = dict()
         for ingredient in self.cursor.fetchall():
-            res[ingredient["port"]] = ingredient["iid"]
+            res[ingredient["port"]] = ingredient["ingredient_id"]
         if not wasOpen:
             self.close()
         return res
 
-    def port_and_calibration(self, iid):
+    def port_and_calibration(self, ingredient_id):
         self.open()
         self.cursor.execute("""
 			SELECT  p.id as port, 
                     i.calibration AS calibration,
                     i.name AS name
-			FROM Ports p
-			JOIN Ingredients i
-			ON p.ingredient = i.id
-			WHERE i.id = :iid
-		""", {"iid": iid})
+			FROM ports p
+			JOIN ingredients i
+			ON p.ingredient_id = i.id
+			WHERE i.id = :ingredient_id
+		""", {"ingredient_id": ingredient_id})
         res = self.cursor.fetchone()
         if res == None:
             self.close()
@@ -455,13 +456,13 @@ class Database(object):
     def list_ingredients(self, only_available=False):
         self.open()
         sql = """
-			SELECT i.id, i.name, i.type, i.calibration, p.id as port
-			FROM Ingredients i
-			LEFT JOIN Ports p
-			ON p.ingredient = i.id
+			SELECT i.id, i.name, i.type, i.calibration, p.id as port, i.color
+			FROM ingredients i
+			LEFT JOIN ports p
+			ON p.ingredient_id = i.id
 		"""
         if only_available:
-            sql = sql + "WHERE i.id in (SELECT ingredient FROM Ports)"
+            sql = sql + "WHERE i.id in (SELECT ingredient_id FROM ports)"
         self.cursor.execute(sql)
         res = dict()
         for ingredient in self.cursor.fetchall():
@@ -475,18 +476,18 @@ class Database(object):
                     r.id AS id,
                     r.instruction AS instruction,
                     (
-                        SELECT MIN(ri.ingredient in (SELECT ingredient FROM Ports)) > 0
-                        FROM RecipeItems ri
-                        WHERE ri.recipe = r.id
+                        SELECT MIN(ri.ingredient_id in (SELECT ingredient_id FROM ports)) > 0
+                        FROM recipe_items ri
+                        WHERE ri.recipe_id = r.id
                     ) AS available
-            FROM RecipeItems ri
-            JOIN Ingredients i
-            ON i.id = ri.ingredient
-            JOIN Recipes r
-            ON r.id == ri.recipe
+            FROM recipe_items ri
+            JOIN ingredients i
+            ON i.id = ri.ingredient_id
+            JOIN recipes r
+            ON r.id == ri.recipe_id
             WHERE r.successor_id IS NULL
         """
-        sql = sql + "GROUP BY ri.recipe\n"
+        sql = sql + "GROUP BY ri.recipe_id\n"
         # filter alcoholic
         sql = sql + "HAVING MAX(i.type = 'spirit') = "
         if filter.Alcoholic:
@@ -495,7 +496,7 @@ class Database(object):
             sql = sql + "0\n"
         # available
         if filter.AvailableOnly:
-            sql = sql + "AND MIN(i.id in (SELECT ingredient FROM Ports))\n"
+            sql = sql + "AND MIN(i.id in (SELECT ingredient_id FROM ports))\n"
         # ordering
         ordering = False
         if filter.Order == RecipeOrder.Newest:
@@ -522,26 +523,28 @@ class Database(object):
 			SELECT  ri.id,
                     ri.amount,
                     i.name,
-                    ri.Ingredient AS iid,
+                    i.color,
+                    ri.ingredient_id,
                     i.calibration AS calibration,
                     p.id as port,
-                    (i.id in (SELECT ingredient FROM Ports)) AS available
-			FROM RecipeItems ri
-			JOIN Ingredients i
-			ON i.id = ri.Ingredient
-			LEFT JOIN Ports p
-			ON p.ingredient = ri.Ingredient
-			WHERE ri.Recipe = :rid
+                    (i.id in (SELECT ingredient_id FROM ports)) AS available
+			FROM recipe_items ri
+			JOIN ingredients i
+			ON i.id = ri.ingredient_id
+			LEFT JOIN ports p
+			ON p.ingredient_id = ri.ingredient_id
+			WHERE ri.recipe_id = :rid
 		""", {"rid": recipe.id})
         for row in self.cursor.fetchall():
             item = RecipeItem()
             item.id = row["id"]
             item.amount = row["amount"]
             item.name = row["name"]
-            item.iid = row["iid"]
+            item.ingredient_id = row["ingredient_id"]
             item.calibration = row["calibration"]
             item.port = row["port"]
             item.available = row["available"]
+            item.color = row["color"]
             recipe.items.append(item)
 
     def recipe(self, rid):
@@ -551,11 +554,11 @@ class Database(object):
                     id,
                     instruction,
                     (
-                        SELECT MIN(ri.ingredient in (SELECT ingredient FROM Ports)) > 0
-                        FROM RecipeItems ri
-                        WHERE ri.recipe = r.id
+                        SELECT MIN(ri.ingredient_id in (SELECT ingredient_id FROM ports)) > 0
+                        FROM recipe_items ri
+                        WHERE ri.recipe_id = r.id
                     ) AS available
-			FROM Recipes r
+			FROM recipes r
 			WHERE successor_id IS NULL
 			AND id = :rid
 		""", {"rid": rid})
@@ -575,7 +578,7 @@ class Database(object):
     def create_or_update_recipe(self, name, instruction, old_rid=-1):
         self.open()
         self.cursor.execute("""
-			INSERT INTO Recipes ( name, instruction, successor_id )
+			INSERT INTO recipes ( name, instruction, successor_id )
 			VALUES ( :name, :instruction, NULL )
 		""", {"name": name, "instruction": instruction})
         self.con.commit()
@@ -583,7 +586,7 @@ class Database(object):
         if(old_rid is not None and old_rid >= 0):
             # set newly created recipe as successor for current recipe
             self.cursor.execute("""
-				UPDATE Recipes
+				UPDATE recipes
 				SET successor_id = :new_rid
 				WHERE id = :old_rid
 			""", {"old_rid": old_rid, "new_rid": new_rid})
@@ -594,7 +597,7 @@ class Database(object):
     def remove_recipe(self, rid):
         self.open()
         self.cursor.execute("""
-            UPDATE Recipes
+            UPDATE recipes
             SET successor_id = -1
             WHERE id = :rid
         """, {"rid": rid})
@@ -605,9 +608,9 @@ class Database(object):
         self.open()
         for item in items:
             self.cursor.execute("""
-				INSERT INTO RecipeItems ( Recipe, ingredient, amount )
-				VALUES ( :rid, :ingredient, :amount )
-			""", {"rid": rid, "ingredient": item.ingredient, "amount": item.amount})
+				INSERT INTO recipe_items ( recipe_id, ingredient_id, amount )
+				VALUES ( :rid, :ingredient_id, :amount )
+			""", {"rid": rid, "ingredient_id": item.ingredient_id, "amount": item.amount})
         self.con.commit()
         self.close()
 
@@ -615,7 +618,7 @@ class Database(object):
         self.open()
         self.cursor.execute("""
 			SELECT name, instruction
-			FROM Recipes
+			FROM recipes
 			WHERE id = :rid
 		""", {"rid": rid})
         recipe_in_Database = self.cursor.fetchone()
@@ -632,9 +635,9 @@ class Database(object):
             self.close()
             return True
         self.cursor.execute("""
-			SELECT id, ingredient, amount
-			FROM RecipeItems
-			WHERE recipe = :rid
+			SELECT id, ingredient_id, amount
+			FROM recipe_items
+			WHERE recipe_id = :rid
 			ORDER BY id ASC
 		""", {"rid": rid})
         items_in_Database = self.cursor.fetchall()
@@ -643,8 +646,8 @@ class Database(object):
             return True
 
         for i in range(0, len(items_in_Database)):
-            if items_in_Database[i]["ingredient"] != items[i]["ingredient"] or \
-                    items_in_Database[i]["amount"] != items[i]["amount"]:
+            if items_in_Database[i]["ingredient_id"] != items[i].ingredient_id or \
+                    items_in_Database[i]["amount"] != items[i].amount:
                 # item has changed
                 self.close()
                 return True
@@ -654,7 +657,7 @@ class Database(object):
     def start_order(self, rid):
         self.open()
         self.cursor.execute("""
-			INSERT INTO Orders ( recipe, started, status )
+			INSERT INTO orders ( recipe_id, started, status )
 			VALUES ( :rid, DATETIME('now'), 0 )
 		""", {"rid": rid})
         self.con.commit()
@@ -663,9 +666,9 @@ class Database(object):
     def close_order(self, rid):
         self.open()
         self.cursor.execute("""
-			UPDATE Orders
+			UPDATE orders
 			SET finished = DATETIME('now'), status = 1
-			WHERE recipe = :rid
+			WHERE recipe_id = :rid
 		""", {"rid": rid})
         self.con.commit()
         self.close()
@@ -673,7 +676,7 @@ class Database(object):
     def clear_order(self):
         self.open()
         self.cursor.execute("""
-			UPDATE Orders
+			UPDATE orders
 			SET status = -1
 			WHERE status = 0
 		""")
@@ -682,23 +685,23 @@ class Database(object):
 
     def update_ports(self, ports):
         self.open()
-        for port, iid in ports.items():
+        for port, ingredient_id in ports.items():
             self.cursor.execute("""
-				UPDATE Ports
-				SET ingredient = :iid
+				UPDATE ports
+				SET ingredient = :ingredient_id
 				WHERE id = :port
-			""", {"iid": iid, "port": port})
+			""", {"ingredient_id": ingredient_id, "port": port})
         self.con.commit()
         self.close()
 
     def update_calibration(self, port, calibration):
         self.open()
         self.cursor.execute("""
-			UPDATE Ingredients
+			UPDATE ingredients
 			SET calibration = :calibration
 			WHERE id = (
-						SELECT ingredient
-						FROM Ports
+						SELECT ingredient_id
+						FROM ports
 						WHERE id = :port
 						)
 		""", {'calibration': calibration, 'port': port})
@@ -709,9 +712,9 @@ class Database(object):
         self.open()
         self.cursor.execute("""
 			SELECT r.name, r.id AS rid, COUNT(*) AS count
-			FROM Orders O
-			JOIN Recipes r
-			ON r.id = O.recipe
+			FROM orders O
+			JOIN recipes r
+			ON r.id = O.recipe_id
 			WHERE O.started >= DATETIME(:date, "+0.5 days")
 			AND O.started < DATETIME(:date, "+1.5 days")
 			GROUP BY r.id
@@ -723,12 +726,12 @@ class Database(object):
     def ordered_ingredients_amount(self, date):
         self.open()
         self.cursor.execute("""
-			SELECT i.name AS ingredient, i.id AS iid, SUM(ri.amount)/100 AS liters
-			FROM RecipeItems ri
-			JOIN Orders o
-			ON o.recipe = ri.recipe
-			JOIN Ingredients i
-			ON i.id = ri.ingredient
+			SELECT i.name AS ingredient, i.id AS ingredient_id, SUM(ri.amount)/100 AS liters
+			FROM recipe_items ri
+			JOIN orders o
+			ON o.recipe_id = ri.recipe_id
+			JOIN ingredients i
+			ON i.id = ri.ingredient_id
 			WHERE O.started >= DATETIME(:date, "+0.5 days")
 			AND O.started < DATETIME(:date, "+1.5 days")
 			GROUP BY i.id
@@ -741,7 +744,7 @@ class Database(object):
         self.open()
         self.cursor.execute("""
 			SELECT strftime('%Y-%m-%d %H',o.started) AS hour, count(*) AS count
-			FROM Orders o
+			FROM orders o
 			WHERE O.started >= DATETIME(:date, "+0.5 days")
 			AND O.started < DATETIME(:date, "+1.5 days")
 			GROUP BY hour
@@ -755,7 +758,7 @@ class Database(object):
 			SELECT partydate, ordercount
 			FROM (
 				SELECT date(o.started, "-0.5 days") AS partydate,  count(o.id) as ordercount
-				FROM Orders o
+				FROM orders o
 				GROUP BY partydate
 				ORDER BY partydate DESC
 			)

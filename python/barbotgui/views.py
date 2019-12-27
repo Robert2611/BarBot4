@@ -181,13 +181,6 @@ class IdleView(barbotgui.View):
             ["Nachschlag", SingleIngredient],
             ["Statistik", Statistics],
         ]
-        self.admin_navigation_items = [
-            ["Übersicht", AdminOverview],
-            ["Positionen", Ports],
-            ["Reinigung", Cleaning],
-            ["System", System],
-            ["Löschen", RemoveRecipe],
-        ]
         self.setLayout(QtWidgets.QVBoxLayout())
         barbotgui.set_no_spacing(self.layout())
 
@@ -274,13 +267,18 @@ class ListRecipes(IdleView):
         for recipe in recipes:
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
-            recipe_box.setLayout(QtWidgets.QVBoxLayout())
+            recipe_box.setLayout(QtWidgets.QHBoxLayout())
             self._listbox.layout().addWidget(recipe_box)
+
+            # left column
+            left_column = QtWidgets.QWidget()
+            left_column.setLayout(QtWidgets.QVBoxLayout())
+            recipe_box.layout().addWidget(left_column)
 
             # title with buttons
             recipe_title_container = QtWidgets.QWidget()
             recipe_title_container.setLayout(QtWidgets.QHBoxLayout())
-            recipe_box.layout().addWidget(recipe_title_container)
+            left_column.layout().addWidget(recipe_title_container)
 
             # edit button
             icon = barbotgui.qt_icon_from_file_name("edit.png")
@@ -295,21 +293,13 @@ class ListRecipes(IdleView):
             recipe_title.setProperty("class", "RecipeTitle")
             recipe_title_container.layout().addWidget(recipe_title, 1)
 
-            # order button
-            if recipe.available:
-                icon = barbotgui.qt_icon_from_file_name("order.png")
-                order_button = QtWidgets.QPushButton(icon, "")
-                order_button.setProperty("class", "BtnOrder")
-                order_button.clicked.connect(
-                    lambda checked, rid=recipe.id: self._order(rid))
-                recipe_title_container.layout().addWidget(order_button, 0)
-
             # items container for holding the recipe items
             recipe_items_container = QtWidgets.QWidget()
             recipe_items_container.setLayout(QtWidgets.QVBoxLayout())
-            recipe_box.layout().addWidget(recipe_items_container, 1)
+            left_column.layout().addWidget(recipe_items_container, 1)
 
             # add items
+            item: barbot.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
                 if item.port == 12:
@@ -317,6 +307,30 @@ class ListRecipes(IdleView):
                 else:
                     label.setText("%i cl %s" % (item.amount, item.name))
                 recipe_items_container.layout().addWidget(label)
+
+            #right column
+            right_column = QtWidgets.QWidget()
+            right_column.setLayout(QtWidgets.QVBoxLayout())
+            recipe_box.layout().addWidget(right_column)
+
+            fillings = []
+            for item in recipe.items:
+                if item.port != 12:
+                    relative = item.amount / self.bot.max_cocktail_size
+                    filling = barbotgui.GlasFilling(item.color, relative, )                  
+                    fillings.append(filling)
+            indicator = barbotgui.GlasIndicator(fillings)
+            right_column.layout().addWidget(indicator)
+
+            # order button
+            if recipe.available:
+                icon = barbotgui.qt_icon_from_file_name("order.png")
+                order_button = QtWidgets.QPushButton(icon, "")
+                order_button.setProperty("class", "BtnOrder")
+                order_button.clicked.connect(
+                    lambda checked, rid=recipe.id: self._order(rid))
+                right_column.layout().addWidget(order_button, 0)
+
         self._listbox.layout().addWidget(QtWidgets.QWidget(), 1)
 
 
@@ -385,7 +399,7 @@ class RecipeNewOrEdit(IdleView):
         for i in range(10):
             if self._id is not None and i < len(self._recipe.items):
                 selected_amount = self._recipe.items[i].amount
-                selected_ingredient = self._recipe.items[i].iid
+                selected_ingredient = self._recipe.items[i].ingredient_id
             else:
                 selected_amount = 0
                 selected_ingredient = 0
@@ -455,10 +469,13 @@ class RecipeNewOrEdit(IdleView):
         # prepare data
         items = []
         for ingredient_widget, amount_widget in self._ingredient_widgets:
-            ingredient = int(ingredient_widget.currentData())
+            ingredient_id = int(ingredient_widget.currentData())
             amount = int(amount_widget.currentData())
-            if ingredient >= 0 and amount >= 0:
-                items.append({"ingredient": ingredient, "amount": amount})
+            if ingredient_id >= 0 and amount >= 0:
+                item = barbot.RecipeItem()
+                item.ingredient_id = ingredient_id
+                item.amount = amount
+                items.append(item)
         if self._id is not None and not self.db.has_recipe_changed(self._id, name, items, instruction):
             self.window.show_message("Rezept wurde nicht verändert")
             return
@@ -518,13 +535,13 @@ class SingleIngredient(IdleView):
             self.window.show_message(
                 "Bitte warten bis die laufende Aktion abgeschlossen ist.")
             return
-        iid = self._ingredient_widget.currentData()
+        ingredient_id = self._ingredient_widget.currentData()
         amount = self._amount_widget.currentData()
-        if iid < 0 or amount < 0:
+        if ingredient_id < 0 or amount < 0:
             self.window.show_message(
                 "Bitte eine Zutat und eine Menge auswählen")
             return
-        port_cal = self.db.port_and_calibration(iid)
+        port_cal = self.db.port_and_calibration(ingredient_id)
         if port_cal == None:
             self.window.show_message("Diese Zutat ist nicht anschlossen")
             return
@@ -697,6 +714,24 @@ class AdminOverview(IdleView):
         title.setProperty("class", "Headline")
         self._fixed_content.layout().addWidget(title)
 
+        # admin navigation
+        self.admin_navigation = QtWidgets.QWidget()
+        self.admin_navigation.setLayout(QtWidgets.QVBoxLayout())
+        self._content.layout().addWidget(self.admin_navigation)
+
+        admin_navigation_items = [
+            ["Positionen", Ports],
+            ["Reinigung", Cleaning],
+            ["System", System],
+            ["Löschen", RemoveRecipe],
+        ]
+        for text, _class in admin_navigation_items:
+            button = QtWidgets.QPushButton(text)
+            btn_click = lambda checked, c=_class: self.window.set_view(
+                c(self.window))
+            button.clicked.connect(btn_click)
+            self.admin_navigation.layout().addWidget(button, 1)
+
         # table
         table = QtWidgets.QWidget()
         table.setLayout(QtWidgets.QGridLayout())
@@ -725,19 +760,6 @@ class AdminOverview(IdleView):
         self._weight_label = QtWidgets.QLabel()
         self._content.layout().addWidget(self._weight_label)
 
-        # admin navigation
-        self.admin_navigation = QtWidgets.QWidget()
-        self.admin_navigation.setLayout(QtWidgets.qlayout())
-        #only make it visible if admin
-        self.admin_navigation.setVisible(self.window.is_admin)
-        self.layout().addWidget(self.admin_navigation)
-
-        for text, _class in self.admin_navigation_items:
-            button = QtWidgets.QPushButton(text)
-            btn_click = lambda checked, c=_class: self.window.set_view(
-                c(self.window))
-            button.clicked.connect(btn_click)
-            self.admin_navigation.layout().addWidget(button, 1)
 
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
@@ -753,20 +775,26 @@ class AdminOverview(IdleView):
     
     def _update_weight(self):
         res = self.window.bot.get_weight()
-        if res is not None:
-            text = "Gewicht: {} g".format(res)
-            self._weight_label.setText(text)
+        weight = res if res is not None else "-"
+        text = "Gewicht: {} g".format(weight)
+        self._weight_label.setText(text)
 
 class Ports(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Positionen")
         title.setProperty("class", "Headline")
         self._fixed_content.layout().addWidget(title)
+
+        #back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        btn_click = lambda: self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
 
         # table
         table = QtWidgets.QWidget()
@@ -809,15 +837,21 @@ class Calibration(IdleView):
     def __init__(self, window: barbotgui.MainWindow, portId=-1):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
         self._fixed_content.layout().addWidget(QtWidgets.QLabel("Kalibrierung"))
+
+        #back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        btn_click = lambda: self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
 
 class Cleaning(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
         self.amount = 50
         # assume calibration value of water
         self.calibration = 1000
@@ -827,6 +861,12 @@ class Cleaning(IdleView):
         title.setProperty("class", "Headline")
         self._content.layout().setAlignment(title, QtCore.Qt.AlignTop)
         self._fixed_content.layout().addWidget(title)
+
+        #back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        btn_click = lambda: self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
 
         # clean left
         button = QtWidgets.QPushButton("Reinigen linke Hälfte")
@@ -869,8 +909,20 @@ class System(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
+        # title
+        title = QtWidgets.QLabel("System")
+        title.setProperty("class", "Headline")
+        self._fixed_content.layout().addWidget(title)
+        
+        #back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        btn_click = lambda: self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
+
+        # add actual content
         self.window.add_system_view(self._content)
 
 class RemoveRecipe(IdleView):
@@ -879,13 +931,19 @@ class RemoveRecipe(IdleView):
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
         # title
         title = QtWidgets.QLabel("Positionen")
         title.setProperty("class", "Headline")
         self._fixed_content.layout().setAlignment(title, QtCore.Qt.AlignTop)
         self._fixed_content.layout().addWidget(title)
+
+        #back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        btn_click = lambda: self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
 
         # confirmationDialog
         self._add_confirmation_dialog()
