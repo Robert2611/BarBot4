@@ -8,7 +8,7 @@ import qdarkstyle
 import sys
 import logging
 import configparser
-
+import bluetooth
 
 # cofigure logging
 logging.basicConfig(
@@ -47,6 +47,15 @@ config_path = os.path.join(sys.path[0], '../bar_bot.cfg')
 # load config if it exists
 if os.path.isfile(config_path):
     config.read(config_path)
+
+# search for barbot if -f is set
+if "-f" in sys.argv[1:]:
+    nearby_devices = bluetooth.discover_devices(lookup_names=True)
+    for x in nearby_devices:
+        if "Bar Bot" in x[1]:
+            # save mac address into settings
+            config.set("default", "mac_address", x[0])
+
 # safe file again
 with open(config_path, 'w') as configfile:
     config.write(configfile)

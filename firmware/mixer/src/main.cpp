@@ -208,5 +208,17 @@ void loop()
   //move up
   startMotor(true);
 
+  before_move = millis();
+  while (!isAtTop())
+  {
+    if (millis() > before_move + MIXING_MOVE_TIMEOUT)
+    {
+      //TIMEOUT,
+      stopMixing(true);
+      return;
+    }
+    delay(1);
+  }
+
   stopMixing(false);
 }

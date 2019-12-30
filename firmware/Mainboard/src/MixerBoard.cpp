@@ -4,9 +4,22 @@ MixerBoard::MixerBoard()
 {
 }
 
-bool MixerBoard::IsMixing(bool* is_mixing)
+bool MixerBoard::IsMixing(bool *is_mixing)
 {
-	return WireProtocol::getBool(MIXER_BOARD_ADDRESS, MIXER_CMD_GET_IS_MIXING, is_mixing);
+    bool first_result;
+    bool verifying = false;
+    for (int i = 0; i < MIXER_SEND_RETRIES; i++)
+    {
+        if (WireProtocol::getBool(MIXER_BOARD_ADDRESS, MIXER_CMD_GET_IS_MIXING, is_mixing)){
+            //we wait for two similar results to be sure
+            if(verifying && first_result==(*is_mixing))
+                return true;
+            first_result = (*is_mixing);
+            verifying = true;
+        }
+        return true;
+    }
+    return false;
 }
 
 bool MixerBoard::StartMixing(byte seconds)
@@ -20,7 +33,12 @@ bool MixerBoard::StartMixing(byte seconds)
     return false;
 }
 
-bool MixerBoard::WasSuccessfull(bool* successfull)
-{    
-	return WireProtocol::getBool(MIXER_BOARD_ADDRESS, MIXER_CMD_GET_SUCCESSFUL, successfull);
+bool MixerBoard::WasSuccessfull(bool *successfull)
+{
+    for (int i = 0; i < MIXER_SEND_RETRIES; i++)
+    {
+        if (WireProtocol::getBool(MIXER_BOARD_ADDRESS, MIXER_CMD_GET_SUCCESSFUL, successfull))
+            return true;
+    }
+    return false;
 }

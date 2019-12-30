@@ -125,7 +125,14 @@ void addCommands()
 							  return false;
 						  },
 						  [](int *error_code, long *parameter) {
-							  if (state_m.status == BarBotStatus_t::Idle)
+							  if (state_m.status > BarBotStatus_t::Error)
+							  {
+								  (*error_code) = state_m.status;
+								  (*parameter) = 0; //error code sensefull??
+								  state_m.reset_error();
+								  return CommandStatus_t::Error;
+							  }
+							  else if (state_m.status == BarBotStatus_t::Idle)
 								  return CommandStatus_t::Done;
 							  else
 								  return CommandStatus_t::Running;
