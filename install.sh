@@ -27,10 +27,12 @@ echo "@$PYTHON_FOLDER/main.py" >> $X_AUTOSTART_PATH/autostart
 #enable bluetooth
 systemctl start hciuart
 
-#rotate the display
-if ! grep -q 'display_rotate' "/boot/config.txt"; then
-	echo 'display_rotate=3' >> "/boot/config.txt"
+#rotate the display, only on pi 3
+RASPBERRY_PI_VERSION=[cat /proc/cpuinfo | grep 'Model' | awk '{print $5}']
+if [RASPBERRY_PI_VERSION == "3"]; then
+	if ! grep -q 'display_rotate' "/boot/config.txt"; then
+		echo 'display_rotate=3' >> "/boot/config.txt"
+	fi
 fi
-
 sudo apt-get install python3-pyqt5 -y
 pip3 install -r "$PYTHON_FOLDER/requirements.txt"

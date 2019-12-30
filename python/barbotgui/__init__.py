@@ -11,9 +11,10 @@ def is_raspberry():
         return False
     try:
         uname = getattr(os, "uname")
+        name = uname().nodename
     except AttributeError:
         return False
-    return "raspberry" in uname.nodename
+    return "raspberry" in name
 
 def set_no_spacing(layout):
     layout.setSpacing(0)
