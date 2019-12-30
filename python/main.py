@@ -53,7 +53,7 @@ with open(config_path, 'w') as configfile:
 
 if not is_demo and barbotgui.is_raspberry():
     # connect bluetooth device
-    mac = config.get("default", "max_address")
+    mac = config.get("default", "mac_address")
     barbot.run_command("sudo rfcomm connect hci0 {}&".format(mac))
 # create statemachine
 port = config.get("default", "port")

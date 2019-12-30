@@ -1,7 +1,7 @@
 .HasError{
     color: red;
 }
-QWidget{
+QWidget, QCheckBox{
     font-size: 20px;
     color: #CCCCCC;
 }
@@ -76,4 +76,11 @@ QScrollBar::add-line, QScrollBar::sub-line{
 
 .Splash{
     font-size: 20px;
+}
+
+QComboBox{
+    color: black;
+}
+QComboBox QListView{
+    color: black;
 }
