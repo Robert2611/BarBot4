@@ -5,6 +5,12 @@ QWidget, QCheckBox{
     font-size: 20px;
     color: #CCCCCC;
 }
+QCheckBox{
+    color: #CCCCCC;
+    font-size: 20px;
+    border: none;
+}
+
 QPushButton{
     background: rgba(0,0,0,5%);
     border-radius: 5px;

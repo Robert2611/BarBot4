@@ -144,7 +144,7 @@ class BusyView(barbotgui.View):
             self._progress_bar.setMinimum(0)
             self._progress_bar.setMaximum(100)
             self._content_container.layout().addWidget(self._progress_bar)
-            self._content_container.layout().setAlignment(button, QtCore.Qt.AlignCenter)
+            self._content_container.layout().setAlignment(self._progress_bar, QtCore.Qt.AlignCenter)
 
             # forward mixing progress changed
             self._mixing_progress_trigger.connect(
