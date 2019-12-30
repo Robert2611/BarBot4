@@ -13,10 +13,12 @@ import configparser
 # cofigure logging
 logging.basicConfig(
     filename=os.path.join(sys.path[0], '../bar_bot.log'),
-    filemode='w',
+    filemode='a',
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logging.info("<<<<<<BarBot started>>>>>>")
+logging.info("--------------------------")
 
 is_demo = "-d" in sys.argv[1:]
 
@@ -80,3 +82,6 @@ try:
         bot.join()
 except KeyboardInterrupt:
     raise
+
+logging.info("-------------------------")
+logging.info(">>>>>>BarBot closed<<<<<<")

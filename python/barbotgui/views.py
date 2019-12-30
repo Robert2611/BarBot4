@@ -144,6 +144,7 @@ class BusyView(barbotgui.View):
             self._progress_bar.setMinimum(0)
             self._progress_bar.setMaximum(100)
             self._content_container.layout().addWidget(self._progress_bar)
+            self._content_container.layout().setAlignment(button, QtCore.Qt.AlignCenter)
 
             # forward mixing progress changed
             self._mixing_progress_trigger.connect(
@@ -348,7 +349,6 @@ class ListRecipes(IdleView):
             return
         self.db.start_order(recipe.id)
         self.bot.start_mixing(recipe)
-        self.window.show_message("Mixen gestartet")
 
 class RecipeNewOrEdit(IdleView):
     def __init__(self, window: barbotgui.MainWindow, recipe_id=None):

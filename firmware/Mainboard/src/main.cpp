@@ -136,7 +136,7 @@ void addCommands()
 							  {
 								  long index = atoi(param_v[0]);
 								  long time = atoi(param_v[1]);
-								  if (index >= 0 && index < DRAFT_PORTS_COUNT && time > 100 && time < 4000)
+								  if (index >= 0 && index < DRAFT_PORTS_COUNT && time > 100 && time <= 10000)
 								  {
 									  state_m.start_clean(index, time);
 									  return true;
