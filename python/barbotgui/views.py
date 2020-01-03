@@ -322,6 +322,14 @@ class ListRecipes(IdleView):
                     fillings.append(filling)
             indicator = barbotgui.GlasIndicator(fillings)
             right_column.layout().addWidget(indicator)
+            right_column.layout().setAlignment(indicator, QtCore.Qt.AlignRight)
+
+            #instruction
+            if recipe.instruction:
+                instruction = QtWidgets.QLabel(recipe.instruction)
+                instruction.setWordWrap(True)
+                right_column.layout().addWidget(instruction)
+
 
             # order button
             if recipe.available:
@@ -331,6 +339,7 @@ class ListRecipes(IdleView):
                 order_button.clicked.connect(
                     lambda checked, rid=recipe.id: self._order(rid))
                 right_column.layout().addWidget(order_button, 0)
+                right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
 
         self._listbox.layout().addWidget(QtWidgets.QWidget(), 1)
 

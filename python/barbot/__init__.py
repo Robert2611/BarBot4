@@ -688,7 +688,7 @@ class Database(object):
         for port, ingredient_id in ports.items():
             self.cursor.execute("""
 				UPDATE ports
-				SET ingredient = :ingredient_id
+				SET ingredient_id = :ingredient_id
 				WHERE id = :port
 			""", {"ingredient_id": ingredient_id, "port": port})
         self.con.commit()

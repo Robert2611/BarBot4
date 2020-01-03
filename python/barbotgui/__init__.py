@@ -34,12 +34,17 @@ class Keyboard(QtWidgets.QWidget):
     _is_widgets_created = False
     _is_shift = False
     target: QtWidgets.QLineEdit = None
-    def __init__(self, target: QtWidgets.QLineEdit):
+    def __init__(self, target: QtWidgets.QLineEdit, style = None):
         super().__init__()
         self.target = target
         self.setLayout(QtWidgets.QVBoxLayout())
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.update_keys()
+        self.setProperty("class","Keyboard")
+        if style is not None:
+            self.setStyleSheet(style)
+        if is_raspberry():
+            self.setCursor(QtCore.Qt.BlankCursor)
         #move to bottom of the screen
         desktop = Qt.QApplication.desktop().availableGeometry()
         desired = Qt.QRect(Qt.QPoint(0,0), self.sizeHint())
@@ -246,8 +251,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def open_keyboard(self, target: QtWidgets.QLineEdit):
         if self._keyboard is not None:
             self._keyboard.close()
-        self._keyboard = Keyboard(target)
-        self._keyboard.setStyleSheet(self.styles)
+        self._keyboard = Keyboard(target, self.styles)
         self._keyboard.show()
 
     def set_view(self, view):

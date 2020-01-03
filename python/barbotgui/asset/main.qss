@@ -1,10 +1,16 @@
 .HasError{
     color: red;
 }
+
+QLabel{
+    qproperty-wordWrap: true;
+}
+
 QWidget, QCheckBox{
     font-size: 20px;
     color: #CCCCCC;
 }
+
 QCheckBox{
     color: #CCCCCC;
     font-size: 20px;
@@ -17,46 +23,59 @@ QPushButton{
     border: 2px solid gray;
     padding: 2px 10px;
 }
+
 .BtnOrder{
     padding:2px;
-    icon-size: 64px;
+    icon-size: 50px;
 }
+
 .BtnEdit{
     padding:2px;
-    icon-size: 16px;
+    icon-size: 20px;
 }
+
 QScrollArea, .ContentWrapper, .IdleContent{    
     background-color:transparent;
 }
+
 QScrollArea{
     border: 0px;
     border-top: 2px solid gray;
 }
+
 .MainWindow{
     background: url("#iconpath#/Background.png");
+    background-position: 0px 100px;
 }
+
 .BarBotHeader{
     min-height: 65px;
 }
+
 .Headline{
     font-size: 20px;
 }
+
 .RecipeTitle{
     font-size: 20px;
 }
+
 .NumpadButton{
     font-size: 30px;
     width: 100px;
     height: 100px;
     background: rgba(0,0,0,30%);
 }
+
 .PasswordBox{
     font-size: 30px;
     width: 200px;
 }
+
 .BarChartBar{
     background-color: gray;
 }
+
 .BarChartWrapper{
     border-color: gray;
     border-width: 1px;
@@ -84,9 +103,14 @@ QScrollBar::add-line, QScrollBar::sub-line{
     font-size: 20px;
 }
 
-QComboBox{
+QComboBox, QLineEdit, QComboBox QListView{
     color: black;
 }
-QComboBox QListView{
-    color: black;
+
+.Keyboard{
+    background: #777777;
+}
+
+GlasIndicator{
+    margin-right: 30px;
 }
