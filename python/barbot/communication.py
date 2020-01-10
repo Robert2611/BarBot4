@@ -5,6 +5,18 @@ import serial
 import sys
 
 
+def find_bar_bot():
+    try:
+        import bluetooth
+        nearby_devices = bluetooth.discover_devices(lookup_names=True)
+        for x in nearby_devices:
+            if "Bar Bot" in x[1]:
+                # save mac address into settings
+                return x[0]
+    except:
+        return None
+
+
 class MessageTypes(Enum):
     ACK = auto()
     NAK = auto()
