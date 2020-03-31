@@ -16,4 +16,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install platformio
     - name: Build mainboard firmware
-      run: platformio run /firmware/mainboard/
+      run: |
+        /firmware/mainboard/
+        platformio run
