@@ -21,17 +21,17 @@ jobs:
         platformio run
     - name: Build balance firmware
       run: |
-        cd ../balance/
+        cd firmware/balance/
         platformio run
     - name: Build mixer firmware
       run: |
-        cd ../mixer/
+        cd firmware/mixer/
         platformio run
     - name: Build straw firmware
       run: |
-        cd ../straw/
+        cd firmware/straw/
         platformio run
     - name: Build crusher firmware
       run: |
-        cd ../crusher/
+        cd firmware/crusher/
         platformio run
