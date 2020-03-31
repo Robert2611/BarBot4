@@ -17,5 +17,6 @@ jobs:
         pip install platformio
     - name: Build mainboard firmware
       run: |
+        ls
         cd firmware/mainboard/
         platformio run
