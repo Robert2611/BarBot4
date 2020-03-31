@@ -4,18 +4,18 @@
 #include "WireProtocol.h"
 #include "Servo.h"
 
-#define PIN_FEEDER_EN 1       //PD1
-#define PIN_FEEDER 0          //PD0
-#define PIN_LED 4            //PD4
-#define PIN_BUTTON 10        //PB2
+#define PIN_FEEDER_EN 1 //PD1
+#define PIN_FEEDER 0    //PD0
+#define PIN_LED 4       //PD4
+#define PIN_BUTTON 10   //PB2
 //not used but still on the PCB
-#define PIN_SERVO_STRAW 5 //PD5
+#define PIN_SERVO_STRAW 5   //PD5
 #define PIN_SERVO_SHUTTER 6 //PD6
 
-#define SERVO_STRAW_TAKE 37
-#define SERVO_STRAW_DISPENSE 132
-#define SERVO_SHUTTER_OPEN 10
-#define SERVO_SHUTTER_CLOSED 100
+#define SERVO_STRAW_TAKE 0
+#define SERVO_STRAW_DISPENSE 95
+#define SERVO_SHUTTER_OPEN 0
+#define SERVO_SHUTTER_CLOSED 90
 
 #define SERIAL_DEBUG
 
@@ -91,13 +91,13 @@ void recieved(int count)
 void initWire()
 {
   //start i2c communication
-  Wire.begin(STRAW_BOARD_ADRESSS);
+  Wire.begin(STRAW_BOARD_ADDRESS);
   //disable pullups for i2c
   digitalWrite(SCL, LOW);
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
   Wire.onRequest(handleGetters);
-  WireProtocol::blinkAddress(STRAW_BOARD_ADRESSS, PIN_LED);
+  WireProtocol::blinkAddress(STRAW_BOARD_ADDRESS, PIN_LED);
 }
 
 void setup()
@@ -162,6 +162,6 @@ void loop()
 #endif
   //TODO: error detection
   error = false;
-  dispensing = false; 
+  dispensing = false;
   digitalWrite(PIN_LED, LOW);
 }
