@@ -29,7 +29,7 @@ db.clear_order()
 # setup config with default values
 config = configparser.ConfigParser()
 config.add_section("default")
-config.set("default", "mac_address", "3C:71:BF:4C:A7:2E")
+config.set("default", "mac_address", "")  # 3C:71:BF:4C:A7:2E
 default_port = "/dev/rfcomm0" if barbotgui.is_raspberry() else "COM4"
 config.set("default", "port", default_port)
 config.set("default", "baud_rate", "9600")
@@ -47,8 +47,8 @@ config_path = os.path.join(sys.path[0], '../bar_bot.cfg')
 if os.path.isfile(config_path):
     config.read(config_path)
 
-# search for barbot if -f is set
-if "-f" in sys.argv[1:]:
+# search for barbot if no valid mac address is set
+if not is_demo and len(config.get("default", "mac_address").strip()) != 17:
     res = barbot.communication.find_bar_bot()
     if res:
         config.set("default", "mac_address", res)
@@ -61,6 +61,7 @@ if not is_demo and barbotgui.is_raspberry():
     # connect bluetooth device
     mac = config.get("default", "mac_address")
     barbot.run_command("sudo rfcomm connect hci0 {}&".format(mac))
+
 # create statemachine
 port = config.get("default", "port")
 bot = barbot.StateMachine(port, config.get("default", "baud_rate"), is_demo)
