@@ -9,6 +9,8 @@ import logging
 
 from enum import Enum, auto
 
+ingredient_id_mixing = 255
+
 
 def run_command(cmd_str, cmd_str2=None):
     if cmd_str2:
@@ -48,6 +50,9 @@ class RecipeItem(object):
     available = False
     color = "#00000000"
 
+    def isMixingItem(self):
+        return self.ingredient_id == ingredient_id_mixing
+
 
 class Recipe(object):
     name = ""
@@ -85,6 +90,7 @@ class StateMachine(threading.Thread):
     balance_cal = 1
     balance_offset = 0
     cleaning_time = 1000
+    mixing_time = 2000
     weight_timeout = 0.5
     _get_weight_at_next_idle = False
     demo = False
@@ -279,8 +285,8 @@ class StateMachine(threading.Thread):
         self.set_state(State.idle)
 
     def _draft_one(self, item: RecipeItem):
-        if item.port == 12:
-            self.protocol.try_do("Mix", int(item.amount))
+        if item.isMixingItem():
+            self.protocol.try_do("Mix", self.mixing_time)
             return True
         else:
             while True:
