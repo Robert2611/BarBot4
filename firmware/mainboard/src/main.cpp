@@ -10,6 +10,7 @@
 #include "BalanceBoard.h"
 #include "StrawBoard.h"
 #include "StateMachine.h"
+#include "CrusherBoard.h"
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
@@ -24,11 +25,12 @@ BluetoothSerial SerialBT;
 BalanceBoard balance;
 MixerBoard mixer;
 StrawBoard straw_board;
+CrusherBoard crusher_board;
 
 SPIClass hspi(HSPI);
 MCP23X17 mcp(PIN_IO_CS, &hspi);
 
-StateMachine state_m(&balance, &mixer, &straw_board, &mcp, &SerialBT);
+StateMachine state_m(&balance, &mixer, &straw_board, &crusher_board, &mcp, &SerialBT);
 
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
@@ -65,185 +67,220 @@ void DoLEDandBluetoothTask(void *parameters)
 void addCommands()
 {
 	//test command that returns done after a defined time
-	protocol.addDoCommand("Delay",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 1)
-							  {
-								  long t = atoi(param_v[0]);
-								  if (t > 0 && t < 5000)
-								  {
-									  state_m.start_delay(t);
-									  return true;
-								  }
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
-	protocol.addDoCommand("Draft",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 2)
-							  {
-								  long i = atoi(param_v[0]);
-								  long w = atoi(param_v[1]);
-								  if (i >= 0 && i < DRAFT_PORTS_COUNT && w > 0 && w < 400)
-								  {
-									  state_m.start_draft(i, w);
-									  return true;
-								  }
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status > BarBotStatus_t::Error)
-							  {
-								  (*error_code) = state_m.status;
-								  (*parameter) = state_m.get_last_draft_remaining_weight();
-								  state_m.reset_error();
-								  return CommandStatus_t::Error;
-							  }
-							  else if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
-	protocol.addDoCommand("Mix",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 1)
-							  {
-								  long d = atol(param_v[0]);
-								  if (d > 0)
-								  {
-									  state_m.start_mixing(min(d, 255l));
-									  return true;
-								  }
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status > BarBotStatus_t::Error)
-							  {
-								  (*error_code) = state_m.status;
-								  (*parameter) = 0; //error code sensefull??
-								  state_m.reset_error();
-								  return CommandStatus_t::Error;
-							  }
-							  else if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
-	protocol.addDoCommand("Clean",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 2)
-							  {
-								  long index = atoi(param_v[0]);
-								  long time = atoi(param_v[1]);
-								  if (index >= 0 && index < DRAFT_PORTS_COUNT && time > 100 && time <= 10000)
-								  {
-									  state_m.start_clean(index, time);
-									  return true;
-								  }
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
-	protocol.addDoCommand("Straw",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 0)
-							  {
-								  state_m.start_dispense_straw();
-								  return true;
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status > BarBotStatus_t::Error)
-							  {
-								  (*error_code) = state_m.status;
-								  (*parameter) = 0; //error code sensefull??
-								  state_m.reset_error();
-								  return CommandStatus_t::Error;
-							  }
-							  else if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
-	protocol.addDoCommand("Home",
-						  [](int param_c, char **param_v, long *result) {
-							  if (state_m.status == Idle)
-							  {
-								  state_m.start_homing();
-								  return true;
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
-	protocol.addDoCommand("Move",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 1)
-							  {
-								  long t = atoi(param_v[0]);
-								  if (t >= 0 && t < 5000)
-								  {
-									  state_m.start_moveto(t);
-									  return true;
-								  }
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status > BarBotStatus_t::Error)
-							  {
-								  (*error_code) = state_m.status;
-								  state_m.reset_error();
-								  return CommandStatus_t::Error;
-							  }
-							  else if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else
-								  return CommandStatus_t::Running;
-						  });
+	protocol.addDoCommand(
+		"Delay",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long t = atoi(param_v[0]);
+				if (t > 0 && t < 5000)
+				{
+					state_m.start_delay(t);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Draft",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 2)
+			{
+				long i = atoi(param_v[0]);
+				long w = atoi(param_v[1]);
+				if (i >= 0 && i < DRAFT_PORTS_COUNT && w > 0 && w < 400)
+				{
+					state_m.start_draft(i, w);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = state_m.get_last_draft_remaining_weight();
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Crush",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long w = atoi(param_v[0]);
+				if (w > 0 && w < 400)
+				{
+					state_m.start_crushing(w);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = state_m.get_last_draft_remaining_weight();
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Mix",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long d = atol(param_v[0]);
+				if (d > 0)
+				{
+					state_m.start_mixing(min(d, 255l));
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = 0; //error code sensefull??
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Clean",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 2)
+			{
+				long index = atoi(param_v[0]);
+				long time = atoi(param_v[1]);
+				if (index >= 0 && index < DRAFT_PORTS_COUNT && time > 100 && time <= 10000)
+				{
+					state_m.start_clean(index, time);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Straw",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 0)
+			{
+				state_m.start_dispense_straw();
+				return true;
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = 0; //error code sensefull??
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Home",
+		[](int param_c, char **param_v, long *result) {
+			if (state_m.status == Idle)
+			{
+				state_m.start_homing();
+				return true;
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Move",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long t = atoi(param_v[0]);
+				if (t >= 0 && t < 5000)
+				{
+					state_m.start_moveto(t);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
 	//PlatformLED needs to be sent via I2C in the main loop, so it must be a "Do" command
-	protocol.addDoCommand("PlatformLED",
-						  [](int param_c, char **param_v, long *result) {
-							  if (param_c == 1)
-							  {
-								  long a = atoi(param_v[0]);
-								  if (a >= 0 && a < 10)
-								  {
-									  state_m.start_setBalanceLED(a);
-									  return true;
-								  }
-							  }
-							  return false;
-						  },
-						  [](int *error_code, long *parameter) {
-							  if (state_m.status == BarBotStatus_t::Idle)
-								  return CommandStatus_t::Done;
-							  else if (state_m.status == BarBotStatus_t::SetBalanceLED)
-								  return CommandStatus_t::Running;
-							  else
-							  {
-								  (*error_code) = state_m.status;
-								  return CommandStatus_t::Error;
-							  }
-						  });
+	protocol.addDoCommand(
+		"PlatformLED",
+		[](int param_c, char **param_v, long *result) {
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a >= 0 && a < 10)
+				{
+					state_m.start_setBalanceLED(a);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter) {
+			if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else if (state_m.status == BarBotStatus_t::SetBalanceLED)
+				return CommandStatus_t::Running;
+			else
+			{
+				(*error_code) = state_m.status;
+				return CommandStatus_t::Error;
+			}
+		});
 	protocol.addSetCommand("SetSpeed",
 						   [](int param_c, char **param_v, long *result) {
 							   if (param_c == 1)

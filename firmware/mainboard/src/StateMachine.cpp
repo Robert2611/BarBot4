@@ -1,10 +1,11 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, MCP23X17 *_mcp, BluetoothSerial *_bt)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, CrusherBoard *_crusher, MCP23X17 *_mcp, BluetoothSerial *_bt)
 {
 	this->balance = _balance;
 	this->mixer = _mixer;
 	this->straw_board = _straw_board;
+	this->crusher = _crusher;
 	this->mcp = _mcp;
 	this->bt = _bt;
 	startup = true;
@@ -112,6 +113,7 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::MoveToDraft:
+	case BarBotStatus_t::MoveToCrusher:
 		if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			//draft position is reached
@@ -124,13 +126,21 @@ void StateMachine::update()
 				{
 					draft_timeout_last_check_millis = millis();
 					draft_timeout_last_weight = balance->getWeight();
-					start_pump(pump_index, (pump_power_percent * 1024) / 100);
-					set_status(BarBotStatus_t::Drafting);
+					if (status == BarBotStatus_t::MoveToDraft)
+					{
+						start_pump(pump_index, (pump_power_percent * 1024) / 100);
+						set_status(BarBotStatus_t::Drafting);
+					}
+					else if (status == BarBotStatus_t::MoveToCrusher)
+					{
+						if (crusher->StartCrushing())
+							set_status(BarBotStatus_t::CrushingIce);
+						else
+							set_status(BarBotStatus_t::ErrorI2C);
+					}
 				}
 				else
-				{
 					set_status(BarBotStatus_t::ErrorGlasRemoved);
-				}
 			}
 			else if (res == Balance_CommunicationError)
 				set_status(BarBotStatus_t::ErrorI2C);
@@ -138,12 +148,11 @@ void StateMachine::update()
 				set_status(BarBotStatus_t::ErrorCommunicationToBalance);
 		}
 		else
-		{
 			stepper->run();
-		}
 		break;
 
 	case BarBotStatus_t::Drafting:
+	case BarBotStatus_t::CrushingIce:
 	{
 		//new data avaiable?
 		BalanceUpdateResult_t res = balance->update();
@@ -153,16 +162,36 @@ void StateMachine::update()
 			if (balance->getWeight() > target_draft_weight)
 			{
 				//success
-				stop_pumps();
-				set_status(BarBotStatus_t::Idle);
+				if (status == BarBotStatus_t::Drafting)
+				{
+					stop_pumps();
+					set_status(BarBotStatus_t::Idle);
+				}
+				else if (status == BarBotStatus_t::CrushingIce)
+				{
+					if (crusher->StopCrushing())
+						set_status(BarBotStatus_t::Idle);
+					else
+						set_status(BarBotStatus_t::ErrorI2C);
+				}
 			}
 			else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS)
 			{
 				if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT)
 				{
 					//error
-					stop_pumps();
-					set_status(BarBotStatus_t::ErrorIngredientEmpty);
+					if (status == BarBotStatus_t::Drafting)
+					{
+						stop_pumps();
+						set_status(BarBotStatus_t::ErrorIngredientEmpty);
+					}
+					else if (status == BarBotStatus_t::CrushingIce)
+					{
+						if (crusher->StopCrushing())
+							set_status(BarBotStatus_t::ErrorIngredientEmpty);
+						else
+							set_status(BarBotStatus_t::ErrorI2C);
+					}
 				}
 				else
 				{
@@ -359,15 +388,25 @@ void StateMachine::start_homing()
 	set_status(BarBotStatus_t::HomingRough);
 }
 
-void StateMachine::start_draft(int _pump_index, float target_weight)
+void StateMachine::start_draft(int _pump_index, float draft_weight)
 {
 	pump_index = _pump_index;
 	weight_before_draft = balance->getWeight();
-	target_draft_weight = weight_before_draft + target_weight;
+	target_draft_weight = weight_before_draft + draft_weight;
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
 
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::MoveToDraft);
+}
+
+void StateMachine::start_crushing(float ice_weight)
+{
+	weight_before_draft = balance->getWeight();
+	target_draft_weight = weight_before_draft + ice_weight;
+	set_target_position(CRUSHER_POSITION);
+
+	//status has to be set last to avoid multi core problems
+	set_status(BarBotStatus_t::MoveToCrusher);
 }
 
 void StateMachine::start_mixing(long seconds)
