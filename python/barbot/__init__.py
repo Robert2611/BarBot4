@@ -38,6 +38,8 @@ class UserMessages(Enum):
     ask_for_straw = auto()
     straws_empty = auto()
     cleaning_adapter = auto()
+    ask_for_ice = auto()
+    ice_empty = auto()
 
 
 class RecipeItem(object):
@@ -91,11 +93,13 @@ class StateMachine(threading.Thread):
     balance_offset = 0
     cleaning_time = 1000
     mixing_time = 2000
+    ice_amount = 100
     weight_timeout = 0.5
     _get_weight_at_next_idle = False
     demo = False
     protocol: barbot.communication.Protocol = None
-    use_straw = False
+    add_straw = False
+    add_ice = False
     current_recipe: barbot.Recipe = None
     current_recipe_item: RecipeItem = None
     pumps_to_clean = []
@@ -231,6 +235,14 @@ class StateMachine(threading.Thread):
                 return
         self.protocol.try_do("PlatformLED", 3)
         self._set_message(None)
+        # ask for ice
+        self._set_message(UserMessages.ask_for_ice)
+        self._user_input = None
+        self.protocol.try_do("PlatformLED", 4)
+        if not self._wait_for_user_input():
+            return
+        self._set_message(None)
+        self.add_ice = self._user_input
         # ask for straw
         self._set_message(UserMessages.ask_for_straw)
         self._user_input = None
@@ -238,7 +250,7 @@ class StateMachine(threading.Thread):
         if not self._wait_for_user_input():
             return
         self._set_message(None)
-        self.use_straw = self._user_input
+        self.add_straw = self._user_input
         # wait a second before actually starting the mixing
         time.sleep(1)
 
@@ -253,9 +265,11 @@ class StateMachine(threading.Thread):
                 break
             recipe_item_index += 1
             self._set_mixing_progress(recipe_item_index / maxProgress)
+        if self.add_ice:
+            self._crush()
         self.protocol.try_do("Move", 0)
-        if self.use_straw:
-            # ask for straw until it works or user aborts
+        if self.add_straw:
+            # try dispensing straw until it works or user aborts
             while not self.protocol.try_do("Straw"):
                 self._user_input = None
                 self._set_message(UserMessages.straws_empty)
@@ -284,6 +298,44 @@ class StateMachine(threading.Thread):
             self.protocol.try_do("Home")
         self.set_state(State.idle)
 
+    def _crush(self):
+        # try adding ice until it works or user aborts
+        ice_to_add = self.ice_amount
+        while True:
+            result = self.protocol.try_do("Crush", ice_to_add)
+            if result == True:
+                # crushing successfull
+                return
+            elif type(result) is list and len(result) >= 2:
+                error_code = int(result[0])
+                logging.error("Error while crushing ice: '%s'" % error_code)
+                if error_code == self.error_ingredient_empty:
+                    # ice is empty, save how much is left
+                    ice_to_add = int(result[1])
+                    self._set_message(UserMessages.ice_empty)
+                    self._user_input = None
+                    # wait for user input
+                    if not self._wait_for_user_input():
+                        return
+                    # remove the message
+                    self._set_message(None)
+                    if not self._user_input:
+                        return
+                    # repeat the loop
+
+                elif error_code == self.error_glas_removed:
+                    # TODO: Show message to user
+                    logging.info("Glas was removed while crushing")
+                    return False
+
+                # TODO: add handling of other errors
+
+            else:
+                # unhandled return value
+                logging.error(
+                    "Unhandled result while drafting: '%s'" % result)
+                return False
+
     def _draft_one(self, item: RecipeItem):
         if item.isMixingItem():
             self.protocol.try_do("Mix", self.mixing_time)
@@ -306,7 +358,7 @@ class StateMachine(threading.Thread):
                         self._user_input = None
                         # wait for user input
                         if not self._wait_for_user_input():
-                            return
+                            return False
                         # remove the message
                         self._set_message(None)
                         if not self._user_input:

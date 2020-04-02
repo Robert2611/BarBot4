@@ -66,8 +66,9 @@ class BusyView(barbotgui.View):
         buttons_container.setLayout(QtWidgets.QHBoxLayout())
         self._message.layout().addWidget(buttons_container)
 
-        def addButton(text, callback):
+        def addButton(text, result):
             button = QtWidgets.QPushButton(text)
+            def callback(): return self.bot.set_user_input(result)
             button.clicked.connect(callback)
             buttons_container.layout().addWidget(button)
 
@@ -76,10 +77,8 @@ class BusyView(barbotgui.View):
             message_string = message_string + "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
 
-            addButton("Cocktail abbrechen",
-                      lambda: self.bot.set_user_input(False))
-            addButton("Erneut versuchen",
-                      lambda: self.bot.set_user_input(True))
+            addButton("Cocktail abbrechen", False)
+            addButton("Erneut versuchen", True)
 
         elif self.bot.message == barbot.UserMessages.place_glas:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
@@ -102,26 +101,35 @@ class BusyView(barbotgui.View):
             message_label.setText(
                 "Möchtest du einen Strohhalm haben?")
 
-            addButton("Ja", lambda: self.bot.set_user_input(True))
-            addButton("Nein", lambda: self.bot.set_user_input(False))
+            addButton("Ja", True)
+            addButton("Nein", False)
+
+        elif self.bot.message == barbot.UserMessages.ask_for_ice:
+            message_label.setText(
+                "Möchtest du Eis in deinem Cocktail haben?")
+
+            addButton("Ja", True)
+            addButton("Nein", False)
 
         elif self.bot.message == barbot.UserMessages.straws_empty:
             message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
 
-            addButton("Egal",
-                      lambda: self.bot.set_user_input(False))
-            addButton("Erneut versuchen",
-                      lambda: self.bot.set_user_input(True))
+            addButton("Egal", False)
+            addButton("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.ice_empty:
+            message_label.setText("Eis konnte nicht hinzugefügt werden.")
+
+            addButton("Egal", False)
+            addButton("Erneut versuchen", True)
 
         elif self.bot.message == barbot.UserMessages.cleaning_adapter:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text = text + "Ist der Adapter angeschlossen?"
             message_label.setText(text)
 
-            addButton("Ja",
-                      lambda: self.bot.set_user_input(True))
-            addButton("Abbrechen",
-                      lambda: self.bot.set_user_input(False))
+            addButton("Ja", True)
+            addButton("Abbrechen", False)
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
