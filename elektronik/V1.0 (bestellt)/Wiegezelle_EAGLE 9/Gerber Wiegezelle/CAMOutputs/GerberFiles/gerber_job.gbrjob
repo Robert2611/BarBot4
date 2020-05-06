@@ -1,0 +1,24 @@
+{
+    "Header": {
+        "Comment": "All values are metric (mm)",
+        "CreationDate": "2019-12-04T00:29:54Z",
+        "GenerationSoftware": {
+            "Application": "EAGLE",
+            "Vendor": "Autodesk",
+            "Version": "9.5.2"
+        },
+        "Part": "Single"
+    },
+    "Overall": {
+        "BoardThickness": 1.57,
+        "LayerNumber": 2,
+        "Name": {
+            "ProjectId": "Wiegezelle"
+        },
+        "Owner": "Marinus Van Geenen <m.vangeenen@eltra.com>",
+        "Size": {
+            "X": 60,
+            "Y": 40
+        }
+    }
+}
