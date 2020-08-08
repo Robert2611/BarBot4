@@ -43,7 +43,7 @@ config.set("default", "balance_tare", str(-119.1))
 config.set("default", "balance_cal", str(-1040))
 config.set("default", "cleaning_time", str(3000))
 config.set("default", "mixing_time", str(3000))
-config.set("default", "ice_amount", int(100))
+config.set("default", "ice_amount", str(100))
 config_path = os.path.join(sys.path[0], '../bar_bot.cfg')
 # load config if it exists
 if os.path.isfile(config_path):
