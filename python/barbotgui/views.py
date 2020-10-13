@@ -592,6 +592,7 @@ class SingleIngredient(IdleView):
         item.calibration = port_cal["calibration"]
         item.name = port_cal["name"]
         item.amount = amount
+        item.ingredient_id = ingredient_id
         self.bot.start_single_ingredient(item)
         self.window.show_message("Zutat wird hinzugefügt")
         return
