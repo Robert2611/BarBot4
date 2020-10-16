@@ -50,7 +50,7 @@ if os.path.isfile(config_path):
     config.read(config_path)
 
 # search for barbot if no valid mac address is set
-if not is_demo and len(config.get("default", "mac_address").strip()) != 17:
+if not is_demo and barbotgui.is_raspberry() and len(config.get("default", "mac_address").strip()) != 17:
     res = barbot.communication.find_bar_bot()
     if res:
         config.set("default", "mac_address", res)
