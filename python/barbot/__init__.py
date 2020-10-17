@@ -6,6 +6,7 @@ import os
 import subprocess
 import sqlite3 as lite
 import logging
+import configparser
 
 from enum import Enum, auto
 
@@ -103,22 +104,104 @@ class StateMachine(threading.Thread):
     current_recipe: barbot.Recipe = None
     current_recipe_item: RecipeItem = None
     pumps_to_clean = []
+    admin_password = ""
+    port = ""
+    baudrate = 9600
 
-    def __init__(self, port, baudrate, demo=False):
+    def __init__(self, config_path, demo=False):
         threading.Thread.__init__(self)
         self.demo = demo
-        logging.debug("State machine started" +
-                      (" in demo mode" if demo else ""))
-        if not demo:
-            self.protocol = barbot.communication.Protocol(port, baudrate, 1)
-            self.set_state(State.connecting)
-        else:
-            self.set_state(State.idle)
+        self.config_path = config_path
+
+        # create default config
+        self.create_default_config()
+        # replace it with config from file if it exists
+        self.load_config()
+        # save it again to make sure there is config file at next start
+        self.save_config()
+
         # workaround for pylint, otherwise the functions are marked as not callable
         self.on_mixing_finished = lambda _: None
         self.on_mixing_progress_changed = lambda: None
         self.on_state_changed = lambda: None
         self.on_message_changed = lambda: None
+
+    def connect(self):
+        logging.debug("State machine started" +
+                      (" in demo mode" if self.demo else ""))
+        if not self.demo:
+            self.protocol = barbot.communication.Protocol(
+                self.port, self.baudrate, 1)
+            self.set_state(State.connecting)
+        else:
+            self.set_state(State.idle)
+
+    def save_config(self):
+        # safe file again
+        with open(self.config_path, 'w') as configfile:
+            self.config.write(configfile)
+
+    def load_config(self):
+        # load config if it exists
+        if os.path.isfile(self.config_path):
+            self.config.read(self.config_path)
+        self.apply_config()
+
+    def create_default_config(self):
+        # setup config with default values
+        self.config = configparser.ConfigParser()
+        self.config.add_section("default")
+        self.config.set("default", "mac_address", "")
+        self.config.set("default", "port", "/dev/rfcomm0")
+        self.config.set("default", "baud_rate", "9600")
+        self.config.set("default", "rainbow_duration", str(30 * 1000))
+        self.config.set("default", "max_speed", str(200))
+        self.config.set("default", "max_accel", str(300))
+        self.config.set("default", "max_cocktail_size", str(30))
+        self.config.set("default", "admin_password", "0000")
+        self.config.set("default", "pump_power", str(100))
+        self.config.set("default", "balance_tare", str(-119.1))
+        self.config.set("default", "balance_cal", str(-1040))
+        self.config.set("default", "cleaning_time", str(3000))
+        self.config.set("default", "mixing_time", str(3000))
+        self.config.set("default", "ice_amount", str(100))
+
+    def apply_config(self):
+        self.port = self.config.get("default", "port")
+        self.baud_rate = self.config.get("default", "baud_rate")
+        self.rainbow_duration = self.config.getint(
+            "default", "rainbow_duration")
+        self.max_speed = self.config.getint("default", "max_speed")
+        self.max_accel = self.config.getint("default", "max_accel")
+        self.pump_power = self.config.getint("default", "pump_power")
+        self.balance_offset = self.config.getfloat("default", "balance_tare")
+        self.balance_cal = self.config.getfloat("default", "balance_cal")
+        self.cleaning_time = self.config.getint("default", "cleaning_time")
+        self.mixing_time = self.config.getint("default", "mixing_time")
+        self.ice_amount = self.config.getint("default", "ice_amount")
+        self.admin_password = self.config.get("default", "admin_password")
+        self.mac_address = self.config.get("default", "mac_address")
+
+    def is_mac_address_valid(self):
+        return len(self.config.get("default", "mac_address").strip()) != 17
+
+    def find_bar_bot(self):
+        res = barbot.communication.find_bar_bot()
+        if res:
+            self.config.set("default", "mac_address", res)
+            self.save_config()
+            self.load_config()
+
+    def set_balance_calibration(self, offset, cal):
+        # change config
+        self.config.set("default", "balance_tare", str(offset))
+        self.config.set("default", "balance_cal", str(cal))
+        # write and reload config
+        self.save_config()
+        self.load_config()
+        # send new values to mainboard
+        self.protocol.try_set("SetBalanceOffset", int(self.balance_offset))
+        self.protocol.try_set("SetBalanceCalibration", int(self.balance_cal))
 
     # main loop, runs the whole time
     def run(self):
@@ -137,8 +220,8 @@ class StateMachine(threading.Thread):
                     p.try_set("SetSpeed", self.max_speed)
                     p.try_set("SetAccel", self.max_accel)
                     p.try_set("SetPumpPower", self.pump_power)
-                    p.try_set("SetBalanceCalibration", self.balance_cal)
-                    p.try_set("SetBalanceOffset", self.balance_offset)
+                    p.try_set("SetBalanceCalibration", int(self.balance_cal))
+                    p.try_set("SetBalanceOffset", int(self.balance_offset))
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
@@ -158,7 +241,7 @@ class StateMachine(threading.Thread):
                         self.set_state(State.connecting)
                     # get weight if flag is set
                     if self._get_weight_at_next_idle:
-                        self.weight = self.protocol.try_get("GetWeight")
+                        self.weight = float(self.protocol.try_get("GetWeight"))
                         self._get_weight_at_next_idle = False
                 else:
                     time.sleep(0.1)

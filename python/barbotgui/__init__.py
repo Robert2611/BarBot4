@@ -142,15 +142,12 @@ class MainWindow(QtWidgets.QMainWindow):
     _last_idle_view = None
     _keyboard: Keyboard = None
     is_admin = False
-    _admin_password = ""
-
     
-    def __init__(self, _db:barbot.Database, _bot:barbot.StateMachine, _admin_password):
+    def __init__(self, _db:barbot.Database, _bot:barbot.StateMachine):
         super().__init__()
         import barbotgui.views
         self.db = _db
         self.bot = _bot
-        self._admin_password = _admin_password
         self.recipe_filter = barbot.RecipeFilter()
 
         self.center = QtWidgets.QWidget()

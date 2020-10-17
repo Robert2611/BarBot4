@@ -746,7 +746,7 @@ class AdminLogin(IdleView):
         self._update()
 
     def check_password(self):
-        if self._entered_password == self.window._admin_password:
+        if self._entered_password == self.bot.admin_password:
             self.window.is_admin = True
             self.window.set_view(AdminOverview(self.window))
         self.clear_password()
@@ -773,6 +773,7 @@ class AdminOverview(IdleView):
             ["Reinigung", Cleaning],
             ["System", System],
             ["Löschen", RemoveRecipe],
+            ["Kalibrierung", BalanceCalibration],
         ]
         for text, _class in admin_navigation_items:
             button = QtWidgets.QPushButton(text)
@@ -802,7 +803,7 @@ class AdminOverview(IdleView):
                 button = QtWidgets.QPushButton(
                     barbotgui.qt_icon_from_file_name("calibrate.png"), "")
                 button.clicked.connect(
-                    lambda checked, portId=i: self._open_calibration(portId))
+                    lambda checked, portId=i: self._open_ingredient_calibration(portId))
                 table.layout().addWidget(button, i, 3, QtCore.Qt.AlignLeft)
 
         # weight label
@@ -818,8 +819,8 @@ class AdminOverview(IdleView):
         self._update_timer.timeout.connect(self._update_weight)
         self._update_timer.start(500)
 
-    def _open_calibration(self, id):
-        self.window.set_view(Calibration(self.window, id))
+    def _open_ingredient_calibration(self, id):
+        self.window.set_view(IngredientCalibration(self.window, id))
 
     def _update_weight(self):
         res = self.window.bot.get_weight()
@@ -883,19 +884,198 @@ class Ports(IdleView):
         self.db.update_ports(ports)
 
 
-class Calibration(IdleView):
+class IngredientCalibration(IdleView):
     def __init__(self, window: barbotgui.MainWindow, portId=-1):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
-        self._fixed_content.layout().addWidget(QtWidgets.QLabel("Kalibrierung"))
+        self._fixed_content.layout().addWidget(QtWidgets.QLabel("Zutat kalibrieren"))
 
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
         def btn_click(): return self.window.set_view(AdminOverview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
+
+
+class BalanceCalibration(IdleView):
+    _tare_and_calibrate = False
+    _entered_weight = 0
+
+    def __init__(self, window: barbotgui.MainWindow, portId=-1):
+        super().__init__(window)
+        self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
+
+        # title
+        title = QtWidgets.QLabel("Kalibrierung")
+        title.setProperty("class", "Headline")
+        self._fixed_content.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        self._fixed_content.layout().addWidget(title)
+
+        # back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        def btn_click(): return self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
+
+        # normal buttons to be shown in the beginning
+        self._add_calibration_buttons()
+
+        # dialog to remove glas
+        self._add_dialog_remove_glas()
+
+        # dialog to enter the weight on the platform
+        self._add_dialog_enter_weight()
+
+        self._show_calibration_buttons()
+
+        # dummy
+        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+
+    def _add_dialog_remove_glas(self):
+        self._dialog_remove_glas = QtWidgets.QWidget()
+        self._dialog_remove_glas.setLayout(QtWidgets.QGridLayout())
+        self._dialog_remove_glas.setVisible(False)
+        self._content.layout().addWidget(self._dialog_remove_glas, 1)
+
+        center_box = QtWidgets.QFrame()
+        center_box.setLayout(QtWidgets.QVBoxLayout())
+        self._dialog_remove_glas.layout().addWidget(
+            center_box, 0, 0, QtCore.Qt.AlignCenter)
+
+        label = QtWidgets.QLabel("Bitte alles von der Platform entfernen.")
+        center_box.layout().addWidget(label)
+
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        center_box.layout().addWidget(row)
+
+        ok_button = QtWidgets.QPushButton("OK")
+        ok_button.clicked.connect(lambda: self._tare())
+        row.layout().addWidget(ok_button)
+
+        cancel_button = QtWidgets.QPushButton("Abbrechen")
+        cancel_button.clicked.connect(lambda: self._show_calibration_buttons())
+        row.layout().addWidget(cancel_button)
+
+    def _add_dialog_enter_weight(self):
+        self._dialog_enter_weight = QtWidgets.QWidget()
+        self._dialog_enter_weight.setLayout(QtWidgets.QGridLayout())
+        self._dialog_enter_weight.setVisible(False)
+        self._content.layout().addWidget(self._dialog_enter_weight, 1)
+
+        center_box = QtWidgets.QFrame()
+        center_box.setLayout(QtWidgets.QVBoxLayout())
+        self._dialog_enter_weight.layout().addWidget(
+            center_box, 0, 0, QtCore.Qt.AlignCenter)
+
+        label = QtWidgets.QLabel(
+            "Bitte aktuelles Gewicht\nauf der Platorm angeben.")
+        center_box.layout().addWidget(label)
+
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        center_box.layout().addWidget(row)
+
+        # edit
+        self.weight_widget = QtWidgets.QLabel()
+        center_box.layout().addWidget(self.weight_widget)
+
+        # numpad
+        numpad = QtWidgets.QWidget()
+        numpad.setLayout(QtWidgets.QGridLayout())
+        for y in range(0, 3):
+            for x in range(0, 3):
+                num = y * 3 + x + 1
+                button = QtWidgets.QPushButton(str(num))
+                button.setProperty("class", "NumpadButton")
+                button.clicked.connect(
+                    lambda checked, value=num: self.numpad_button_clicked(value))
+                numpad.layout().addWidget(button, y, x)
+        # cancel
+        button = QtWidgets.QPushButton("Abbrechen")
+        button.setProperty("class", "NumpadButton")
+        button.clicked.connect(
+            lambda checked: self._show_calibration_buttons())
+        numpad.layout().addWidget(button, 3, 0)
+        # zero
+        button = QtWidgets.QPushButton("0")
+        button.setProperty("class", "NumpadButton")
+        button.clicked.connect(lambda checked: self.numpad_button_clicked(0))
+        numpad.layout().addWidget(button, 3, 1)
+        # enter
+        button = QtWidgets.QPushButton("OK")
+        button.setProperty("class", "NumpadButton")
+        button.clicked.connect(lambda checked: self._calibrate())
+        numpad.layout().addWidget(button, 3, 2)
+
+        center_box.layout().addWidget(numpad)
+
+    def _update_weight(self):
+        self.weight_widget.setText(str(self._entered_weight))
+
+    def numpad_button_clicked(self, value):
+        self._entered_weight = self._entered_weight * 10 + value
+        self._update_weight()
+
+    def _add_calibration_buttons(self):
+        self._calibration_buttons = QtWidgets.QWidget()
+        self._calibration_buttons.setLayout(QtWidgets.QGridLayout())
+        self._content.layout().addWidget(self._calibration_buttons, 1)
+
+        # Tare
+        button = QtWidgets.QPushButton("Tara")
+        button.clicked.connect(lambda: self._start_calibration(False))
+        self._calibration_buttons.layout().addWidget(button)
+
+        # Calibrate
+        button = QtWidgets.QPushButton("Kalibrieren")
+        button.clicked.connect(lambda: self._start_calibration(True))
+        self._calibration_buttons.layout().addWidget(button)
+
+    def _tare(self):
+        self.tare_weight = self.bot.get_weight()
+        self.new_offset = self.bot.balance_offset + \
+            self.tare_weight * self.bot.balance_cal
+        if self._tare_and_calibrate:
+            # continue with clibration
+            self._show_dialog_enter_weight()
+        else:
+            # tare only: set offset, keep calibration
+            self.bot.set_balance_calibration(
+                self.new_offset, self.bot.balance_cal)
+            self._show_calibration_buttons()
+
+    def _calibrate(self):
+        if self._entered_weight > 0:
+            self.balance_calibration = (self.bot.get_weight(
+            )-self.tare_weight) * self.bot.balance_cal/self._entered_weight
+            self.bot.set_balance_calibration(
+                self.new_offset, self.balance_calibration)
+        self._show_calibration_buttons()
+
+    def _start_calibration(self, tare_and_calibrate):
+        self._tare_and_calibrate = tare_and_calibrate
+        self._show_dialog_remove_glas()
+
+    def _show_dialog_remove_glas(self):
+        self._calibration_buttons.setVisible(False)
+        self._dialog_remove_glas.setVisible(True)
+        self._dialog_enter_weight.setVisible(False)
+
+    def _show_calibration_buttons(self):
+        self._dialog_remove_glas.setVisible(False)
+        self._calibration_buttons.setVisible(True)
+        self._dialog_enter_weight.setVisible(False)
+
+    def _show_dialog_enter_weight(self):
+        self._entered_weight = 0
+        self.update()
+        self._dialog_remove_glas.setVisible(False)
+        self._calibration_buttons.setVisible(False)
+        self._dialog_enter_weight.setVisible(True)
 
 
 class Cleaning(IdleView):
