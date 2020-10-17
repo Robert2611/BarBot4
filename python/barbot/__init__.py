@@ -90,7 +90,7 @@ class StateMachine(threading.Thread):
     max_accel = 100
     max_cocktail_size = 30
     pump_power = 100
-    balance_cal = 1
+    balance_calibration = 1
     balance_offset = 0
     cleaning_time = 1000
     mixing_time = 2000
@@ -160,8 +160,8 @@ class StateMachine(threading.Thread):
         self.config.set("default", "max_cocktail_size", str(30))
         self.config.set("default", "admin_password", "0000")
         self.config.set("default", "pump_power", str(100))
-        self.config.set("default", "balance_tare", str(-119.1))
-        self.config.set("default", "balance_cal", str(-1040))
+        self.config.set("default", "balance_offset", str(-119.1))
+        self.config.set("default", "balance_calibration", str(-1040))
         self.config.set("default", "cleaning_time", str(3000))
         self.config.set("default", "mixing_time", str(3000))
         self.config.set("default", "ice_amount", str(100))
@@ -174,8 +174,9 @@ class StateMachine(threading.Thread):
         self.max_speed = self.config.getint("default", "max_speed")
         self.max_accel = self.config.getint("default", "max_accel")
         self.pump_power = self.config.getint("default", "pump_power")
-        self.balance_offset = self.config.getfloat("default", "balance_tare")
-        self.balance_cal = self.config.getfloat("default", "balance_cal")
+        self.balance_offset = self.config.getfloat("default", "balance_offset")
+        self.balance_calibration = self.config.getfloat(
+            "default", "balance_calibration")
         self.cleaning_time = self.config.getint("default", "cleaning_time")
         self.mixing_time = self.config.getint("default", "mixing_time")
         self.ice_amount = self.config.getint("default", "ice_amount")
@@ -194,14 +195,15 @@ class StateMachine(threading.Thread):
 
     def set_balance_calibration(self, offset, cal):
         # change config
-        self.config.set("default", "balance_tare", str(offset))
-        self.config.set("default", "balance_cal", str(cal))
+        self.config.set("default", "balance_offset", str(offset))
+        self.config.set("default", "balance_calibration", str(cal))
         # write and reload config
         self.save_config()
         self.load_config()
         # send new values to mainboard
         self.protocol.try_set("SetBalanceOffset", int(self.balance_offset))
-        self.protocol.try_set("SetBalanceCalibration", int(self.balance_cal))
+        self.protocol.try_set("SetBalanceCalibration",
+                              int(self.balance_calibration))
 
     # main loop, runs the whole time
     def run(self):
@@ -220,7 +222,8 @@ class StateMachine(threading.Thread):
                     p.try_set("SetSpeed", self.max_speed)
                     p.try_set("SetAccel", self.max_accel)
                     p.try_set("SetPumpPower", self.pump_power)
-                    p.try_set("SetBalanceCalibration", int(self.balance_cal))
+                    p.try_set("SetBalanceCalibration",
+                              int(self.balance_calibration))
                     p.try_set("SetBalanceOffset", int(self.balance_offset))
                     self.set_state(State.idle)
             elif self.state == State.mixing:

@@ -1038,20 +1038,20 @@ class BalanceCalibration(IdleView):
     def _tare(self):
         self.tare_weight = self.bot.get_weight()
         self.new_offset = self.bot.balance_offset + \
-            self.tare_weight * self.bot.balance_cal
+            self.tare_weight * self.bot.balance_calibration
         if self._tare_and_calibrate:
             # continue with clibration
             self._show_dialog_enter_weight()
         else:
             # tare only: set offset, keep calibration
             self.bot.set_balance_calibration(
-                self.new_offset, self.bot.balance_cal)
+                self.new_offset, self.bot.balance_calibration)
             self._show_calibration_buttons()
 
     def _calibrate(self):
         if self._entered_weight > 0:
             self.balance_calibration = (self.bot.get_weight(
-            )-self.tare_weight) * self.bot.balance_cal/self._entered_weight
+            )-self.tare_weight) * self.bot.balance_calibration/self._entered_weight
             self.bot.set_balance_calibration(
                 self.new_offset, self.balance_calibration)
         self._show_calibration_buttons()
