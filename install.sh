@@ -43,5 +43,4 @@ else
 fi
 sudo apt-get install python3-pyqt5 -y
 pip3 install -r "$PYTHON_FOLDER/requirements.txt"
-python3 -m pip install qdarkstyle
 #nano /home/pi/.cache/lxsession/LXDE-pi/run.log

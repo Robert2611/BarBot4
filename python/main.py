@@ -34,8 +34,10 @@ bot.on_mixing_finished = lambda rid: db.close_order(rid)
 if not is_demo and barbotgui.is_raspberry():
     # search for barbot if no valid mac address is set
     if bot.is_mac_address_valid():
+        logging.info("Search for BarBot4")
         bot.find_bar_bot()
     # connect bluetooth device
+    logging.info("Call rfcomm connect")
     barbot.run_command("sudo rfcomm connect hci0 {}&".format(bot.mac_address))
 
 bot.connect()

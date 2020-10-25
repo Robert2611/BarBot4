@@ -247,7 +247,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self._admin_button_active = False
 
     def header_clicked(self, e):
-        print(self._admin_button_active)
         if not self._admin_button_active:
             self._admin_button_active = True
             # reset the admin button after one second
