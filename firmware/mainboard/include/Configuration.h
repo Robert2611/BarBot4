@@ -4,10 +4,12 @@
 #define PUMP_POWER_FREQUENCY 10000
 #define PLATFORM_MOTOR_HOMING_SPEED 10000
 
-#define HOME_DISTANCE 90
+//Distance of platform center to left corner when homed
+#define HOME_DISTANCE 97
 #define PUMP_DISTANCE 50
-#define FIRST_PUMP_POSITION 145 - HOME_DISTANCE
-#define MIXING_POSITION 665
+//subtract home distance, so you can set distances from the left corner
+#define FIRST_PUMP_POSITION 165 - HOME_DISTANCE
+#define MIXING_POSITION 780 - HOME_DISTANCE
 #define CRUSHER_POSITION 800
 #define PLATFORM_MOTOR_MAXPOS_MM CRUSHER_POSITION
 
