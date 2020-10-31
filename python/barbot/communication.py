@@ -3,6 +3,8 @@ from enum import Enum, auto
 import logging
 import serial
 import sys
+import bluetooth
+from bluetooth.btcommon import BluetoothError
 
 
 def find_bar_bot():
@@ -35,9 +37,10 @@ class ProtocolMessage():
 
 
 class Protocol():
-    ser: serial.Serial = None
+    conn: bluetooth.BluetoothSocket = None
     error = None
     is_connected = False
+    buffer: str = ""
 
     def __init__(self, port, baud, timeout):
         self.baud = baud
@@ -46,25 +49,25 @@ class Protocol():
 
     def clear_input(self):
         # clear the input
-        while self.has_data():
-            self.read_message()
+        self.read_message()
         # if an arror accured, return false
         return self.is_connected
 
-    def connect(self):
-        if self.ser is not None and self.ser.isOpen():
-            self.ser.close()
+    def connect(self, mac_address: str):
+        if self.conn is not None:
+            self.conn.close()
         try:
-            self.ser = serial.Serial(
-                self.devicename, self.baud, timeout=self.timeout)
+            self.conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+            self.conn.connect((mac_address, 1))
+            self.conn.settimeout(self.timeout)
             # wait for Arduino to initialize
             time.sleep(1)
-            while self.ser.in_waiting:
-                self.ser.read()
+            self.clear_input()
             self.is_connected = True
-            logging.info("connection to %s successfull" % (self.devicename))
-        except Exception:
-            logging.warn("connection to %s failed" % (self.devicename))
+            logging.info("connection successfull")
+        except Exception as e:
+            print(e)
+            logging.warn("connection failed %s" % (type(e)))
             return False
         return True
 
@@ -145,43 +148,6 @@ class Protocol():
             return None
         return None
 
-    def read_message(self) -> ProtocolMessage:
-        if self.ser == None or not self.ser.isOpen():
-            self.is_connected = False
-            return ProtocolMessage(MessageTypes.COMM_ERROR, "port not open")
-        try:
-            b_line = bytes()
-            while True:
-                c = self.ser.read()
-                if c == b'\n':
-                    break
-                elif c == b'':
-                    logging.warn("Read returned empty byte")
-                    self.is_connected = False
-                    return ProtocolMessage(MessageTypes.COMM_ERROR, "end of string")
-                else:
-                    b_line += c
-            line = b_line.decode('utf-8')
-            line = line.replace("\n", "")
-            line = line.replace("\r", "")
-            logging.debug("<" + line)
-            tokens = line.split()
-            # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
-            # find message type
-            for type in MessageTypes:
-                if type.name == tokens[0]:
-                    if len(tokens) < 2:
-                        return ProtocolMessage(MessageTypes.COMM_ERROR, "wrong format")
-                    elif len(tokens) == 2:
-                        return ProtocolMessage(type, tokens[1])
-                    else:
-                        return ProtocolMessage(type, tokens[1], tokens[2:])
-            return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
-        except Exception as e:
-            self.is_connected = False
-            logging.exception("Read failed")
-            return ProtocolMessage(MessageTypes.COMM_ERROR, e)
-
     def try_get(self, command, parameters=None):
         for _ in range(3):
             res = self._send_get(command, parameters)
@@ -211,32 +177,54 @@ class Protocol():
             cmd = cmd + "\r"
             logging.debug(">" + cmd)
             try:
-                if self.ser.write(cmd.encode()) > 0:
-                    return True
+                self.conn.send(cmd.encode())
+                return True
             except Exception:
                 logging.exception("Send command failed")
         return False
 
     def close(self):
-        if self.ser is not None:
-            self.ser.close()
+        if self.conn is not None:
+            self.conn.close()
 
-    def has_data(self):
-        if self.ser == None or not self.ser.isOpen():
+    def _read_existing(self):
+        data = b''
+        # make sure to read everything there is
+        while True:
+            data = self.conn.recv(1024)
+            if len(data) < 1024:
+                break
+        return data.decode('utf-8')
+
+    def read_message(self) -> ProtocolMessage:
+        if self.conn == None:
             self.is_connected = False
-            return False
+            return ProtocolMessage(MessageTypes.COMM_ERROR, "port not open")
         try:
-            res = self.ser.in_waiting > 0
-            return res
-        except Exception:
-            logging.exception("Receiving data count failed")
-        return False
-
-    def update(self):
-        if not self.is_connected:
-            return False
-        if self.ser == None or not self.ser.isOpen():
+            line = ""
+            # make sure we have a full line
+            while True:
+                line += self._read_existing()
+                if "\n" in line:
+                    break
+            # if there is more then one message, only take the last one
+            while line.count("\n") > 1:
+                line = line[line.index("\n")+1:]
+            line = line.replace("\n", "").replace("\r", "")
+            logging.debug("<" + line)
+            tokens = line.split()
+            # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
+            # find message type
+            for msg_type in MessageTypes:
+                if msg_type.name == tokens[0]:
+                    if len(tokens) < 2:
+                        return ProtocolMessage(MessageTypes.COMM_ERROR, "wrong format")
+                    elif len(tokens) == 2:
+                        return ProtocolMessage(msg_type, tokens[1])
+                    else:
+                        return ProtocolMessage(msg_type, tokens[1], tokens[2:])
+            return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
+        except Exception as e:
             self.is_connected = False
-            return False
-        self.read_message()
-        return self.has_data()
+            logging.exception("Read failed")
+            return ProtocolMessage(MessageTypes.COMM_ERROR, e)

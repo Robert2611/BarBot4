@@ -209,7 +209,7 @@ class StateMachine(threading.Thread):
     def run(self):
         while not self.abort:
             if self.state == State.connecting:
-                if self.protocol.connect():
+                if self.protocol.connect(self.mac_address):
                     self.set_state(State.startup)
                 else:
                     time.sleep(1)
@@ -237,9 +237,7 @@ class StateMachine(threading.Thread):
                 self.go_to_idle()
             else:
                 if not self.demo:
-                    # update as long as there is data to be read
-                    while self.protocol.update():
-                        pass
+                    self.protocol.read_message()
                     if not self.protocol.is_connected:
                         self.set_state(State.connecting)
                     # get weight if flag is set

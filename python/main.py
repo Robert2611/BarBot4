@@ -13,6 +13,7 @@ import configparser
 logging.basicConfig(
     filename=os.path.join(sys.path[0], '../bar_bot.log'),
     filemode='a',
+
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -36,9 +37,6 @@ if not is_demo and barbotgui.is_raspberry():
     if bot.is_mac_address_valid():
         logging.info("Search for BarBot4")
         bot.find_bar_bot()
-    # connect bluetooth device
-    logging.info("Call rfcomm connect")
-    barbot.run_command("sudo rfcomm connect hci0 {}&".format(bot.mac_address))
 
 bot.connect()
 bot.start()
