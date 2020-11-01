@@ -42,10 +42,8 @@ class Protocol():
     is_connected = False
     buffer: str = ""
 
-    def __init__(self, port, baud, timeout):
-        self.baud = baud
-        self.devicename = port
-        self.timeout = timeout
+    def __init__(self):
+        pass
 
     def clear_input(self):
         # clear the input
@@ -53,20 +51,19 @@ class Protocol():
         # if an arror accured, return false
         return self.is_connected
 
-    def connect(self, mac_address: str):
+    def connect(self, mac_address: str, timeout):
         if self.conn is not None:
             self.conn.close()
         try:
             self.conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
             self.conn.connect((mac_address, 1))
-            self.conn.settimeout(self.timeout)
+            self.conn.settimeout(timeout)
             # wait for Arduino to initialize
             time.sleep(1)
             self.clear_input()
             self.is_connected = True
             logging.info("connection successfull")
         except Exception as e:
-            print(e)
             logging.warn("connection failed %s" % (type(e)))
             return False
         return True

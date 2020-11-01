@@ -31,14 +31,6 @@ db.clear_order()
 config_path = os.path.join(sys.path[0], '../bar_bot.cfg')
 bot = barbot.StateMachine(config_path, is_demo)
 bot.on_mixing_finished = lambda rid: db.close_order(rid)
-
-if not is_demo and barbotgui.is_raspberry():
-    # search for barbot if no valid mac address is set
-    if bot.is_mac_address_valid():
-        logging.info("Search for BarBot4")
-        bot.find_bar_bot()
-
-bot.connect()
 bot.start()
 
 # show gui and join the threads

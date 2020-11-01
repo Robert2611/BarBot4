@@ -171,7 +171,9 @@ class BusyView(barbotgui.View):
         elif self.bot.state == barbot.State.cleaning:
             self._title_label.setText("Reinigung")
         elif self.bot.state == barbot.State.connecting:
-            self._title_label.setText("Verbinde...")
+            self._title_label.setText("Stelle Verbindung her")
+        elif self.bot.state == barbot.State.searching:
+            self._title_label.setText("Suche nach BarBots in der Nähe")
         elif self.bot.state == barbot.State.cleaning_cycle:
             self._title_label.setText("Reinigung (Zyklus)")
         elif self.bot.state == barbot.State.single_ingredient:

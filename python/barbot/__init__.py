@@ -24,6 +24,7 @@ def run_command(cmd_str, cmd_str2=None):
 
 class State(Enum):
     connecting = auto()
+    searching = auto()
     startup = auto()
     idle = auto()
     mixing = auto()
@@ -105,8 +106,7 @@ class StateMachine(threading.Thread):
     current_recipe_item: RecipeItem = None
     pumps_to_clean = []
     admin_password = ""
-    port = ""
-    baudrate = 9600
+    bt_timeout = 1
 
     def __init__(self, config_path, demo=False):
         threading.Thread.__init__(self)
@@ -126,12 +126,8 @@ class StateMachine(threading.Thread):
         self.on_state_changed = lambda: None
         self.on_message_changed = lambda: None
 
-    def connect(self):
-        logging.debug("State machine started" +
-                      (" in demo mode" if self.demo else ""))
         if not self.demo:
-            self.protocol = barbot.communication.Protocol(
-                self.port, self.baudrate, 1)
+            self.protocol = barbot.communication.Protocol()
             self.set_state(State.connecting)
         else:
             self.set_state(State.idle)
@@ -184,14 +180,7 @@ class StateMachine(threading.Thread):
         self.mac_address = self.config.get("default", "mac_address")
 
     def is_mac_address_valid(self):
-        return len(self.config.get("default", "mac_address").strip()) != 17
-
-    def find_bar_bot(self):
-        res = barbot.communication.find_bar_bot()
-        if res:
-            self.config.set("default", "mac_address", res)
-            self.save_config()
-            self.load_config()
+        return len(self.mac_address.strip()) == 17
 
     def set_balance_calibration(self, offset, cal):
         # change config
@@ -207,12 +196,27 @@ class StateMachine(threading.Thread):
 
     # main loop, runs the whole time
     def run(self):
+        logging.debug("State machine started" +
+                      (" in demo mode" if self.demo else ""))
         while not self.abort:
-            if self.state == State.connecting:
-                if self.protocol.connect(self.mac_address):
-                    self.set_state(State.startup)
+            if self.state == State.searching:
+                logging.info("Search for BarBot4")
+                res = barbot.communication.find_bar_bot()
+                if res:
+                    self.config.set("default", "mac_address", res)
+                    self.save_config()
+                    self.load_config()
+                    self.set_state(State.connecting)
+                # else:
+                #    self.set_state(State.searching)
+            elif self.state == State.connecting:
+                if not self.is_mac_address_valid():
+                    self.set_state(State.searching)
                 else:
-                    time.sleep(1)
+                    if self.protocol.connect(self.mac_address, self.bt_timeout):
+                        self.set_state(State.startup)
+                    else:
+                        time.sleep(1)
             elif self.state == State.startup:
                 if not self.protocol.is_connected:
                     self.set_state(State.connecting)
