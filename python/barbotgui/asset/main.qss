@@ -17,6 +17,11 @@ QCheckBox{
     border: none;
 }
 
+QCheckBox::indicator{    
+    width:30px;
+    height:30px;
+}
+
 QPushButton{
     background: rgba(0,0,0,5%);
     border-radius: 5px;

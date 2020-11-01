@@ -331,7 +331,7 @@ class ListRecipes(IdleView):
             fillings = []
             for item in recipe.items:
                 if item.port != 12:
-                    relative = item.amount / self.bot.max_cocktail_size
+                    relative = item.amount / self.bot.config.max_cocktail_size
                     filling = barbotgui.GlasFilling(item.color, relative, )
                     fillings.append(filling)
             indicator = barbotgui.GlasIndicator(fillings)
@@ -480,7 +480,7 @@ class RecipeNewOrEdit(IdleView):
     def _update_table(self):
         # cocktail size
         size = self._get_cocktail_size()
-        max_size = self.window.bot.max_cocktail_size
+        max_size = self.window.bot.config.max_cocktail_size
         label = self._filling_label
         label.setText("%i von %i cl" % (size, max_size))
         if size > max_size:
@@ -748,7 +748,7 @@ class AdminLogin(IdleView):
         self._update()
 
     def check_password(self):
-        if self._entered_password == self.bot.admin_password:
+        if self._entered_password == self.bot.config.admin_password:
             self.window.is_admin = True
             self.window.set_view(AdminOverview(self.window))
         self.clear_password()
@@ -1039,8 +1039,8 @@ class BalanceCalibration(IdleView):
 
     def _tare(self):
         self.tare_weight = self.bot.get_weight()
-        self.new_offset = self.bot.balance_offset + \
-            self.tare_weight * self.bot.balance_calibration
+        self.new_offset = self.bot.config.balance_offset + \
+            self.tare_weight * self.bot.config.balance_calibration
         if self._tare_and_calibrate:
             # continue with clibration
             self._show_dialog_enter_weight()
@@ -1053,8 +1053,8 @@ class BalanceCalibration(IdleView):
     def _calibrate(self):
         if self._entered_weight > 0:
             self.balance_calibration = (self.bot.get_weight(
-            )-self.tare_weight) * self.bot.balance_calibration/self._entered_weight
-            self.bot.set_balance_calibration(
+            )-self.tare_weight) * self.bot.config.balance_calibration/self._entered_weight
+            self.bot.config.set_balance_calibration(
                 self.new_offset, self.balance_calibration)
         self._show_calibration_buttons()
 

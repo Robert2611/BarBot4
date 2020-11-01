@@ -73,6 +73,77 @@ class Recipe(object):
         self.items = []
 
 
+class BarBotConfig(object):
+    def __init__(self, filename):
+        self.filename = filename
+        # always create default config first to make sure all fields exist
+        self._create()
+        # now load or create config file from default
+        if os.path.isfile(self.filename):
+            self.config.read(self.filename)
+        else:
+            self.save()
+        # write file content to fields of object
+        self.apply()
+
+    def _create(self):
+        # setup config with default values
+        self.config = configparser.ConfigParser()
+        self.config.add_section("default")
+        self.set_value("mac_address", "")
+        self.set_value("rainbow_duration", 30 * 1000)
+        self.set_value("max_speed", 200)
+        self.set_value("max_accel", 300)
+        self.set_value("max_cocktail_size", 30)
+        self.set_value("admin_password", "0000")
+        self.set_value("pump_power", 100)
+        self.set_value("balance_offset", -119.1)
+        self.set_value("balance_calibration", -1040)
+        self.set_value("cleaning_time", 3000)
+        self.set_value("mixing_time", 3000)
+        self.set_value("ice_amount", 100)
+
+    def apply(self):
+        self.mac_address = self.get_str("mac_address")
+        self.rainbow_duration = self.get_int("rainbow_duration")
+        self.max_speed = self.get_int("max_speed")
+        self.max_accel = self.get_int("max_accel")
+        self.max_cocktail_size = self.get_int("max_cocktail_size")
+        self.admin_password = self.get_str("admin_password")
+        self.pump_power = self.get_int("pump_power")
+        self.balance_offset = self.get_float("balance_offset")
+        self.balance_calibration = self.get_float("balance_calibration")
+        self.cleaning_time = self.get_int("cleaning_time")
+        self.mixing_time = self.get_int("mixing_time")
+        self.ice_amount = self.get_int("ice_amount")
+
+    def set_value(self, name: str, value):
+        self.config.set("default", name, str(value))
+
+    def get_str(self, name):
+        return self.config.get("default", name)
+
+    def get_int(self, name):
+        return self.config.getint("default", name)
+
+    def get_float(self, name):
+        return self.config.getfloat("default", name)
+
+    def save(self):
+        # safe file again
+        with open(self.filename, 'w') as configfile:
+            self.config.write(configfile)
+
+    def load(self):
+        # load config if it exists
+        if os.path.isfile(self.filename):
+            self.config.read(self.filename)
+            self.apply()
+            return True
+        else:
+            return False
+
+
 class StateMachine(threading.Thread):
     on_mixing_finished = None
     on_mixing_progress_changed = None
@@ -82,20 +153,11 @@ class StateMachine(threading.Thread):
     error_ingredient_empty = 33
     error_straws_empty = 36
     error_glas_removed = 37
+
     progress = None
     abort = False
     message: UserMessages = None
     _user_input = None
-    rainbow_duration = 10
-    max_speed = 100
-    max_accel = 100
-    max_cocktail_size = 30
-    pump_power = 100
-    balance_calibration = 1
-    balance_offset = 0
-    cleaning_time = 1000
-    mixing_time = 2000
-    ice_amount = 100
     weight_timeout = 0.5
     _get_weight_at_next_idle = False
     demo = False
@@ -105,20 +167,13 @@ class StateMachine(threading.Thread):
     current_recipe: barbot.Recipe = None
     current_recipe_item: RecipeItem = None
     pumps_to_clean = []
-    admin_password = ""
     bt_timeout = 1
 
     def __init__(self, config_path, demo=False):
         threading.Thread.__init__(self)
         self.demo = demo
-        self.config_path = config_path
 
-        # create default config
-        self.create_default_config()
-        # replace it with config from file if it exists
-        self.load_config()
-        # save it again to make sure there is config file at next start
-        self.save_config()
+        self.config = BarBotConfig(config_path)
 
         # workaround for pylint, otherwise the functions are marked as not callable
         self.on_mixing_finished = lambda _: None
@@ -132,67 +187,21 @@ class StateMachine(threading.Thread):
         else:
             self.set_state(State.idle)
 
-    def save_config(self):
-        # safe file again
-        with open(self.config_path, 'w') as configfile:
-            self.config.write(configfile)
-
-    def load_config(self):
-        # load config if it exists
-        if os.path.isfile(self.config_path):
-            self.config.read(self.config_path)
-        self.apply_config()
-
-    def create_default_config(self):
-        # setup config with default values
-        self.config = configparser.ConfigParser()
-        self.config.add_section("default")
-        self.config.set("default", "mac_address", "")
-        self.config.set("default", "port", "/dev/rfcomm0")
-        self.config.set("default", "baud_rate", "9600")
-        self.config.set("default", "rainbow_duration", str(30 * 1000))
-        self.config.set("default", "max_speed", str(200))
-        self.config.set("default", "max_accel", str(300))
-        self.config.set("default", "max_cocktail_size", str(30))
-        self.config.set("default", "admin_password", "0000")
-        self.config.set("default", "pump_power", str(100))
-        self.config.set("default", "balance_offset", str(-119.1))
-        self.config.set("default", "balance_calibration", str(-1040))
-        self.config.set("default", "cleaning_time", str(3000))
-        self.config.set("default", "mixing_time", str(3000))
-        self.config.set("default", "ice_amount", str(100))
-
-    def apply_config(self):
-        self.port = self.config.get("default", "port")
-        self.baud_rate = self.config.get("default", "baud_rate")
-        self.rainbow_duration = self.config.getint(
-            "default", "rainbow_duration")
-        self.max_speed = self.config.getint("default", "max_speed")
-        self.max_accel = self.config.getint("default", "max_accel")
-        self.pump_power = self.config.getint("default", "pump_power")
-        self.balance_offset = self.config.getfloat("default", "balance_offset")
-        self.balance_calibration = self.config.getfloat(
-            "default", "balance_calibration")
-        self.cleaning_time = self.config.getint("default", "cleaning_time")
-        self.mixing_time = self.config.getint("default", "mixing_time")
-        self.ice_amount = self.config.getint("default", "ice_amount")
-        self.admin_password = self.config.get("default", "admin_password")
-        self.mac_address = self.config.get("default", "mac_address")
-
     def is_mac_address_valid(self):
-        return len(self.mac_address.strip()) == 17
+        return len(self.config.mac_address.strip()) == 17
 
     def set_balance_calibration(self, offset, cal):
         # change config
-        self.config.set("default", "balance_offset", str(offset))
-        self.config.set("default", "balance_calibration", str(cal))
+        self.config.set_value("balance_offset", offset)
+        self.config.set_value("balance_calibration", cal)
         # write and reload config
-        self.save_config()
-        self.load_config()
+        self.config.save()
+        self.config.load()
         # send new values to mainboard
-        self.protocol.try_set("SetBalanceOffset", int(self.balance_offset))
+        self.protocol.try_set("SetBalanceOffset",
+                              int(self.config.balance_offset))
         self.protocol.try_set("SetBalanceCalibration",
-                              int(self.balance_calibration))
+                              int(self.config.balance_calibration))
 
     # main loop, runs the whole time
     def run(self):
@@ -203,9 +212,9 @@ class StateMachine(threading.Thread):
                 logging.info("Search for BarBot4")
                 res = barbot.communication.find_bar_bot()
                 if res:
-                    self.config.set("default", "mac_address", res)
-                    self.save_config()
-                    self.load_config()
+                    self.config.set_value("mac_address", res)
+                    self.config.save()
+                    self.config.load()
                     self.set_state(State.connecting)
                 # else:
                 #    self.set_state(State.searching)
@@ -213,7 +222,7 @@ class StateMachine(threading.Thread):
                 if not self.is_mac_address_valid():
                     self.set_state(State.searching)
                 else:
-                    if self.protocol.connect(self.mac_address, self.bt_timeout):
+                    if self.protocol.connect(self.config.mac_address, self.bt_timeout):
                         self.set_state(State.startup)
                     else:
                         time.sleep(1)
@@ -223,12 +232,13 @@ class StateMachine(threading.Thread):
                 elif self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
                     p = self.protocol
                     p.try_set("SetLED", 3)
-                    p.try_set("SetSpeed", self.max_speed)
-                    p.try_set("SetAccel", self.max_accel)
-                    p.try_set("SetPumpPower", self.pump_power)
+                    p.try_set("SetSpeed", self.config.max_speed)
+                    p.try_set("SetAccel", self.config.max_accel)
+                    p.try_set("SetPumpPower", self.config.pump_power)
                     p.try_set("SetBalanceCalibration",
-                              int(self.balance_calibration))
-                    p.try_set("SetBalanceOffset", int(self.balance_offset))
+                              int(self.config.balance_calibration))
+                    p.try_set("SetBalanceOffset", int(
+                        self.config.balance_offset))
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
@@ -388,7 +398,7 @@ class StateMachine(threading.Thread):
 
     def _crush(self):
         # try adding ice until it works or user aborts
-        ice_to_add = self.ice_amount
+        ice_to_add = self.config.ice_amount
         while True:
             result = self.protocol.try_do("Crush", ice_to_add)
             if result == True:
@@ -426,7 +436,7 @@ class StateMachine(threading.Thread):
 
     def _draft_one(self, item: RecipeItem):
         if item.isMixingItem():
-            self.protocol.try_do("Mix", self.mixing_time)
+            self.protocol.try_do("Mix", self.config.mixing_time)
             return True
         else:
             while True:
@@ -477,7 +487,8 @@ class StateMachine(threading.Thread):
             time.sleep(2)
             return
         for pump_index in self.pumps_to_clean:
-            self.protocol.try_do("Clean", pump_index, self.cleaning_time)
+            self.protocol.try_do("Clean", pump_index,
+                                 self.config.cleaning_time)
 
     def _do_cleaning(self):
         if self.demo:
