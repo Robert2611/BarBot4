@@ -1,3 +1,4 @@
 *.code-workspace
 *.log
 *.cfg
+.idea

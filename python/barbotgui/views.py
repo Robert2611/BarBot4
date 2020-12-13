@@ -66,7 +66,7 @@ class BusyView(barbotgui.View):
         buttons_container.setLayout(QtWidgets.QHBoxLayout())
         self._message.layout().addWidget(buttons_container)
 
-        def addButton(text, result):
+        def add_button(text, result):
             button = QtWidgets.QPushButton(text)
             def callback(): return self.bot.set_user_input(result)
             button.clicked.connect(callback)
@@ -77,8 +77,8 @@ class BusyView(barbotgui.View):
             message_string = message_string + "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
 
-            addButton("Cocktail abbrechen", False)
-            addButton("Erneut versuchen", True)
+            add_button("Cocktail abbrechen", False)
+            add_button("Erneut versuchen", True)
 
         elif self.bot.message == barbot.UserMessages.place_glas:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
@@ -101,35 +101,35 @@ class BusyView(barbotgui.View):
             message_label.setText(
                 "Möchtest du einen Strohhalm haben?")
 
-            addButton("Ja", True)
-            addButton("Nein", False)
+            add_button("Ja", True)
+            add_button("Nein", False)
 
         elif self.bot.message == barbot.UserMessages.ask_for_ice:
             message_label.setText(
                 "Möchtest du Eis in deinem Cocktail haben?")
 
-            addButton("Ja", True)
-            addButton("Nein", False)
+            add_button("Ja", True)
+            add_button("Nein", False)
 
         elif self.bot.message == barbot.UserMessages.straws_empty:
             message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
 
-            addButton("Egal", False)
-            addButton("Erneut versuchen", True)
+            add_button("Egal", False)
+            add_button("Erneut versuchen", True)
 
         elif self.bot.message == barbot.UserMessages.ice_empty:
             message_label.setText("Eis konnte nicht hinzugefügt werden.")
 
-            addButton("Egal", False)
-            addButton("Erneut versuchen", True)
+            add_button("Egal", False)
+            add_button("Erneut versuchen", True)
 
         elif self.bot.message == barbot.UserMessages.cleaning_adapter:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text = text + "Ist der Adapter angeschlossen?"
             message_label.setText(text)
 
-            addButton("Ja", True)
-            addButton("Abbrechen", False)
+            add_button("Ja", True)
+            add_button("Abbrechen", False)
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
@@ -317,8 +317,8 @@ class ListRecipes(IdleView):
             item: barbot.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item.port == 12:
-                    label.setText("%i s %s" % (item.amount, item.name))
+                if item.isMixingItem():
+                    label.setText("-%s-" % (item.name))
                 else:
                     label.setText("%i cl %s" % (item.amount, item.name))
                 recipe_items_container.layout().addWidget(label)
@@ -330,7 +330,7 @@ class ListRecipes(IdleView):
 
             fillings = []
             for item in recipe.items:
-                if item.port != 12:
+                if not item.isMixingItem():
                     relative = item.amount / self.bot.config.max_cocktail_size
                     filling = barbotgui.GlasFilling(item.color, relative, )
                     fillings.append(filling)
@@ -501,7 +501,7 @@ class RecipeNewOrEdit(IdleView):
         if name == None or name == "":
             self.window.show_message("Bitte einen Namen eingeben")
             return
-        if self._get_cocktail_size() > self.window.bot.max_cocktail_size:
+        if self._get_cocktail_size() > self.window.bot.config.max_cocktail_size:
             self.window.show_message("Dein Cocktail ist zu groß.")
             return
         instruction = self._instruction_widget.text()
@@ -701,6 +701,7 @@ class AdminLogin(IdleView):
         # edit
         self.password_widget = QtWidgets.QLabel()
         self.password_widget.setProperty("class", "PasswordBox")
+        self.password_widget.setText(" ")
         self._content.layout().addWidget(self.password_widget)
 
         # numpad
