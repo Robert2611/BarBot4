@@ -4,8 +4,10 @@
 #include "WireProtocol.h"
 
 #define PIN_EN 3
-#define PIN_R_PWM 5
-#define PIN_L_PWM 6
+#define PIN_MOTOR_A 4
+#define PIN_MOTOR_B 5
+#define PIN_PWM 6
+#define PIN_SENSE A6
 #define PIN_LED 13
 
 #define CRUSHING_MAX_TIME 5000
@@ -96,23 +98,69 @@ void stopChrushing()
 
 void setup()
 {
+  Serial.begin(115200);
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif
-  pinMode(PIN_EN, OUTPUT);
-  pinMode(PIN_R_PWM, OUTPUT);
-  pinMode(PIN_L_PWM, OUTPUT);
+  pinMode(PIN_EN, INPUT);
+  pinMode(PIN_MOTOR_A, OUTPUT);
+  pinMode(PIN_MOTOR_B, OUTPUT);
+  pinMode(PIN_PWM, OUTPUT);
+  pinMode(PIN_SENSE, INPUT);
   initWire();
 #ifdef SERIAL_DEBUG
   Serial.println("Crusher board initialised");
 #endif
-  digitalWrite(PIN_EN, LOW);
-  digitalWrite(PIN_R_PWM, LOW);
-  digitalWrite(PIN_L_PWM, HIGH);
+  digitalWrite(PIN_MOTOR_A, LOW);
+  digitalWrite(PIN_MOTOR_B, LOW);
+  digitalWrite(PIN_PWM, LOW);
+  digitalWrite(PIN_MOTOR_A, HIGH);
+  analogWrite(PIN_PWM, 255);
 }
 
 void loop()
 {
+  // if (Serial.available())
+  // {
+  //   String input = Serial.readString();
+  //   String command = input.substring(0, 1);
+  //   command.toLowerCase();
+  //   String parameter;
+
+  //   if (input.length() > 2)
+  //   {
+  //     parameter = input.substring(2);
+  //   }
+
+  //   if (command == "a")
+  //   {
+  //     Serial.print("A->");
+  //     Serial.println(parameter.toInt());
+  //     digitalWrite(PIN_MOTOR_A, parameter.toInt() ? HIGH : LOW);
+  //   }
+  //   else if (command == "b")
+  //   {
+  //     Serial.print("B->");
+  //     Serial.println(parameter.toInt());
+  //     digitalWrite(PIN_MOTOR_B, parameter.toInt() ? HIGH : LOW);
+  //   }
+  //   else if (command == "p")
+  //   {
+  //     Serial.print("PWM->");
+  //     Serial.println(parameter.toInt());
+  //     analogWrite(PIN_PWM, parameter.toInt());
+  //   }
+  //   else if (command == "e")
+  //   {
+  //     Serial.print("ENABLED->");
+  //     Serial.println(digitalRead(PIN_EN));
+  //   }
+  //   else if (command == "c")
+  //   {
+  //     Serial.print("Current->");
+  //     Serial.println(analogRead(PIN_SENSE));
+  //   }
+  // }
   //timeout
   if (crushing && millis() - crushing_start_time > CRUSHING_MAX_TIME)
   {
