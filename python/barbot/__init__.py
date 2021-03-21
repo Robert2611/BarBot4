@@ -31,6 +31,7 @@ class State(Enum):
     cleaning = auto()
     cleaning_cycle = auto()
     single_ingredient = auto()
+    crushing = auto()
 
 
 class UserMessages(Enum):
@@ -248,6 +249,9 @@ class StateMachine(threading.Thread):
                 self.go_to_idle()
             elif self.state == State.single_ingredient:
                 self._do_single_ingredient()
+                self.go_to_idle()
+            elif self.state == State.crushing:
+                self._crush()
                 self.go_to_idle()
             else:
                 if not self.demo:
@@ -520,6 +524,9 @@ class StateMachine(threading.Thread):
     def start_single_ingredient(self, recipe_item: RecipeItem):
         self.current_recipe_item = recipe_item
         self.set_state(State.single_ingredient)
+
+    def start_crushing(self):
+        self.set_state(State.crushing)
 
     def start_cleaning(self, port):
         self.pumps_to_clean = [port]

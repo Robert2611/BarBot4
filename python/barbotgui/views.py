@@ -180,6 +180,8 @@ class BusyView(barbotgui.View):
             self._title_label.setText("Dein Nachschlag wird hinzugefügt")
         elif self.bot.state == barbot.State.startup:
             self._title_label.setText("Starte BarBot, bitte warten")
+        elif self.bot.state == barbot.State.crushing:
+            self._title_label.setText("Eis wird hinzugefügt")
         else:
             self._title_label.setText("Unknown status: %s" % self.bot.state)
 
@@ -536,6 +538,8 @@ class RecipeNewOrEdit(IdleView):
 
 
 class SingleIngredient(IdleView):
+    _ice_index = -2
+
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -559,9 +563,12 @@ class SingleIngredient(IdleView):
         # ingredient selector
         self._ingredient_widget = self.window.combobox_ingredients(
             only_available=True)
+        self._ingredient_widget.addItem("Eis", self._ice_index)
+        self._ingredient_widget.currentIndexChanged.connect(
+            lambda: self._update_visiblility())
         row.layout().addWidget(self._ingredient_widget)
 
-        # ingredient selector
+        # amount selector
         self._amount_widget = self.window.combobox_amounts()
         row.layout().addWidget(self._amount_widget)
 
@@ -574,6 +581,8 @@ class SingleIngredient(IdleView):
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
+        self._update_visiblility()
+
     def _start(self):
         if self.bot.is_busy():
             self.window.show_message(
@@ -581,23 +590,33 @@ class SingleIngredient(IdleView):
             return
         ingredient_id = self._ingredient_widget.currentData()
         amount = self._amount_widget.currentData()
-        if ingredient_id < 0 or amount < 0:
+        item = barbot.RecipeItem()
+        if (ingredient_id > 0 and amount > 0) or (ingredient_id == barbot.ingredient_id_mixing):
+            port_cal = self.db.port_and_calibration(ingredient_id)
+            if port_cal == None:
+                self.window.show_message("Diese Zutat ist nicht anschlossen")
+                return
+            item.port = port_cal["port"]
+            item.calibration = port_cal["calibration"]
+            item.name = port_cal["name"]
+            item.amount = amount
+            item.ingredient_id = ingredient_id
+            self.bot.start_single_ingredient(item)
+            self.window.show_message("Zutat wird hinzugefügt")
+        elif ingredient_id == self._ice_index:
+            self.bot.start_crushing()
+            self.window.show_message("Eis wird hinzugefügt")
+        else:
             self.window.show_message(
                 "Bitte eine Zutat und\neine Menge auswählen")
-            return
-        port_cal = self.db.port_and_calibration(ingredient_id)
-        if port_cal == None:
-            self.window.show_message("Diese Zutat ist nicht anschlossen")
-            return
-        item = barbot.RecipeItem()
-        item.port = port_cal["port"]
-        item.calibration = port_cal["calibration"]
-        item.name = port_cal["name"]
-        item.amount = amount
-        item.ingredient_id = ingredient_id
-        self.bot.start_single_ingredient(item)
-        self.window.show_message("Zutat wird hinzugefügt")
-        return
+
+    def _update_visiblility(self):
+        ingredient = int(self._ingredient_widget.currentData())
+        should_be_visible = ingredient > 0 and ingredient != barbot.ingredient_id_mixing and ingredient != self._ice_index
+        self._amount_widget.setVisible(should_be_visible)
+        # force redraw
+        self._amount_widget.style().unpolish(self._amount_widget)
+        self._amount_widget.style().polish(self._amount_widget)
 
 
 class Statistics(IdleView):
