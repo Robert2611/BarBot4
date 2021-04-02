@@ -3,6 +3,7 @@ import barbotgui
 import barbotgui.plot
 import barbot
 import os
+from enum import Enum, auto
 
 
 class BusyView(barbotgui.View):
@@ -319,7 +320,7 @@ class ListRecipes(IdleView):
             item: barbot.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item.isMixingItem():
+                if item.isStirringItem():
                     label.setText("-%s-" % (item.name))
                 else:
                     label.setText("%i cl %s" % (item.amount, item.name))
@@ -332,7 +333,7 @@ class ListRecipes(IdleView):
 
             fillings = []
             for item in recipe.items:
-                if not item.isMixingItem():
+                if not item.isStirringItem():
                     relative = item.amount / self.bot.config.max_cocktail_size
                     filling = barbotgui.GlasFilling(item.color, relative, )
                     fillings.append(filling)
@@ -440,7 +441,7 @@ class RecipeNewOrEdit(IdleView):
             amount_widget = self.window.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(
                 lambda: self._update_table())
-            if(i >= len(self._recipe.items) or self._recipe.items[i].isMixingItem()):
+            if(i >= len(self._recipe.items) or self._recipe.items[i].isStirringItem()):
                 amount_widget.setVisible(False)
             ingredients_container.layout().addWidget(amount_widget, i, 1)
 
@@ -470,8 +471,8 @@ class RecipeNewOrEdit(IdleView):
         for ingredient_widget, amount_widget in self._ingredient_widgets:
             ingredient = int(ingredient_widget.currentData())
             amount = int(amount_widget.currentData())
-            # ignore the mixing when accumulating size
-            if ingredient >= 0 and ingredient != barbot.ingredient_id_mixing and amount >= 0:
+            # ignore the stirring when accumulating size
+            if ingredient >= 0 and ingredient != barbot.ingredient_id_stirring and amount >= 0:
                 size = size + amount
         return size
 
@@ -493,7 +494,7 @@ class RecipeNewOrEdit(IdleView):
         # visibility
         for ingredient_widget, amount_widget in self._ingredient_widgets:
             ingredient = int(ingredient_widget.currentData())
-            should_be_visible = ingredient > 0 and ingredient != barbot.ingredient_id_mixing
+            should_be_visible = ingredient > 0 and ingredient != barbot.ingredient_id_stirring
             if(amount_widget.isVisible() != should_be_visible):
                 amount_widget.setVisible(should_be_visible)
 
@@ -512,10 +513,10 @@ class RecipeNewOrEdit(IdleView):
         for ingredient_widget, amount_widget in self._ingredient_widgets:
             ingredient_id = int(ingredient_widget.currentData())
             amount = int(amount_widget.currentData())
-            if ingredient_id >= 0 and (amount >= 0 or ingredient_id == barbot.ingredient_id_mixing):
+            if ingredient_id >= 0 and (amount >= 0 or ingredient_id == barbot.ingredient_id_stirring):
                 item = barbot.RecipeItem()
                 item.ingredient_id = ingredient_id
-                if ingredient_id == barbot.ingredient_id_mixing:
+                if ingredient_id == barbot.ingredient_id_stirring:
                     item.amount = 2000
                 else:
                     item.amount = amount
@@ -540,6 +541,12 @@ class RecipeNewOrEdit(IdleView):
 class SingleIngredient(IdleView):
     _ice_index = -2
 
+    class ActionType(Enum):
+        ingredient = auto()
+        stir = auto()
+        straw = auto()
+        ice = auto()
+
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -562,61 +569,88 @@ class SingleIngredient(IdleView):
 
         # ingredient selector
         self._ingredient_widget = self.window.combobox_ingredients(
-            only_available=True)
-        self._ingredient_widget.addItem("Eis", self._ice_index)
-        self._ingredient_widget.currentIndexChanged.connect(
-            lambda: self._update_visiblility())
+            only_available=True, special_ingredients=False)
         row.layout().addWidget(self._ingredient_widget)
 
         # amount selector
         self._amount_widget = self.window.combobox_amounts()
         row.layout().addWidget(self._amount_widget)
 
-        # button
-        button = QtWidgets.QPushButton("Los")
-        button.clicked.connect(lambda: self._start())
-        self._content.layout().addWidget(button)
-        self._content.layout().setAlignment(button, QtCore.Qt.AlignCenter)
+        # start button
+        start_button = QtWidgets.QPushButton("Los")
+        start_button.clicked.connect(
+            lambda: self._start(self.ActionType.ingredient))
+        row.layout().addWidget(start_button)
+
+        if self.bot.config.straw_dispenser_connected:
+            # straw button
+            icon = barbotgui.qt_icon_from_file_name("straw.png")
+            straw_button = QtWidgets.QPushButton(icon, "")
+            straw_button.setProperty("class", "IconButton")
+            straw_button.clicked.connect(
+                lambda: self._start(self.ActionType.straw))
+            self._content.layout().addWidget(straw_button)
+            self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
+
+        if self.bot.config.stirrer_connected:
+            # stir button
+            icon = barbotgui.qt_icon_from_file_name("stir.png")
+            stir_button = QtWidgets.QPushButton(icon, "")
+            stir_button.setProperty("class", "IconButton")
+            stir_button.clicked.connect(
+                lambda: self._start(self.ActionType.stir))
+            self._content.layout().addWidget(stir_button)
+            self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignCenter)
+
+        if self.bot.config.ice_crusher_connected:
+            # ice button
+            icon = barbotgui.qt_icon_from_file_name("ice.png")
+            ice_button = QtWidgets.QPushButton(icon, "")
+            ice_button.setProperty("class", "IconButton")
+            ice_button.clicked.connect(
+                lambda: self._start(self.ActionType.ice))
+            self._content.layout().addWidget(ice_button)
+            self._content.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
 
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
-        self._update_visiblility()
-
-    def _start(self):
+    def _start(self, action_type):
         if self.bot.is_busy():
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
-        ingredient_id = self._ingredient_widget.currentData()
-        amount = self._amount_widget.currentData()
-        item = barbot.RecipeItem()
-        if (ingredient_id > 0 and amount > 0) or (ingredient_id == barbot.ingredient_id_mixing):
-            port_cal = self.db.port_and_calibration(ingredient_id)
-            if port_cal == None:
-                self.window.show_message("Diese Zutat ist nicht anschlossen")
-                return
-            item.port = port_cal["port"]
-            item.calibration = port_cal["calibration"]
-            item.name = port_cal["name"]
-            item.amount = amount
-            item.ingredient_id = ingredient_id
+        if action_type == self.ActionType.ingredient:
+            ingredient_id = self._ingredient_widget.currentData()
+            amount = self._amount_widget.currentData()
+            item = barbot.RecipeItem()
+            if ingredient_id >= 0 and amount > 0:
+                port_cal = self.db.port_and_calibration(ingredient_id)
+                if port_cal == None:
+                    self.window.show_message(
+                        "Diese Zutat ist nicht anschlossen")
+                    return
+                item.port = port_cal["port"]
+                item.calibration = port_cal["calibration"]
+                item.name = port_cal["name"]
+                item.amount = amount
+                item.ingredient_id = ingredient_id
+                self.bot.start_single_ingredient(item)
+                self.window.show_message("Zutat wird hinzugefügt")
+            else:
+                self.window.show_message(
+                    "Bitte eine Zutat und\neine Menge auswählen")
+        elif action_type == self.ActionType.stir and self.bot.config.stirrer_connected:
+            item = barbot.RecipeItem()
+            item.ingredient_id = barbot.ingredient_id_stirring
             self.bot.start_single_ingredient(item)
-            self.window.show_message("Zutat wird hinzugefügt")
-        elif ingredient_id == self._ice_index:
+            self.window.show_message("Cocktail wird gerührt")
+        elif action_type == self.ActionType.ice and self.bot.config.ice_crusher_connected:
             self.bot.start_crushing()
             self.window.show_message("Eis wird hinzugefügt")
-        else:
-            self.window.show_message(
-                "Bitte eine Zutat und\neine Menge auswählen")
-
-    def _update_visiblility(self):
-        ingredient = int(self._ingredient_widget.currentData())
-        should_be_visible = ingredient > 0 and ingredient != barbot.ingredient_id_mixing and ingredient != self._ice_index
-        self._amount_widget.setVisible(should_be_visible)
-        # force redraw
-        self._amount_widget.style().unpolish(self._amount_widget)
-        self._amount_widget.style().polish(self._amount_widget)
+        elif action_type == self.ActionType.straw and self.bot.config.straw_dispenser_connected:
+            self.bot.start_straw()
+            self.window.show_message("Strohhalm wird hinzugefügt")
 
 
 class Statistics(IdleView):

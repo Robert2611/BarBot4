@@ -10,7 +10,7 @@ import configparser
 
 from enum import Enum, auto
 
-ingredient_id_mixing = 255
+ingredient_id_stirring = 255
 
 
 def run_command(cmd_str, cmd_str2=None):
@@ -32,6 +32,8 @@ class State(Enum):
     cleaning_cycle = auto()
     single_ingredient = auto()
     crushing = auto()
+    straw = auto()
+    stirring = auto()
 
 
 class UserMessages(Enum):
@@ -55,8 +57,8 @@ class RecipeItem(object):
     available = False
     color = "#00000000"
 
-    def isMixingItem(self):
-        return self.ingredient_id == ingredient_id_mixing
+    def isStirringItem(self):
+        return self.ingredient_id == ingredient_id_stirring
 
 
 class Recipe(object):
@@ -82,53 +84,63 @@ class BarBotConfig(object):
         # now load or create config file from default
         if os.path.isfile(self.filename):
             self.config.read(self.filename)
-        else:
-            self.save()
         # write file content to fields of object
         self.apply()
+        # write file again to make sure also new attributes are saved
+        self.save()
 
     def _create(self):
         # setup config with default values
         self.config = configparser.ConfigParser()
         self.config.add_section("default")
-        self.set_value("mac_address", "")
-        self.set_value("rainbow_duration", 30 * 1000)
-        self.set_value("max_speed", 200)
-        self.set_value("max_accel", 300)
-        self.set_value("max_cocktail_size", 30)
-        self.set_value("admin_password", "0000")
-        self.set_value("pump_power", 100)
-        self.set_value("balance_offset", -119.1)
-        self.set_value("balance_calibration", -1040)
-        self.set_value("cleaning_time", 3000)
-        self.set_value("mixing_time", 3000)
-        self.set_value("ice_amount", 100)
+        self.__set_value("mac_address", "")
+        self.__set_value("rainbow_duration", 30 * 1000)
+        self.__set_value("max_speed", 200)
+        self.__set_value("max_accel", 300)
+        self.__set_value("max_cocktail_size", 30)
+        self.__set_value("admin_password", "0000")
+        self.__set_value("pump_power", 100)
+        self.__set_value("balance_offset", -119.1)
+        self.__set_value("balance_calibration", -1040)
+        self.__set_value("cleaning_time", 3000)
+        self.__set_value("stirrer_connected", True)
+        self.__set_value("stirring_time", 3000)
+        self.__set_value("ice_crusher_connected", False)
+        self.__set_value("ice_amount", 100)
+        self.__set_value("straw_dispenser_connected", False)
 
     def apply(self):
-        self.mac_address = self.get_str("mac_address")
-        self.rainbow_duration = self.get_int("rainbow_duration")
-        self.max_speed = self.get_int("max_speed")
-        self.max_accel = self.get_int("max_accel")
-        self.max_cocktail_size = self.get_int("max_cocktail_size")
-        self.admin_password = self.get_str("admin_password")
-        self.pump_power = self.get_int("pump_power")
-        self.balance_offset = self.get_float("balance_offset")
-        self.balance_calibration = self.get_float("balance_calibration")
-        self.cleaning_time = self.get_int("cleaning_time")
-        self.mixing_time = self.get_int("mixing_time")
-        self.ice_amount = self.get_int("ice_amount")
+        self.mac_address = self.__get_str("mac_address")
+        self.rainbow_duration = self.__get_int("rainbow_duration")
+        self.max_speed = self.__get_int("max_speed")
+        self.max_accel = self.__get_int("max_accel")
+        self.max_cocktail_size = self.__get_int("max_cocktail_size")
+        self.admin_password = self.__get_str("admin_password")
+        self.pump_power = self.__get_int("pump_power")
+        self.balance_offset = self.__get_float("balance_offset")
+        self.balance_calibration = self.__get_float("balance_calibration")
+        self.cleaning_time = self.__get_int("cleaning_time")
+        self.stirrer_connected = self.__get_bool("stirrer_connected")
+        self.stirring_time = self.__get_int("stirring_time")
+        self.ice_crusher_connected = self.__get_bool("ice_crusher_connected")
+        self.ice_amount = self.__get_int("ice_amount")
+        self.straw_dispenser_connected = self.__get_bool(
+            "straw_dispenser_connected")
 
-    def set_value(self, name: str, value):
+    def __set_value(self, name: str, value):
         self.config.set("default", name, str(value))
 
-    def get_str(self, name):
+    def __get_str(self, name):
         return self.config.get("default", name)
 
-    def get_int(self, name):
+    def __get_int(self, name):
         return self.config.getint("default", name)
 
-    def get_float(self, name):
+    def __get_float(self, name):
         return self.config.getfloat("default", name)
+
+    def __get_bool(self, name):
+        return self.config.getboolean("default", name)
 
     def save(self):
         # safe file again
@@ -193,8 +205,8 @@ class StateMachine(threading.Thread):
 
     def set_balance_calibration(self, offset, cal):
         # change config
-        self.config.set_value("balance_offset", offset)
-        self.config.set_value("balance_calibration", cal)
+        self.config.__set_value("balance_offset", offset)
+        self.config.__set_value("balance_calibration", cal)
         # write and reload config
         self.config.save()
         self.config.load()
@@ -213,7 +225,7 @@ class StateMachine(threading.Thread):
                 logging.info("Search for BarBot4")
                 res = barbot.communication.find_bar_bot()
                 if res:
-                    self.config.set_value("mac_address", res)
+                    self.config.__set_value("mac_address", res)
                     self.config.save()
                     self.config.load()
                     self.set_state(State.connecting)
@@ -251,7 +263,10 @@ class StateMachine(threading.Thread):
                 self._do_single_ingredient()
                 self.go_to_idle()
             elif self.state == State.crushing:
-                self._crush()
+                self._do_crushing()
+                self.go_to_idle()
+            elif self.state == State.straw:
+                self._do_straw()
                 self.go_to_idle()
             else:
                 if not self.demo:
@@ -338,21 +353,27 @@ class StateMachine(threading.Thread):
         self.protocol.try_do("PlatformLED", 3)
         self._set_message(None)
         # ask for ice
-        self._set_message(UserMessages.ask_for_ice)
-        self._user_input = None
-        self.protocol.try_do("PlatformLED", 4)
-        if not self._wait_for_user_input():
-            return
-        self._set_message(None)
-        self.add_ice = self._user_input
-        # ask for straw
-        self._set_message(UserMessages.ask_for_straw)
-        self._user_input = None
-        self.protocol.try_do("PlatformLED", 4)
-        if not self._wait_for_user_input():
-            return
-        self._set_message(None)
-        self.add_straw = self._user_input
+        if self.config.ice_crusher_connected:
+            self._set_message(UserMessages.ask_for_ice)
+            self._user_input = None
+            self.protocol.try_do("PlatformLED", 4)
+            if not self._wait_for_user_input():
+                return
+            self._set_message(None)
+            self.add_ice = self._user_input
+        else:
+            self.add_ice = False
+        # ask for straw if module is connected
+        if self.config.straw_dispenser_connected:
+            self._set_message(UserMessages.ask_for_straw)
+            self._user_input = None
+            self.protocol.try_do("PlatformLED", 4)
+            if not self._wait_for_user_input():
+                return
+            self._set_message(None)
+            self.add_straw = self._user_input
+        else:
+            self.add_straw = False
         # wait a second before actually starting the mixing
         time.sleep(1)
 
@@ -368,18 +389,10 @@ class StateMachine(threading.Thread):
             recipe_item_index += 1
             self._set_mixing_progress(recipe_item_index / maxProgress)
         if self.add_ice:
-            self._crush()
+            self._do_crushing()
         self.protocol.try_do("Move", 0)
         if self.add_straw:
-            # try dispensing straw until it works or user aborts
-            while not self.protocol.try_do("Straw"):
-                self._user_input = None
-                self._set_message(UserMessages.straws_empty)
-                if not self._wait_for_user_input():
-                    return
-                self._set_message(None)
-                if self._user_input == False:
-                    break
+            self._do_straw()
         self._set_message(UserMessages.mixing_done_remove_glas)
         self.protocol.try_do("PlatformLED", 2)
         self.protocol.try_set("SetLED", 4)
@@ -400,7 +413,7 @@ class StateMachine(threading.Thread):
             self.protocol.try_do("Home")
         self.set_state(State.idle)
 
-    def _crush(self):
+    def _do_crushing(self):
         # try adding ice until it works or user aborts
         ice_to_add = self.config.ice_amount
         while True:
@@ -439,8 +452,8 @@ class StateMachine(threading.Thread):
                 return False
 
     def _draft_one(self, item: RecipeItem):
-        if item.isMixingItem():
-            self.protocol.try_do("Mix", self.config.mixing_time)
+        if item.isStirringItem():
+            self.protocol.try_do("Mix", self.config.stirring_time)
             return True
         else:
             while True:
@@ -515,6 +528,17 @@ class StateMachine(threading.Thread):
         self._set_message(None)
         self._draft_one(self.current_recipe_item)
 
+    def _do_straw(self):
+        # try dispensing straw until it works or user aborts
+        while not self.protocol.try_do("Straw"):
+            self._user_input = None
+            self._set_message(UserMessages.straws_empty)
+            if not self._wait_for_user_input():
+                return
+            self._set_message(None)
+            if self._user_input == False:
+                break
+
     # start commands
 
     def start_mixing(self, recipe: barbot.Recipe):
@@ -535,6 +559,9 @@ class StateMachine(threading.Thread):
     def start_cleaning_cycle(self, _pumps_to_clean):
         self.pumps_to_clean = _pumps_to_clean
         self.set_state(State.cleaning_cycle)
+
+    def start_straw(self):
+        self.set_state(State.straw)
 
     def get_weight(self):
         if self.state != State.idle:
@@ -617,7 +644,7 @@ class Database(object):
             return None
         return dict(res)
 
-    def list_ingredients(self, only_available=False):
+    def list_ingredients(self, only_available=False, special_ingredients=True):
         self.open()
         sql = """
 			SELECT i.id, i.name, i.type, i.calibration, p.id as port, i.color
@@ -626,7 +653,11 @@ class Database(object):
 			ON p.ingredient_id = i.id
 		"""
         if only_available:
-            sql = sql + "WHERE i.id in (SELECT ingredient_id FROM ports)"
+            sql += "WHERE i.id in (SELECT ingredient_id FROM ports)"
+        if not special_ingredients:
+            sql += " AND " if only_available else "WHERE "
+            sql += "i.type<>'special'"
+
         self.cursor.execute(sql)
         res = dict()
         for ingredient in self.cursor.fetchall():

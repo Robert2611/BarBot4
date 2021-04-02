@@ -330,8 +330,9 @@ class MainWindow(QtWidgets.QMainWindow):
             i = i+1
         return wAmount
 
-    def combobox_ingredients(self, selectedData=None, only_available=False):
-        ing = self.db.list_ingredients(only_available).values()
+    def combobox_ingredients(self, selectedData=None, only_available=False, special_ingredients=True):
+        ing = self.db.list_ingredients(
+            only_available, special_ingredients).values()
         # add ingredient name
         wIngredient = QtWidgets.QComboBox()
         wIngredient.addItem("-", -1)
@@ -341,7 +342,7 @@ class MainWindow(QtWidgets.QMainWindow):
             wIngredient.addItem(str(item["name"]), item["id"])
             if item["id"] == selectedData:
                 wIngredient.setCurrentIndex(i)
-            i = i+1
+            i += 1
         return wIngredient
 
 

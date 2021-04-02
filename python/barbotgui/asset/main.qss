@@ -39,6 +39,12 @@ QPushButton{
     icon-size: 20px;
 }
 
+.IconButton{
+    padding: 2px;
+    icon-size: 32px;
+    background-color: #DDDDDD;
+}
+
 QScrollArea, .ContentWrapper, .IdleContent{    
     background-color:transparent;
 }
