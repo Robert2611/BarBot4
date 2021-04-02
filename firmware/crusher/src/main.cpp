@@ -93,6 +93,7 @@ void startCrushing()
 
 void stopChrushing()
 {
+  crushing = false;
   digitalWrite(PIN_EN, LOW);
 }
 
@@ -161,6 +162,7 @@ void loop()
   //     Serial.println(analogRead(PIN_SENSE));
   //   }
   // }
+
   //timeout
   if (crushing && millis() - crushing_start_time > CRUSHING_MAX_TIME)
   {
