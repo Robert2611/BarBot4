@@ -563,24 +563,26 @@ class SingleIngredient(IdleView):
         self._content.layout().addWidget(text)
 
         # selectors
-        row = QtWidgets.QWidget()
-        row.setLayout(QtWidgets.QHBoxLayout())
-        self._content.layout().addWidget(row)
+        panel = QtWidgets.QWidget()
+        panel.setProperty("class", "CenterPanel")
+        panel.setLayout(QtWidgets.QVBoxLayout())
+        self._content.layout().addWidget(panel)
+        self._content.layout().setAlignment(panel, QtCore.Qt.AlignCenter)
 
         # ingredient selector
         self._ingredient_widget = self.window.combobox_ingredients(
             only_available=True, special_ingredients=False)
-        row.layout().addWidget(self._ingredient_widget)
+        panel.layout().addWidget(self._ingredient_widget)
 
         # amount selector
         self._amount_widget = self.window.combobox_amounts()
-        row.layout().addWidget(self._amount_widget)
+        panel.layout().addWidget(self._amount_widget)
 
         # start button
         start_button = QtWidgets.QPushButton("Los")
         start_button.clicked.connect(
             lambda: self._start(self.ActionType.ingredient))
-        row.layout().addWidget(start_button)
+        panel.layout().addWidget(start_button)
 
         if self.bot.config.straw_dispenser_connected:
             # straw button
@@ -830,6 +832,7 @@ class AdminOverview(IdleView):
             ["System", System],
             ["Löschen", RemoveRecipe],
             ["Kalibrierung", BalanceCalibration],
+            ["Einstellungen", Settings]
         ]
         for text, _class in admin_navigation_items:
             button = QtWidgets.QPushButton(text)
@@ -1191,6 +1194,29 @@ class Cleaning(IdleView):
 
     def _clean_single(self, port):
         self.bot.start_cleaning(port)
+
+
+class Settings(IdleView):
+    def __init__(self, window: barbotgui.MainWindow):
+        super().__init__(window)
+        self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
+
+        # title
+        title = QtWidgets.QLabel("Einstellungen")
+        title.setProperty("class", "Headline")
+        self._fixed_content.layout().addWidget(title)
+
+        # back button
+        back_button = QtWidgets.QPushButton("Übersicht")
+        def btn_click(): return self.window.set_view(AdminOverview(self.window))
+        back_button.clicked.connect(btn_click)
+        self._fixed_content.layout().addWidget(back_button)
+
+        # clean left
+        button = QtWidgets.QPushButton("Reinigen linke Hälfte")
+        button.clicked.connect(lambda: self._clean_left())
+        self._content.layout().addWidget(button)
 
 
 class System(IdleView):
