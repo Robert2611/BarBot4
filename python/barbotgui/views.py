@@ -823,7 +823,7 @@ class AdminOverview(IdleView):
 
         # admin navigation
         self.admin_navigation = QtWidgets.QWidget()
-        self.admin_navigation.setLayout(QtWidgets.QVBoxLayout())
+        self.admin_navigation.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(self.admin_navigation)
 
         admin_navigation_items = [
@@ -834,12 +834,19 @@ class AdminOverview(IdleView):
             ["Kalibrierung", BalanceCalibration],
             ["Einstellungen", Settings]
         ]
+        columns = 2
+        column = 0
+        row = 0
         for text, _class in admin_navigation_items:
             button = QtWidgets.QPushButton(text)
             def btn_click(checked, c=_class): return self.window.set_view(
                 c(self.window))
             button.clicked.connect(btn_click)
-            self.admin_navigation.layout().addWidget(button, 1)
+            self.admin_navigation.layout().addWidget(button, row, column)
+            column += 1
+            if column >= columns:
+                column = 0
+                row += 1
 
         # table
         table = QtWidgets.QWidget()
@@ -1213,10 +1220,76 @@ class Settings(IdleView):
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
-        # clean left
-        button = QtWidgets.QPushButton("Reinigen linke Hälfte")
-        button.clicked.connect(lambda: self._clean_left())
-        self._content.layout().addWidget(button)
+        self.entries = [
+            #{"name": "Mac Address", "setting": "mac_address", "type": str},
+            {"name": "Dauer Regenbogen Animation",
+                "setting": "rainbow_duration", "type": int, "min": 1, "max": 60000},
+            {"name": "Max. Geschwindigkeit", "setting": "max_speed",
+                "type": int, "min": 1, "max": 1000},
+            {"name": "Max. Beschleunigung", "setting": "max_accel",
+                "type": int, "min": 1, "max": 1000},
+            {"name": "Max Cocktail Größe",
+                "setting": "max_cocktail_size", "type": int, "min": 1, "max": 50},
+            {"name": "Leistung Pumpe [0..255]",
+                "setting": "pump_power", "type": int, "min": 1, "max": 255},
+            {"name": "Dauer Reinigung", "setting": "cleaning_time",
+                "type": int, "min": 1, "max": 20000},
+            {"name": "Rührer verbunden", "setting": "stirrer_connected", "type": bool},
+            {"name": "Dauer Rühren", "setting": "stirring_time",
+                "type": int, "min": 1, "max": 10000},
+            {"name": "Eis crucher verbunden",
+                "setting": "ice_crusher_connected", "type": bool},
+            {"name": "Eis Menge", "setting": "ice_amount",
+                "type": int, "min": 1, "max": 300},
+            {"name": "Strohhalm Dispenser verbunden",
+                "setting": "straw_dispenser_connected", "type": bool},
+        ]
+        form_widget = QtWidgets.QWidget()
+        form_widget.setLayout(QtWidgets.QGridLayout())
+        self._content.layout().addWidget(form_widget)
+        config = self.bot.config.config
+        row = 0
+        for entry in self.entries:
+            label = QtWidgets.QLabel(entry["name"])
+            if entry["type"] == int:
+                edit_widget = QtWidgets.QSpinBox()
+                if "min" in entry:
+                    edit_widget.setMinimum(entry["min"])
+                if "max" in entry:
+                    edit_widget.setMaximum(entry["max"])
+                edit_widget.setValue(config.getint(
+                    "default", entry["setting"]))
+            elif entry["type"] == bool:
+                edit_widget = QtWidgets.QCheckBox()
+                edit_widget.setChecked(
+                    config.getboolean("default", entry["setting"]))
+            else:
+                edit_widget = QtWidgets.QLineEdit()
+                edit_widget.setText(config.get("default", entry["setting"]))
+            entry["widget"] = edit_widget
+            form_widget.layout().addWidget(label, row, 0)
+            form_widget.layout().addWidget(edit_widget, row, 1)
+            row += 1
+
+        save_button = QtWidgets.QPushButton("Speichern")
+        save_button.clicked.connect(lambda: self._save())
+        self._content.layout().addWidget(save_button)
+
+    def _save(self):
+        config = self.bot.config.config
+        for entry in self.entries:
+            if entry["type"] == int:
+                config.set("default", entry["setting"], str(
+                    entry["widget"].value()))
+            elif entry["type"] == bool:
+                config.set("default", entry["setting"], str(
+                    entry["widget"].isChecked()))
+            else:
+                config.set("default", entry["setting"], str(
+                    entry["widget"].text()))
+        self.bot.config.save()
+        self.window.set_view(AdminOverview(self.window))
+        self.window.show_message("Einstellungen wurden gespeichert")
 
 
 class System(IdleView):
