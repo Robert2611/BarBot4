@@ -1288,7 +1288,9 @@ class Settings(IdleView):
                 config.set("default", entry["setting"], str(
                     entry["widget"].text()))
         self.bot.config.save()
+        self.bot.config.apply()
         self.window.set_view(AdminOverview(self.window))
+        self.bot.set_state(barbot.State.connecting)
         self.window.show_message("Einstellungen wurden gespeichert")
 
 

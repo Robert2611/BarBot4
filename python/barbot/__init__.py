@@ -227,7 +227,7 @@ class StateMachine(threading.Thread):
                 if res:
                     self.config.__set_value("mac_address", res)
                     self.config.save()
-                    self.config.load()
+                    self.config.apply()
                     self.set_state(State.connecting)
                 # else:
                 #    self.set_state(State.searching)
