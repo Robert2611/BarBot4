@@ -126,11 +126,32 @@ class BusyView(barbotgui.View):
 
         elif self.bot.message == barbot.UserMessages.cleaning_adapter:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
-            text = text + "Ist der Adapter angeschlossen?"
+            text += "Ist der Adapter angeschlossen?"
             message_label.setText(text)
 
             add_button("Ja", True)
             add_button("Abbrechen", False)
+
+        elif self.bot.message == barbot.UserMessages.I2C_error:
+            text = "Ein Kommunikationsfehler ist aufegtreten.\n"
+            text += "Bitte überprüfe, ob alle Module richtig angeschlossen sind und versuche es erneut"
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.unknown_error:
+            text = "Ein unbekannter Fehler ist aufgetreten.\n"
+            text += "Weitere Informationen findest du im Log"
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.glas_removed_while_drafting:
+            text = "Das Glas wurde während des Mischens entfernt!\n"
+            text += "Drücke auf OK, um zum Start zurück zu fahren"
+            message_label.setText(text)
+
+            add_button("OK", True)
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
@@ -163,7 +184,7 @@ class BusyView(barbotgui.View):
 
             # buttons
             button = QtWidgets.QPushButton("Abbrechen")
-            button.clicked.connect(lambda: self.bot.set_user_input(False))
+            button.clicked.connect(lambda: self.bot.abort_mixing())
             self._content_container.layout().addWidget(button)
 
             self._title_label.setText(
@@ -183,6 +204,8 @@ class BusyView(barbotgui.View):
             self._title_label.setText("Starte BarBot, bitte warten")
         elif self.bot.state == barbot.State.crushing:
             self._title_label.setText("Eis wird hinzugefügt")
+        elif self.bot.state == barbot.State.crushing:
+            self._title_label.setText("Strohhalm wird hinzugefügt")
         else:
             self._title_label.setText("Unknown status: %s" % self.bot.state)
 

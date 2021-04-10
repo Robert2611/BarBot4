@@ -45,6 +45,9 @@ class UserMessages(Enum):
     cleaning_adapter = auto()
     ask_for_ice = auto()
     ice_empty = auto()
+    I2C_error = auto()
+    unknown_error = auto()
+    glas_removed_while_drafting = auto()
 
 
 class RecipeItem(object):
@@ -93,21 +96,21 @@ class BarBotConfig(object):
         # setup config with default values
         self.config = configparser.ConfigParser()
         self.config.add_section("default")
-        self.__set_value("mac_address", "")
-        self.__set_value("rainbow_duration", 30 * 1000)
-        self.__set_value("max_speed", 200)
-        self.__set_value("max_accel", 300)
-        self.__set_value("max_cocktail_size", 30)
-        self.__set_value("admin_password", "0000")
-        self.__set_value("pump_power", 100)
-        self.__set_value("balance_offset", -119.1)
-        self.__set_value("balance_calibration", -1040)
-        self.__set_value("cleaning_time", 3000)
-        self.__set_value("stirrer_connected", True)
-        self.__set_value("stirring_time", 3000)
-        self.__set_value("ice_crusher_connected", False)
-        self.__set_value("ice_amount", 100)
-        self.__set_value("straw_dispenser_connected", False)
+        self.set_value("mac_address", "")
+        self.set_value("rainbow_duration", 30 * 1000)
+        self.set_value("max_speed", 200)
+        self.set_value("max_accel", 300)
+        self.set_value("max_cocktail_size", 30)
+        self.set_value("admin_password", "0000")
+        self.set_value("pump_power", 100)
+        self.set_value("balance_offset", -119.1)
+        self.set_value("balance_calibration", -1040)
+        self.set_value("cleaning_time", 3000)
+        self.set_value("stirrer_connected", True)
+        self.set_value("stirring_time", 3000)
+        self.set_value("ice_crusher_connected", False)
+        self.set_value("ice_amount", 100)
+        self.set_value("straw_dispenser_connected", False)
 
     def apply(self):
         self.mac_address = self.__get_str("mac_address")
@@ -127,7 +130,7 @@ class BarBotConfig(object):
         self.straw_dispenser_connected = self.__get_bool(
             "straw_dispenser_connected")
 
-    def __set_value(self, name: str, value):
+    def set_value(self, name: str, value):
         self.config.set("default", name, str(value))
 
     def __get_str(self, name):
@@ -164,13 +167,17 @@ class StateMachine(threading.Thread):
     on_message_changed = None
 
     error_ingredient_empty = 33
+    error_balance_communication = 34
+    error_I2C = 35
     error_straws_empty = 36
     error_glas_removed = 37
+    error_mixing_failed = 38
 
     progress = None
     abort = False
     message: UserMessages = None
     _user_input = None
+    _abort_mixing = False
     weight_timeout = 0.5
     _get_weight_at_next_idle = False
     demo = False
@@ -205,8 +212,8 @@ class StateMachine(threading.Thread):
 
     def set_balance_calibration(self, offset, cal):
         # change config
-        self.config.__set_value("balance_offset", offset)
-        self.config.__set_value("balance_calibration", cal)
+        self.config.set_value("balance_offset", offset)
+        self.config.set_value("balance_calibration", cal)
         # write and reload config
         self.config.save()
         self.config.load()
@@ -225,7 +232,7 @@ class StateMachine(threading.Thread):
                 logging.info("Search for BarBot4")
                 res = barbot.communication.find_bar_bot()
                 if res:
-                    self.config.__set_value("mac_address", res)
+                    self.config.set_value("mac_address", res)
                     self.config.save()
                     self.config.apply()
                     self.set_state(State.connecting)
@@ -255,6 +262,7 @@ class StateMachine(threading.Thread):
                     self.set_state(State.idle)
             elif self.state == State.mixing:
                 self._do_mixing()
+                self._abort_mixing = False
                 self.go_to_idle()
             elif self.state == State.cleaning_cycle:
                 self._do_cleaning_cycle()
@@ -284,6 +292,9 @@ class StateMachine(threading.Thread):
 
     def set_user_input(self, value: bool):
         self._user_input = value
+
+    def abort_mixing(self):
+        self._abort_mixing = True
 
     def set_state(self, state):
         self.state = state
@@ -317,6 +328,7 @@ class StateMachine(threading.Thread):
         return not self.abort
 
     def _wait_for_user_input(self):
+        self._user_input = None
         logging.debug("Wait for user input")
         while not self.abort and self._user_input == None:
             time.sleep(0.1)
@@ -355,7 +367,6 @@ class StateMachine(threading.Thread):
         # ask for ice
         if self.config.ice_crusher_connected:
             self._set_message(UserMessages.ask_for_ice)
-            self._user_input = None
             self.protocol.try_do("PlatformLED", 4)
             if not self._wait_for_user_input():
                 return
@@ -366,7 +377,6 @@ class StateMachine(threading.Thread):
         # ask for straw if module is connected
         if self.config.straw_dispenser_connected:
             self._set_message(UserMessages.ask_for_straw)
-            self._user_input = None
             self.protocol.try_do("PlatformLED", 4)
             if not self._wait_for_user_input():
                 return
@@ -381,17 +391,23 @@ class StateMachine(threading.Thread):
         self.protocol.try_set("SetLED", 5)
         maxProgress = max(len(self.current_recipe.items) - 1, 1)
         recipe_item_index = 0
+        self.set_user_input(None)
         for item in self.current_recipe.items:
+            # user aborted
+            if self._abort_mixing:
+                break
             self.current_recipe_item = item
             # do the actual draft, exit the loop if it did not succeed
             if not self._draft_one(item):
                 break
             recipe_item_index += 1
             self._set_mixing_progress(recipe_item_index / maxProgress)
-        if self.add_ice:
+        # add ice if desired and mixing was not abborted
+        if self.add_ice and self._user_input != False:
             self._do_crushing()
         self.protocol.try_do("Move", 0)
-        if self.add_straw:
+        # add straw if desired and mixing was not abborted
+        if self.add_straw and self._user_input != False:
             self._do_straw()
         self._set_message(UserMessages.mixing_done_remove_glas)
         self.protocol.try_do("PlatformLED", 2)
@@ -414,10 +430,16 @@ class StateMachine(threading.Thread):
         self.set_state(State.idle)
 
     def _do_crushing(self):
+        # user aborted
+        if self._abort_mixing:
+            return False
         # try adding ice until it works or user aborts
         ice_to_add = self.config.ice_amount
         while True:
             result = self.protocol.try_do("Crush", ice_to_add)
+            # user aborted
+            if self._abort_mixing:
+                return False
             if result == True:
                 # crushing successfull
                 return
@@ -435,15 +457,28 @@ class StateMachine(threading.Thread):
                     # remove the message
                     self._set_message(None)
                     if not self._user_input:
-                        return
+                        return False
                     # repeat the loop
 
                 elif error_code == self.error_glas_removed:
-                    # TODO: Show message to user
                     logging.info("Glas was removed while crushing")
+                    self._set_message(
+                        UserMessages.glas_removed_while_drafting)
+                    self._wait_for_user_input()
                     return False
 
-                # TODO: add handling of other errors
+                elif error_code == self.error_I2C:
+                    self._set_message(UserMessages.I2C_error)
+                    # wait for user input
+                    self._wait_for_user_input()
+                    # a communication error will always stop the mixing process
+                    return False
+
+                else:
+                    logging.warning("Unkown error code")
+                    self._set_message(UserMessages.unknown_error)
+                    self._wait_for_user_input()
+                    return False
 
             else:
                 # unhandled return value
@@ -452,6 +487,9 @@ class StateMachine(threading.Thread):
                 return False
 
     def _draft_one(self, item: RecipeItem):
+        # user aborted
+        if self._abort_mixing:
+            return False
         if item.isStirringItem():
             self.protocol.try_do("Mix", self.config.stirring_time)
             return True
@@ -459,6 +497,9 @@ class StateMachine(threading.Thread):
             while True:
                 weight = int(item.amount * item.calibration)
                 result = self.protocol.try_do("Draft", item.port, weight)
+                # user aborted
+                if self._abort_mixing:
+                    return False
                 if result == True:
                     # drafting successfull
                     return True
@@ -481,8 +522,16 @@ class StateMachine(threading.Thread):
                         # repeat the loop
 
                     elif error_code == self.error_glas_removed:
-                        # TODO: Show message to user
                         logging.info("Glas was removed while drafting")
+                        self._set_message(
+                            UserMessages.glas_removed_while_drafting)
+                        self._wait_for_user_input()
+                        return False
+
+                    else:
+                        logging.warning("Unkown error code")
+                        self._set_message(UserMessages.unknown_error)
+                        self._wait_for_user_input()
                         return False
 
                 else:
@@ -542,21 +591,26 @@ class StateMachine(threading.Thread):
     # start commands
 
     def start_mixing(self, recipe: barbot.Recipe):
+        self._abort_mixing = False
         self.current_recipe = recipe
         self.set_state(State.mixing)
 
     def start_single_ingredient(self, recipe_item: RecipeItem):
+        self._abort_mixing = False
         self.current_recipe_item = recipe_item
         self.set_state(State.single_ingredient)
 
     def start_crushing(self):
+        self._abort_mixing = False
         self.set_state(State.crushing)
 
     def start_cleaning(self, port):
+        self._abort_mixing = False
         self.pumps_to_clean = [port]
         self.set_state(State.cleaning_cycle)
 
     def start_cleaning_cycle(self, _pumps_to_clean):
+        self._abort_mixing = False
         self.pumps_to_clean = _pumps_to_clean
         self.set_state(State.cleaning_cycle)
 

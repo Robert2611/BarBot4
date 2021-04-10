@@ -56,8 +56,8 @@ class Protocol():
             self.conn.close()
         try:
             self.conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-            self.conn.connect((mac_address, 1))
             self.conn.settimeout(timeout)
+            self.conn.connect((mac_address, 1))
             # wait for Arduino to initialize
             time.sleep(1)
             self.clear_input()
