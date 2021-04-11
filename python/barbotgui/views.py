@@ -157,29 +157,46 @@ class BusyView(barbotgui.View):
         self._content_container.setVisible(False)
         self._title_label.setVisible(False)
 
+    def _set_progress(self):
+        for i in range(len(self.bot.current_recipe.items)):
+            if self.bot.progress is not None and i < self.bot.progress:
+                icon = barbotgui.qt_icon_from_file_name("done.png")
+            elif self.bot.progress is not None and i == self.bot.progress:
+                icon = barbotgui.qt_icon_from_file_name(
+                    "processing.png")
+            else:
+                icon = barbotgui.qt_icon_from_file_name("queued.png")
+            self.recipe_list_widgets[i].setPixmap(
+                icon.pixmap(icon.availableSizes()[0]))
+
     def _init_by_status(self):
         # content
         if self.bot.state == barbot.State.mixing:
 
-            # spinner
-            label = QtWidgets.QLabel()
-            movie = QtGui.QMovie(os.path.join(
-                barbotgui.css_path(), "Blocks.gif"))
-            label.setMovie(movie)
-            movie.start()
-            self._content_container.layout().addWidget(label)
+            # ingedrients
+            recipe_items_list = QtWidgets.QWidget()
+            recipe_items_list.setLayout(QtWidgets.QGridLayout())
+            recipe_items_list.setProperty("class", "IngredientToDoList")
+            self._content_container.layout().addWidget(recipe_items_list)
+            self.recipe_list_widgets = []
 
-            # progressbar
-            self._progress_bar = QtWidgets.QProgressBar()
-            self._progress_bar.setMinimum(0)
-            self._progress_bar.setMaximum(100)
-            self._content_container.layout().addWidget(self._progress_bar)
-            self._content_container.layout().setAlignment(
-                self._progress_bar, QtCore.Qt.AlignCenter)
+            def add_widget(name):
+                widget_item = QtWidgets.QLabel()
+                self.recipe_list_widgets.append(widget_item)
+                recipe_items_list.layout().addWidget(widget_item, row, 0)
+                recipe_items_list.layout().addWidget(QtWidgets.QLabel(item.name), row, 1)
+            for row, item in enumerate(self.bot.current_recipe.items):
+                add_widget(item.name)
+            # TODO: add only on process updates, this is not known here yet
+            if self.bot.add_straw:
+                add_widget("Strohhalm")
+            if self.bot.add_ice:
+                add_widget("Eis")
+
+            self._set_progress()
 
             # forward mixing progress changed
-            self._mixing_progress_trigger.connect(
-                lambda: self._progress_bar.setValue(int(self.bot.progress * 100)))
+            self._mixing_progress_trigger.connect(lambda: self._set_progress())
             self.bot.on_mixing_progress_changed = lambda: self._mixing_progress_trigger.emit()
 
             # buttons
@@ -188,7 +205,7 @@ class BusyView(barbotgui.View):
             self._content_container.layout().addWidget(button)
 
             self._title_label.setText(
-                "Cocktail\n'%s'\nwird gemischt." % self.bot.current_recipe.name)
+                "'%s'\nwird gemischt." % self.bot.current_recipe.name)
 
         elif self.bot.state == barbot.State.cleaning:
             self._title_label.setText("Reinigung")
@@ -1244,7 +1261,7 @@ class Settings(IdleView):
         self._fixed_content.layout().addWidget(back_button)
 
         self.entries = [
-            #{"name": "Mac Address", "setting": "mac_address", "type": str},
+            # {"name": "Mac Address", "setting": "mac_address", "type": str},
             {"name": "Dauer Regenbogen Animation",
                 "setting": "rainbow_duration", "type": int, "min": 1, "max": 60000},
             {"name": "Max. Geschwindigkeit", "setting": "max_speed",

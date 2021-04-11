@@ -342,18 +342,9 @@ class StateMachine(threading.Thread):
     # do commands
 
     def _do_mixing(self):
-        if self.demo:
-            self.current_recipe_item = self.current_recipe.items[0]
-            self._set_message(UserMessages.ingredient_empty)
-            self._user_input = None
-            if not self._wait_for_user_input():
-                return
-            # remove the message
-            self._set_message(None)
-            logging.debug(self._user_input)
-            return
+        self._set_mixing_progress(0)
         # wait for the glas
-        if self.protocol.try_get("HasGlas") != "1":
+        if not self.demo and self.protocol.try_get("HasGlas") != "1":
             self.protocol.try_do("PlatformLED", 2)
             self._set_message(UserMessages.place_glas)
             self._user_input = None
@@ -362,12 +353,15 @@ class StateMachine(threading.Thread):
                 return
             if self._user_input == False:
                 return
-        self.protocol.try_do("PlatformLED", 3)
+
+        if not self.demo:
+            self.protocol.try_do("PlatformLED", 3)
         self._set_message(None)
-        # ask for ice
+        # ask for ice if module is connected
         if self.config.ice_crusher_connected:
             self._set_message(UserMessages.ask_for_ice)
-            self.protocol.try_do("PlatformLED", 4)
+            if not self.demo:
+                self.protocol.try_do("PlatformLED", 4)
             if not self._wait_for_user_input():
                 return
             self._set_message(None)
@@ -377,7 +371,8 @@ class StateMachine(threading.Thread):
         # ask for straw if module is connected
         if self.config.straw_dispenser_connected:
             self._set_message(UserMessages.ask_for_straw)
-            self.protocol.try_do("PlatformLED", 4)
+            if not self.demo:
+                self.protocol.try_do("PlatformLED", 4)
             if not self._wait_for_user_input():
                 return
             self._set_message(None)
@@ -386,39 +381,57 @@ class StateMachine(threading.Thread):
             self.add_straw = False
         # wait a second before actually starting the mixing
         time.sleep(1)
-
-        self.protocol.try_do("PlatformLED", 5)
-        self.protocol.try_set("SetLED", 5)
-        maxProgress = max(len(self.current_recipe.items) - 1, 1)
-        recipe_item_index = 0
+        if not self.demo:
+            self.protocol.try_do("PlatformLED", 5)
+            self.protocol.try_set("SetLED", 5)
         self.set_user_input(None)
-        for item in self.current_recipe.items:
+        for index, item in enumerate(self.current_recipe.items):
+            self._set_mixing_progress(index)
             # user aborted
             if self._abort_mixing:
                 break
             self.current_recipe_item = item
-            # do the actual draft, exit the loop if it did not succeed
-            if not self._draft_one(item):
-                break
-            recipe_item_index += 1
-            self._set_mixing_progress(recipe_item_index / maxProgress)
-        # add ice if desired and mixing was not abborted
-        if self.add_ice and self._user_input != False:
-            self._do_crushing()
-        self.protocol.try_do("Move", 0)
-        # add straw if desired and mixing was not abborted
-        if self.add_straw and self._user_input != False:
-            self._do_straw()
-        self._set_message(UserMessages.mixing_done_remove_glas)
-        self.protocol.try_do("PlatformLED", 2)
-        self.protocol.try_set("SetLED", 4)
-        self._user_input = None
-        if not self._wait_for(lambda: self.protocol.try_get("HasGlas") != "1"):
-            return
-        self._set_message(None)
-        self.protocol.try_do("PlatformLED", 0)
-        if self.on_mixing_finished is not None:
-            self.on_mixing_finished(self.current_recipe.id)
+            if not self.demo:
+                # do the actual draft, exit the loop if it did not succeed
+                if not self._draft_one(item):
+                    break
+            else:
+                if self._abort_mixing:
+                    logging.warn("Waiting aborted")
+                    return
+                time.sleep(1)
+        progress = len(self.current_recipe.items)
+
+        # add ice if desired and mixing was not aborted
+        if self.add_ice and not self._abort_mixing:
+            self._set_mixing_progress(progress)
+            if not self.demo:
+                self._do_crushing()
+            else:
+                time.sleep(1)
+        if not self.demo:
+            self.protocol.try_do("Move", 0)
+        progress += 1
+
+        # add straw if desired and mixing was not aborted
+        if self.add_straw and not self._abort_mixing:
+            if not self.demo:
+                self._do_straw()
+            else:
+                time.sleep(1)
+            self._set_mixing_progress(progress)
+
+        if not self.demo:
+            self._set_message(UserMessages.mixing_done_remove_glas)
+            self.protocol.try_do("PlatformLED", 2)
+            self.protocol.try_set("SetLED", 4)
+            self._user_input = None
+            if not self._wait_for(lambda: self.protocol.try_get("HasGlas") != "1"):
+                return
+            self._set_message(None)
+            self.protocol.try_do("PlatformLED", 0)
+            if self.on_mixing_finished is not None:
+                self.on_mixing_finished(self.current_recipe.id)
 
     def go_to_idle(self):
         self._set_message(None)

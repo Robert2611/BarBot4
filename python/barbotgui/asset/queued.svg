@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Generator: Adobe Illustrator 19.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   id="Capa_1"
+   x="0px"
+   y="0px"
+   viewBox="0 0 16 16"
+   xml:space="preserve"
+   sodipodi:docname="queued.svg"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
+   width="16"
+   height="16"
+   inkscape:export-filename="C:\Users\Alakazam\Documents\Git\BarBot4\python\barbotgui\asset\queued.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"><metadata
+   id="metadata49"><rdf:RDF><cc:Work
+       rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+         rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title /></cc:Work></rdf:RDF></metadata><defs
+   id="defs47" /><sodipodi:namedview
+   pagecolor="#ffffff"
+   bordercolor="#666666"
+   borderopacity="1"
+   objecttolerance="10"
+   gridtolerance="10"
+   guidetolerance="10"
+   inkscape:pageopacity="0"
+   inkscape:pageshadow="2"
+   inkscape:window-width="1680"
+   inkscape:window-height="987"
+   id="namedview45"
+   showgrid="false"
+   inkscape:zoom="14.75"
+   inkscape:cx="-5.1864407"
+   inkscape:cy="7.1612811"
+   inkscape:window-x="-8"
+   inkscape:window-y="24"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="Capa_1"
+   showguides="true"
+   inkscape:guide-bbox="true"><sodipodi:guide
+     position="-5.0847458,7.7288136"
+     orientation="0,1"
+     id="guide832"
+     inkscape:locked="false" /><sodipodi:guide
+     position="8,12.542373"
+     orientation="1,0"
+     id="guide834"
+     inkscape:locked="false" /></sodipodi:namedview>
+<g
+   id="g6"
+   transform="matrix(0.04688226,0,0,0.04688226,-3.992898,-3.5435798)"
+   style="fill:#cccccc;fill-opacity:1">
+	<g
+   id="g4"
+   style="fill:#cccccc;fill-opacity:1">
+		<path
+   d="m 347.216,301.211 -71.387,-53.54 V 138.609 c 0,-10.966 -8.864,-19.83 -19.83,-19.83 -10.966,0 -19.83,8.864 -19.83,19.83 v 118.978 c 0,6.246 2.935,12.136 7.932,15.864 l 79.318,59.489 c 3.569,2.677 7.734,3.966 11.878,3.966 6.048,0 11.997,-2.717 15.884,-7.952 6.585,-8.746 4.8,-21.179 -3.965,-27.743 z"
+   id="path2"
+   inkscape:connector-curvature="0"
+   style="fill:#cccccc;fill-opacity:1" />
+	</g>
+</g>
+<g
+   id="g12"
+   transform="matrix(0.03141065,0,0,0.03141065,0,-0.08225109)"
+   style="fill:#cccccc;fill-opacity:1">
+	<g
+   id="g10"
+   style="fill:#cccccc;fill-opacity:1">
+		<path
+   d="M 256,0 C 114.833,0 0,114.833 0,256 0,397.167 114.833,512 256,512 397.167,512 512,397.167 512,256 512,114.833 397.167,0 256,0 Z m 0,472.341 C 136.725,472.341 39.659,375.275 39.659,256 39.659,136.725 136.725,39.659 256,39.659 c 119.295,0 216.341,97.066 216.341,216.341 0,119.275 -97.066,216.341 -216.341,216.341 z"
+   id="path8"
+   inkscape:connector-curvature="0"
+   style="fill:#cccccc;fill-opacity:1" />
+	</g>
+</g>
+<g
+   id="g14"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g16"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g18"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g20"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g22"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g24"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g26"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g28"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g30"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g32"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g34"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g36"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g38"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g40"
+   transform="translate(0,-496)">
+</g>
+<g
+   id="g42"
+   transform="translate(0,-496)">
+</g>
+</svg>

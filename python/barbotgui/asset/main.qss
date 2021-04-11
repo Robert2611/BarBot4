@@ -139,3 +139,24 @@ QSpinBox{
     max-width:100px;
     color: black;
 }
+
+QProgressBar {
+    border-radius: 5px;
+    border: 1px solid gray;
+    background-color: #93DBE9;
+    background-color: white;
+    padding: 5px;
+    text-align: center;
+    color: #222222;
+}
+QProgressBar::chunk {
+    background-color: #689CC5;
+    width: 20px;
+    margin: 1px;
+}
+
+.IngredientToDoList{
+    background-color: transparent;
+    border: 0px;
+    height: 100%;
+}
