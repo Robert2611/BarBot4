@@ -8,12 +8,16 @@ import qdarkstyle
 import sys
 import logging
 import configparser
+from datetime import datetime
 
 # cofigure logging
+log_path = os.path.join(sys.path[0], "../log/")
+if not os.path.exists(log_path):
+    os.makedirs(log_path)
 logging.basicConfig(
-    filename=os.path.join(sys.path[0], '../bar_bot.log'),
+    filename=os.path.join(
+        log_path, datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")),
     filemode='a',
-
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
