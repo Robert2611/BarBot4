@@ -48,6 +48,8 @@ class UserMessages(Enum):
     I2C_error = auto()
     unknown_error = auto()
     glas_removed_while_drafting = auto()
+    crusher_cover_open = auto()
+    crusher_timeout = auto()
 
 
 class RecipeItem(object):
@@ -172,6 +174,8 @@ class StateMachine(threading.Thread):
     error_straws_empty = 36
     error_glas_removed = 37
     error_mixing_failed = 38
+    error_crusher_cover_open = 39
+    error_crusher_timeout = 40
 
     progress = None
     abort = False
@@ -455,7 +459,7 @@ class StateMachine(threading.Thread):
                 return False
             if result == True:
                 # crushing successfull
-                return
+                return True
             elif type(result) is list and len(result) >= 2:
                 error_code = int(result[0])
                 logging.error("Error while crushing ice: '%s'" % error_code)
@@ -466,7 +470,7 @@ class StateMachine(threading.Thread):
                     self._user_input = None
                     # wait for user input
                     if not self._wait_for_user_input():
-                        return
+                        return False
                     # remove the message
                     self._set_message(None)
                     if not self._user_input:
@@ -486,6 +490,30 @@ class StateMachine(threading.Thread):
                     self._wait_for_user_input()
                     # a communication error will always stop the mixing process
                     return False
+
+                elif error_code == self.error_crusher_cover_open:
+                    self._set_message(UserMessages.crusher_cover_open)
+                    self._user_input = None
+                    # wait for user input
+                    if not self._wait_for_user_input():
+                        return False
+                    # remove the message
+                    self._set_message(None)
+                    if not self._user_input:
+                        return False
+                    # repeat the loop
+
+                elif error_code == self.error_crusher_timeout:
+                    self._set_message(UserMessages.crusher_timeout)
+                    self._user_input = None
+                    # wait for user input
+                    if not self._wait_for_user_input():
+                        return False
+                    # remove the message
+                    self._set_message(None)
+                    if not self._user_input:
+                        return False
+                    # repeat the loop
 
                 else:
                     logging.warning("Unkown error code")

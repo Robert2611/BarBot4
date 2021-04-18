@@ -61,6 +61,8 @@ void StateMachine::update()
 	case BarBotStatus_t::ErrorGlasRemoved:
 	case BarBotStatus_t::ErrorCommunicationToBalance:
 	case BarBotStatus_t::ErrorMixingFailed:
+	case BarBotStatus_t::ErrorCrusherCoverOpen:
+	case BarBotStatus_t::ErrorCrusherTimeout:
 		//nothing to do here
 		break;
 
@@ -204,16 +206,45 @@ void StateMachine::update()
 		//forward i2c error
 		else if (res == Balance_CommunicationError)
 		{
-			stop_pumps();
+			if (status == BarBotStatus_t::CrushingIce)
+				//since we are allready in a communication error, there is no need to handle errors here
+				crusher->StopCrushing();
+			else
+				stop_pumps();
 			set_status(BarBotStatus_t::ErrorI2C);
 		}
 		//forward timeout
 		else if (res == Balance_Timeout)
 		{
-			stop_pumps();
+			if (status == BarBotStatus_t::CrushingIce)
+				//since we are allready in a communication error, there is no need to handle errors here
+				crusher->StopCrushing();
+			else
+				stop_pumps();
 			set_status(BarBotStatus_t::ErrorCommunicationToBalance);
 		}
 		//else just wait
+
+		//check if crusher is doing okay
+		if (status == BarBotStatus_t::CrushingIce && millis() > child_last_check_millis + CHILD_UPDATE_PERIOD)
+		{
+			byte crusher_error;
+			transmit_successfull = crusher->GetError(&crusher_error);
+			if (!transmit_successfull)
+			{
+				set_status(BarBotStatus_t::ErrorI2C);
+			}
+			//if an error accurs the crusher will stop on its own, so no need to call crusher->StopCrushing()
+			else if (CRUSHER_ERROR_COVER_OPEN == crusher_error)
+			{
+				set_status(BarBotStatus_t::ErrorCrusherCoverOpen);
+			}
+			else if (CRUSHER_ERROR_TIMEOUT == crusher_error)
+			{
+				set_status(BarBotStatus_t::ErrorCrusherTimeout);
+			}
+			child_last_check_millis = millis();
+		}
 	}
 	break;
 
@@ -316,18 +347,14 @@ void StateMachine::update()
 			if (!transmit_successfull)
 			{
 				set_status(BarBotStatus_t::ErrorI2C);
-				break;
 			}
-			if (!is_dispensing)
+			else if (!is_dispensing)
 			{
 				bool dispense_successfull;
 				transmit_successfull = straw_board->WasSuccessfull(&dispense_successfull);
 				if (!transmit_successfull)
-				{
 					set_status(BarBotStatus_t::ErrorI2C);
-					break;
-				}
-				if (dispense_successfull)
+				else if (!dispense_successfull)
 					set_status(BarBotStatus_t::ErrorStrawsEmpty);
 				else
 					set_status(BarBotStatus_t::Idle);

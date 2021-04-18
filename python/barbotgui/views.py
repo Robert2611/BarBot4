@@ -118,12 +118,6 @@ class BusyView(barbotgui.View):
             add_button("Egal", False)
             add_button("Erneut versuchen", True)
 
-        elif self.bot.message == barbot.UserMessages.ice_empty:
-            message_label.setText("Eis konnte nicht hinzugefügt werden.")
-
-            add_button("Egal", False)
-            add_button("Erneut versuchen", True)
-
         elif self.bot.message == barbot.UserMessages.cleaning_adapter:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text += "Ist der Adapter angeschlossen?"
@@ -152,6 +146,26 @@ class BusyView(barbotgui.View):
             message_label.setText(text)
 
             add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.ice_empty:
+            message_label.setText("Eis konnte nicht hinzugefügt werden.")
+
+            add_button("Eis weg lassen", False)
+            add_button("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.crusher_cover_open:
+            text = "Bitte den Deckel des Eiscrushers schließen!"
+            message_label.setText(text)
+
+            add_button("Eis weg lassen", False)
+            add_button("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.crusher_timeout:
+            text = "Eis crushen hat zu lange gedauert, bitte überprüfe Crusher und Akku"
+            message_label.setText(text)
+
+            add_button("Eis weg lassen", False)
+            add_button("Erneut versuchen", True)
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
@@ -221,7 +235,7 @@ class BusyView(barbotgui.View):
             self._title_label.setText("Starte BarBot, bitte warten")
         elif self.bot.state == barbot.State.crushing:
             self._title_label.setText("Eis wird hinzugefügt")
-        elif self.bot.state == barbot.State.crushing:
+        elif self.bot.state == barbot.State.straw:
             self._title_label.setText("Strohhalm wird hinzugefügt")
         else:
             self._title_label.setText("Unknown status: %s" % self.bot.state)

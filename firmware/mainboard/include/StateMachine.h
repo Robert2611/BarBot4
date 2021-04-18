@@ -38,6 +38,8 @@ enum BarBotStatus_t
 	ErrorStrawsEmpty,
 	ErrorGlasRemoved,
 	ErrorMixingFailed,
+	ErrorCrusherCoverOpen,
+	ErrorCrusherTimeout,
 };
 
 extern "C"

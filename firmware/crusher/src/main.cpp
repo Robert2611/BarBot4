@@ -3,12 +3,14 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
+#define SERIAL_DEBUG
 #define PIN_EN 3
 #define PIN_MOTOR_A 4
 #define PIN_MOTOR_B 5
 #define PIN_PWM 6
 #define PIN_SENSE A6
 #define PIN_LED 13
+#define PIN_COVER_SWITCH 8
 
 #define CRUSHING_MAX_TIME 5000
 
@@ -18,17 +20,35 @@ byte error;
 bool crushing;
 unsigned long crushing_start_time;
 
+void startCrushing()
+{
+  if (crushing)
+    return;
+  error = CRUSHER_ERROR_NO_ERROR;
+  crushing = true;
+  crushing_start_time = millis();
+  analogWrite(PIN_EN, 255);
+}
+
+void stopChrushing()
+{
+  crushing = false;
+  digitalWrite(PIN_EN, LOW);
+}
+
 void handleSetters(int parameters_count)
 {
 #ifdef SERIAL_DEBUG
-  Serial.print("SET");
+  Serial.print("SET: ");
   Serial.println(i2c_command);
 #endif
   switch (i2c_command)
   {
   case CRUSHER_CMD_START_CRUSHING:
+    startCrushing();
     break;
   case CRUSHER_CMD_STOP_CRUSHING:
+    stopChrushing();
     break;
   }
 }
@@ -36,7 +56,7 @@ void handleSetters(int parameters_count)
 void handleGetters()
 {
 #ifdef SERIAL_DEBUG
-  Serial.print("GET");
+  Serial.print("GET: ");
   Serial.println(i2c_command);
 #endif
   switch (i2c_command)
@@ -44,6 +64,10 @@ void handleGetters()
 
   case CRUSHER_CMD_GET_ERROR:
     Wire.write(error);
+#ifdef SERIAL_DEBUG
+    Serial.print("Error requested, returned: ");
+    Serial.println(error);
+#endif
     break;
 
   //no command byte set or unknown command
@@ -81,22 +105,6 @@ void initWire()
   WireProtocol::blinkAddress(CRUSHER_BOARD_ADDRESS, PIN_LED);
 }
 
-void startCrushing()
-{
-  if (crushing)
-    return;
-  error = CRUSHER_ERROR_NO_ERROR;
-  crushing = true;
-  crushing_start_time = millis();
-  analogWrite(PIN_EN, 255);
-}
-
-void stopChrushing()
-{
-  crushing = false;
-  digitalWrite(PIN_EN, LOW);
-}
-
 void setup()
 {
   Serial.begin(115200);
@@ -108,6 +116,7 @@ void setup()
   pinMode(PIN_MOTOR_B, OUTPUT);
   pinMode(PIN_PWM, OUTPUT);
   pinMode(PIN_SENSE, INPUT);
+  pinMode(PIN_COVER_SWITCH, INPUT_PULLUP);
   initWire();
 #ifdef SERIAL_DEBUG
   Serial.println("Crusher board initialised");
@@ -163,10 +172,24 @@ void loop()
   //   }
   // }
 
-  //timeout
-  if (crushing && millis() - crushing_start_time > CRUSHING_MAX_TIME)
+  if (crushing)
   {
-    error = CRUSHER_ERROR_TIMEOUT;
-    crushing = false;
+    //timeout
+    if (millis() - crushing_start_time > CRUSHING_MAX_TIME)
+    {
+      error = CRUSHER_ERROR_TIMEOUT;
+      stopChrushing();
+#ifdef SERIAL_DEBUG
+      Serial.println("Error: timeout");
+#endif
+    }
+    if (!digitalRead(PIN_COVER_SWITCH))
+    {
+      error = CRUSHER_ERROR_COVER_OPEN;
+      stopChrushing();
+#ifdef SERIAL_DEBUG
+      Serial.println("Error: cover open");
+#endif
+    }
   }
 }
