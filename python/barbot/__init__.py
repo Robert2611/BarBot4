@@ -182,7 +182,7 @@ class StateMachine(threading.Thread):
     message: UserMessages = None
     _user_input = None
     _abort_mixing = False
-    weight_timeout = 0.5
+    weight_timeout = 1
     _get_weight_at_next_idle = False
     demo = False
     protocol: barbot.communication.Protocol = None
@@ -288,7 +288,10 @@ class StateMachine(threading.Thread):
                     # get weight if flag is set
                     if self._get_weight_at_next_idle:
                         value = self.protocol.try_get("GetWeight")
-                        self.weight = float(value) if value != None else None
+                        if value != None:
+                            self.weight = float(value)
+                        else:
+                            self.weight = None
                         self._get_weight_at_next_idle = False
                 else:
                     time.sleep(0.1)
