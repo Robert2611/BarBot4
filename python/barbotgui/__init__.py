@@ -158,7 +158,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, _db: barbot.Database, _bot: barbot.StateMachine):
         super().__init__()
-        import barbotgui.views
         self.db = _db
         self.bot = _bot
         self.recipe_filter = barbot.RecipeFilter()
@@ -258,7 +257,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.is_admin = False
                 self.update_view(True)
             else:
-                self.set_view(barbotgui.views.AdminLogin(self))
+                from barbotgui.adminviews import AdminLogin
+                self.set_view(AdminLogin(self))
         else:
             view = QtWidgets.QWidget()
             self.add_system_view(view)
@@ -283,8 +283,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # remove existing item from window
         if self._current_view is not None:
             # switch from idle to busy?
-            if isinstance(self._current_view, barbotgui.views.IdleView)\
-                    and not isinstance(view, barbotgui.views.IdleView):
+            if isinstance(self._current_view, IdleView)\
+                    and not isinstance(view, IdleView):
                 # just remove it from the visuals
                 self._current_view.setParent(None)
             else:
@@ -292,21 +292,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._current_view.deleteLater()
         self._current_view = view
         # save the last used idle view
-        if isinstance(view, barbotgui.views.IdleView):
+        if isinstance(view, IdleView):
             self._last_idle_view = view
         self._content_wrapper.layout().addWidget(self._current_view)
 
     def update_view(self, force_reload=False):
         if not self.bot.is_busy():
             if self.is_admin:
-                self.set_view(barbotgui.views.AdminOverview(self))
+                from barbotgui.adminviews import Overview as AdminOverview
+                self.set_view(AdminOverview(self))
             elif self._last_idle_view != self._current_view or self._last_idle_view is None or force_reload:
                 if self._last_idle_view is None or force_reload:
-                    self.set_view(barbotgui.views.ListRecipes(self))
+                    from barbotgui.userviews import ListRecipes
+                    self.set_view(ListRecipes(self))
                 else:
                     self.set_view(self._last_idle_view)
         else:
-            self.set_view(barbotgui.views.BusyView(self))
+            self.set_view(BusyView(self))
 
     def show_message(self, message):
         splash = QtWidgets.QSplashScreen()
@@ -358,132 +360,289 @@ class View(QtWidgets.QWidget):
         self.bot = window.bot
 
 
-class GlasFilling():
-    color: str
-    fraction: float
+class BusyView(View):
+    _mixing_progress_trigger = QtCore.pyqtSignal()
+    _message_trigger = QtCore.pyqtSignal()
+    _message = None
 
-    def __init__(self, color, fraction):
-        self.color = color
-        self.fraction = fraction
+    def __init__(self, window: barbotgui.MainWindow):
+        super().__init__(window)
 
+        # forward message changed
+        self._message_trigger.connect(lambda: self._update_message())
+        self.bot.on_message_changed = lambda: self._message_trigger.emit()
 
-class GlasIndicator(QtWidgets.QLabel):
-    list = []
-    _top_width = 80
-    _bottom_width = 70
-    _height = 120
-    _h_offset = 4
-    _w_offset = 4
-    _top_pos = 10
-    _roundness = 10
+        self.setLayout(QtWidgets.QGridLayout())
+        barbotgui.set_no_spacing(self.layout())
 
-    def __init__(self, list):
-        super().__init__()
-        self.list = list
-        self.setMinimumSize(QtCore.QSize(
-            self._top_width, self._height + 2 * self._roundness))
+        centered = QtWidgets.QFrame()
+        centered.setLayout(QtWidgets.QVBoxLayout())
+        centered.setProperty("class", "CenteredContent")
+        self.layout().addWidget(centered, 0, 0, QtCore.Qt.AlignCenter)
 
-    def draw_filling(self, painter, start, end, draw_top=True):
-        # create some support variables so the points are easier to read
-        w_b = self._bottom_width
-        w_t = self._top_width
-        w_start = w_b + start * (w_t - w_b) - 2 * self._w_offset
-        w_end = w_b + end * (w_t - w_b) - 2 * self._w_offset
-        center = w_t / 2
-        h = self._height - 2 * self._h_offset
-        bottom = self._top_pos + self._h_offset + h * (1-start)
-        top = self._top_pos + self._h_offset + h * (1-end)
+        self._title_label = QtWidgets.QLabel("")
+        self._title_label.setAlignment(QtCore.Qt.AlignCenter)
+        self._title_label.setProperty("class", "Headline")
+        centered.layout().addWidget(self._title_label)
 
-        ### front path ##
-        path = QtGui.QPainterPath()
-        # bottom left
-        path.moveTo(Qt.QPoint(center - w_start / 2,  + bottom))
-        # bottom right
-        path.quadTo(
-            Qt.QPoint(center,  bottom + self._roundness),
-            Qt.QPoint(center + w_start / 2,  bottom)
-        )
-        # top right
-        path.lineTo(Qt.QPoint(center + w_end / 2,  top))
-        # top left
-        path.quadTo(
-            Qt.QPoint(center,  top + self._roundness),
-            Qt.QPoint(center - w_end / 2,  top)
-        )
-        # back to bottom left
-        path.lineTo(Qt.QPoint(center - w_start / 2,  bottom))
-        painter.drawPath(path)
+        self._content_container = QtWidgets.QWidget()
+        self._content_container.setLayout(QtWidgets.QVBoxLayout())
+        centered.layout().addWidget(self._content_container)
 
-        ### upper path ###
-        if draw_top:
-            path = QtGui.QPainterPath()
-            # top left
-            path.moveTo(Qt.QPoint(center - w_end / 2,  top))
-            # upper bow to the right
-            path.quadTo(
-                Qt.QPoint(center,  top - self._roundness),
-                Qt.QPoint(center + w_end / 2,  top)
+        self._message_container = QtWidgets.QWidget()
+        self._message_container.setLayout(QtWidgets.QGridLayout())
+        self._message_container.setVisible(False)
+        centered.layout().addWidget(self._message_container)
+
+        self._init_by_status()
+
+        self._update_message()
+
+    def _update_message(self):
+        # delete old message
+        if self._message is not None:
+            self._message.setParent(None)
+
+        # if message is none show the content again
+        if self.bot.message is None:
+            self._message_container.setVisible(False)
+            self._content_container.setVisible(True)
+            self._title_label.setVisible(True)
+            return
+
+        self._message = QtWidgets.QWidget()
+        self._message.setLayout(QtWidgets.QVBoxLayout())
+        self._message_container.layout().addWidget(self._message)
+
+        message_label = QtWidgets.QLabel()
+        self._message.layout().addWidget(message_label)
+
+        buttons_container = QtWidgets.QWidget()
+        buttons_container.setLayout(QtWidgets.QHBoxLayout())
+        self._message.layout().addWidget(buttons_container)
+
+        def add_button(text, result):
+            button = QtWidgets.QPushButton(text)
+            def callback(): return self.bot.set_user_input(result)
+            button.clicked.connect(callback)
+            buttons_container.layout().addWidget(button)
+
+        if self.bot.message == barbot.UserMessages.ingredient_empty:
+            message_string = "Die Zutat '%s' ist leer.\n" % self.bot.current_recipe_item.name
+            message_string = message_string + "Bitte neue Flasche anschließen."
+            message_label.setText(message_string)
+
+            add_button("Cocktail abbrechen", False)
+            add_button("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.place_glas:
+            message_label.setText("Bitte ein Glas auf die Plattform stellen.")
+
+        elif self.bot.message == barbot.UserMessages.mixing_done_remove_glas:
+            message_label.setText(
+                "Der Cocktail ist fertig gemischt.\n" +
+                "Du kannst ihn von der Platform nehmen."
             )
-            # lower bow to the left
-            path.quadTo(
-                Qt.QPoint(center,  top + self._roundness),
-                Qt.QPoint(center - w_end / 2,  top)
-            )
-            painter.drawPath(path)
 
-    def paintEvent(self, e):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        total = 0
-        self.draw_glas(painter)
-        for filling in self.list:
-            # transparent pen
-            painter.setPen(QtGui.QColor("#FF999999"))
-            painter.setBrush(QtGui.QColor(filling.color))
-            self.draw_filling(painter, total, total + filling.fraction)
-            total = total + filling.fraction
-        painter.end()
+            if self.bot.current_recipe.instruction:
+                label = QtWidgets.QLabel("Zusätzliche Informationen:")
+                self._message.layout().addWidget(label)
 
-    def draw_glas(self, painter):
-        painter.setPen(QtGui.QColor("#FF999999"))
-        painter.setBrush(QtGui.QColor("#55FFFFFF"))
+                instruction = QtWidgets.QLabel(
+                    self.bot.current_recipe.instruction)
+                self._message.layout().addWidget(instruction)
 
-        path = QtGui.QPainterPath()
-        # bottom left
-        path.moveTo(
-            Qt.QPoint((self._top_width-self._bottom_width)/2, self._top_pos + self._height))
-        # bottom right
-        path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos +
-                      self._height + self._roundness),
-            Qt.QPoint((self._top_width+self._bottom_width) /
-                      2, self._top_pos + self._height)
-        )
-        # top right
-        path.lineTo(Qt.QPoint(self._top_width, self._top_pos + 0))
-        # top left
-        path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos + self._roundness),
-            Qt.QPoint(0,  self._top_pos)
-        )
-        # back to bottom left
-        path.lineTo(
-            Qt.QPoint((self._top_width-self._bottom_width)/2, self._top_pos + self._height))
-        painter.drawPath(path)
+        elif self.bot.message == barbot.UserMessages.ask_for_straw:
+            message_label.setText(
+                "Möchtest du einen Strohhalm haben?")
 
-        ### top of the glas ###
-        path = QtGui.QPainterPath()
-        # move to left
-        path.moveTo(Qt.QPoint(0,  self._top_pos))
-        # upper bow to the right
-        path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos - self._roundness),
-            Qt.QPoint(self._top_width, self._top_pos)
+            add_button("Ja", True)
+            add_button("Nein", False)
+
+        elif self.bot.message == barbot.UserMessages.ask_for_ice:
+            message_label.setText(
+                "Möchtest du Eis in deinem Cocktail haben?")
+
+            add_button("Ja", True)
+            add_button("Nein", False)
+
+        elif self.bot.message == barbot.UserMessages.straws_empty:
+            message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
+
+            add_button("Egal", False)
+            add_button("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.cleaning_adapter:
+            text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
+            text += "Ist der Adapter angeschlossen?"
+            message_label.setText(text)
+
+            add_button("Ja", True)
+            add_button("Abbrechen", False)
+
+        elif self.bot.message == barbot.UserMessages.I2C_error:
+            text = "Ein Kommunikationsfehler ist aufegtreten.\n"
+            text += "Bitte überprüfe, ob alle Module richtig angeschlossen sind und versuche es erneut"
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.unknown_error:
+            text = "Ein unbekannter Fehler ist aufgetreten.\n"
+            text += "Weitere Informationen findest du im Log"
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.glas_removed_while_drafting:
+            text = "Das Glas wurde während des Mischens entfernt!\n"
+            text += "Drücke auf OK, um zum Start zurück zu fahren"
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.ice_empty:
+            message_label.setText("Eis konnte nicht hinzugefügt werden.")
+
+            add_button("Eis weg lassen", False)
+            add_button("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.crusher_cover_open:
+            text = "Bitte den Deckel des Eiscrushers schließen!"
+            message_label.setText(text)
+
+            add_button("Eis weg lassen", False)
+            add_button("Erneut versuchen", True)
+
+        elif self.bot.message == barbot.UserMessages.crusher_timeout:
+            text = "Eis crushen hat zu lange gedauert, bitte überprüfe Crusher und Akku"
+            message_label.setText(text)
+
+            add_button("Eis weg lassen", False)
+            add_button("Erneut versuchen", True)
+
+        self._message_container.setVisible(True)
+        self._content_container.setVisible(False)
+        self._title_label.setVisible(False)
+
+    def _set_progress(self):
+        for i in range(len(self.bot.current_recipe.items)):
+            if self.bot.progress is not None and i < self.bot.progress:
+                icon = barbotgui.qt_icon_from_file_name("done.png")
+            elif self.bot.progress is not None and i == self.bot.progress:
+                icon = barbotgui.qt_icon_from_file_name(
+                    "processing.png")
+            else:
+                icon = barbotgui.qt_icon_from_file_name("queued.png")
+            self.recipe_list_widgets[i].setPixmap(
+                icon.pixmap(icon.availableSizes()[0]))
+
+    def _init_by_status(self):
+        # content
+        if self.bot.state == barbot.State.mixing:
+
+            # ingedrients
+            recipe_items_list = QtWidgets.QWidget()
+            recipe_items_list.setLayout(QtWidgets.QGridLayout())
+            recipe_items_list.setProperty("class", "IngredientToDoList")
+            self._content_container.layout().addWidget(recipe_items_list)
+            self.recipe_list_widgets = []
+
+            def add_widget(name):
+                widget_item = QtWidgets.QLabel()
+                self.recipe_list_widgets.append(widget_item)
+                recipe_items_list.layout().addWidget(widget_item, row, 0)
+                recipe_items_list.layout().addWidget(QtWidgets.QLabel(item.name), row, 1)
+            for row, item in enumerate(self.bot.current_recipe.items):
+                add_widget(item.name)
+            # TODO: add only on process updates, this is not known here yet
+            if self.bot.add_straw:
+                add_widget("Strohhalm")
+            if self.bot.add_ice:
+                add_widget("Eis")
+
+            self._set_progress()
+
+            # forward mixing progress changed
+            self._mixing_progress_trigger.connect(lambda: self._set_progress())
+            self.bot.on_mixing_progress_changed = lambda: self._mixing_progress_trigger.emit()
+
+            # buttons
+            button = QtWidgets.QPushButton("Abbrechen")
+            button.clicked.connect(lambda: self.bot.abort_mixing())
+            self._content_container.layout().addWidget(button)
+
+            self._title_label.setText(
+                "'%s'\nwird gemischt." % self.bot.current_recipe.name)
+
+        elif self.bot.state == barbot.State.cleaning:
+            self._title_label.setText("Reinigung")
+        elif self.bot.state == barbot.State.connecting:
+            self._title_label.setText("Stelle Verbindung her")
+        elif self.bot.state == barbot.State.searching:
+            self._title_label.setText("Suche nach BarBots in der Nähe")
+        elif self.bot.state == barbot.State.cleaning_cycle:
+            self._title_label.setText("Reinigung (Zyklus)")
+        elif self.bot.state == barbot.State.single_ingredient:
+            self._title_label.setText("Dein Nachschlag wird hinzugefügt")
+        elif self.bot.state == barbot.State.startup:
+            self._title_label.setText("Starte BarBot, bitte warten")
+        elif self.bot.state == barbot.State.crushing:
+            self._title_label.setText("Eis wird hinzugefügt")
+        elif self.bot.state == barbot.State.straw:
+            self._title_label.setText("Strohhalm wird hinzugefügt")
+        else:
+            self._title_label.setText("Unknown status: %s" % self.bot.state)
+
+
+class IdleView(View):
+    def __init__(self, window: barbotgui.MainWindow):
+        super().__init__(window)
+        from barbotgui.userviews import ListRecipes, RecipeNewOrEdit, SingleIngredient, Statistics
+        self.navigation_items = [
+            ["Liste", ListRecipes],
+            ["Neu", RecipeNewOrEdit],
+            ["Nachschlag", SingleIngredient],
+            ["Statistik", Statistics],
+        ]
+        self.setLayout(QtWidgets.QVBoxLayout())
+        barbotgui.set_no_spacing(self.layout())
+
+        self.header = QtWidgets.QWidget()
+        self.layout().addWidget(self.header)
+
+        # navigation
+        self.navigation = QtWidgets.QWidget()
+        self.layout().addWidget(self.navigation)
+        self.navigation.setLayout(QtWidgets.QHBoxLayout())
+
+        for text, _class in self.navigation_items:
+            button = QtWidgets.QPushButton(text)
+            def btn_click(checked, c=_class): return self.window.set_view(
+                c(self.window))
+            button.clicked.connect(btn_click)
+            self.navigation.layout().addWidget(button, 1)
+
+        # content
+        content_wrapper = QtWidgets.QWidget()
+        self.layout().addWidget(content_wrapper, 1)
+        content_wrapper.setLayout(QtWidgets.QGridLayout())
+        barbotgui.set_no_spacing(content_wrapper.layout())
+
+        # fixed content
+        self._fixed_content = QtWidgets.QWidget()
+        content_wrapper.layout().addWidget(self._fixed_content)
+
+        scroller = QtWidgets.QScrollArea()
+        scroller.setProperty("class", "ContentScroller")
+        scroller.setWidgetResizable(True)
+        scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        content_wrapper.layout().addWidget(scroller)
+
+        QtWidgets.QScroller.grabGesture(
+            scroller.viewport(), QtWidgets.QScroller.LeftMouseButtonGesture
         )
-        # lower bow to the left
-        path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos + self._roundness),
-            Qt.QPoint(0, self._top_pos)
-        )
-        painter.drawPath(path)
+
+        self._content = QtWidgets.QWidget()
+        self._content.setProperty("class", "IdleContent")
+        scroller.setWidget(self._content)
