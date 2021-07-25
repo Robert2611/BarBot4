@@ -3,6 +3,9 @@
 #include "Arduino.h"
 #include "Wire.h"
 
+#define WIREPROTOCOL_CMD_PING 254
+#define WIREPROTOCOL_MAX_BOARDS 8
+
 class WireProtocol
 {
 private:
@@ -14,5 +17,6 @@ public:
     static bool getFloat(uint8_t address, uint8_t command, float *result);
     static bool getByte(uint8_t address, uint8_t command, uint8_t *result);
     static void blinkAddress(byte address, byte pin);
+    static bool ping(uint8_t address);
 };
 #endif

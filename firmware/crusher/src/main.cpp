@@ -61,7 +61,9 @@ void handleGetters()
 #endif
   switch (i2c_command)
   {
-
+  case WIREPROTOCOL_CMD_PING:
+    Wire.write(CRUSHER_BOARD_ADDRESS);
+    break;
   case CRUSHER_CMD_GET_ERROR:
     Wire.write(error);
 #ifdef SERIAL_DEBUG

@@ -325,6 +325,16 @@ void StateMachine::update()
 			set_status(BarBotStatus_t::ErrorI2C);
 		break;
 
+	case BarBotStatus_t::PingAll:
+		ping_result = 0;
+		for (uint8_t address = 0; address < WIREPROTOCOL_MAX_BOARDS; address++)
+		{
+			if (WireProtocol::ping(address))
+				ping_result |= 1 << address;
+		}
+		set_status(BarBotStatus_t::Idle);
+		break;
+
 	case BarBotStatus_t::DispenseStraw:
 		if (!dispense_straw_sent)
 		{
@@ -393,6 +403,11 @@ float StateMachine::position_in_mm()
 float StateMachine::get_last_draft_remaining_weight()
 {
 	return target_draft_weight - balance->getWeight();
+}
+
+uint16_t StateMachine::get_ping_result()
+{
+	return ping_result;
 }
 ///endregion: getters ///
 
@@ -466,6 +481,12 @@ void StateMachine::start_setBalanceLED(byte type)
 	balance_LED_type = type;
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::SetBalanceLED);
+}
+
+void StateMachine::start_pingAll()
+{
+	//status has to be set last to avoid multi core problems
+	set_status(BarBotStatus_t::PingAll);
 }
 
 void StateMachine::start_dispense_straw()
@@ -563,7 +584,7 @@ void StateMachine::stop_pumps()
 }
 ///endregion: pump ///
 
-int StateMachine::getDraftingPumpIndex()
+int StateMachine::get_drafting_pump_index()
 {
 	if (status == MoveToDraft || status == Drafting)
 		return pump_index;

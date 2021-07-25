@@ -74,6 +74,9 @@ void handleGetters()
 #endif
   switch (i2c_command)
   {
+  case WIREPROTOCOL_CMD_PING:
+    Wire.write(MIXER_BOARD_ADDRESS);
+    break;
   case MIXER_CMD_GET_IS_MIXING:
     Wire.write(do_mixing);
     break;

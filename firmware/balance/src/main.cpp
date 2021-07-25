@@ -49,6 +49,9 @@ void handleGetters()
 {
   switch (i2c_command)
   {
+  case WIREPROTOCOL_CMD_PING:
+    Wire.write(BALANCE_BOARD_ADDRESS);
+    break;
   case BALANCE_CMD_HAS_NEW_DATA:
     Wire.write(new_data);
     new_data = false;

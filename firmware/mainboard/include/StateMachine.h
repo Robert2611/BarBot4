@@ -30,6 +30,7 @@ enum BarBotStatus_t
 	DispenseStraw,
 	MoveToCrusher,
 	CrushingIce,
+	PingAll,
 	//errors
 	Error = 32,
 	ErrorIngredientEmpty,
@@ -70,13 +71,15 @@ public:
 	void start_setBalanceLED(byte type);
 	void start_dispense_straw();
 	void start_crushing(float _ice_weight);
+	void start_pingAll();
 	void set_max_speed(float speed);
 	void set_max_accel(float accel);
 	void set_pump_power(byte percent);
 	void reset_error();
 	float get_last_draft_remaining_weight();
+	uint16_t get_ping_result();
 	bool is_started();
-	int getDraftingPumpIndex();
+	int get_drafting_pump_index();
 
 private:
 	bool is_homed();
@@ -91,6 +94,7 @@ private:
 	byte balance_LED_type;
 	int current_microstep;
 	bool startup;
+	uint16_t ping_result;
 	BalanceBoard *balance;
 	MixerBoard *mixer;
 	StrawBoard *straw_board;

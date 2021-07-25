@@ -56,7 +56,7 @@ void DoLEDandBluetoothTask(void *parameters)
 
 		//update LED controller
 		LEDContr.setPlatformPosition(state_m.position_in_mm() + HOME_DISTANCE);
-		LEDContr.setDraftPosition(HOME_DISTANCE + FIRST_PUMP_POSITION + PUMP_DISTANCE * state_m.getDraftingPumpIndex());
+		LEDContr.setDraftPosition(HOME_DISTANCE + FIRST_PUMP_POSITION + PUMP_DISTANCE * state_m.get_drafting_pump_index());
 		LEDContr.update();
 
 		//make sure system tasks have time too
@@ -69,7 +69,8 @@ void addCommands()
 	//test command that returns done after a defined time
 	protocol.addDoCommand(
 		"Delay",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 1)
 			{
 				long t = atoi(param_v[0]);
@@ -81,7 +82,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else
@@ -89,7 +91,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Draft",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 2)
 			{
 				long i = atoi(param_v[0]);
@@ -102,7 +105,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status > BarBotStatus_t::Error)
 			{
 				(*error_code) = state_m.status;
@@ -117,7 +121,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Crush",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 1)
 			{
 				long w = atoi(param_v[0]);
@@ -129,7 +134,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status > BarBotStatus_t::Error)
 			{
 				(*error_code) = state_m.status;
@@ -144,7 +150,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Mix",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 1)
 			{
 				long d = atol(param_v[0]);
@@ -156,7 +163,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status > BarBotStatus_t::Error)
 			{
 				(*error_code) = state_m.status;
@@ -171,7 +179,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Clean",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 2)
 			{
 				long index = atoi(param_v[0]);
@@ -184,7 +193,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else
@@ -192,7 +202,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Straw",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 0)
 			{
 				state_m.start_dispense_straw();
@@ -200,7 +211,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status > BarBotStatus_t::Error)
 			{
 				(*error_code) = state_m.status;
@@ -215,7 +227,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Home",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (state_m.status == Idle)
 			{
 				state_m.start_homing();
@@ -223,7 +236,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else
@@ -231,7 +245,8 @@ void addCommands()
 		});
 	protocol.addDoCommand(
 		"Move",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 1)
 			{
 				long t = atoi(param_v[0]);
@@ -243,7 +258,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status > BarBotStatus_t::Error)
 			{
 				(*error_code) = state_m.status;
@@ -258,7 +274,8 @@ void addCommands()
 	//PlatformLED needs to be sent via I2C in the main loop, so it must be a "Do" command
 	protocol.addDoCommand(
 		"PlatformLED",
-		[](int param_c, char **param_v, long *result) {
+		[](int param_c, char **param_v, long *result)
+		{
 			if (param_c == 1)
 			{
 				long a = atoi(param_v[0]);
@@ -270,7 +287,8 @@ void addCommands()
 			}
 			return false;
 		},
-		[](int *error_code, long *parameter) {
+		[](int *error_code, long *parameter)
+		{
 			if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else if (state_m.status == BarBotStatus_t::SetBalanceLED)
@@ -282,7 +300,8 @@ void addCommands()
 			}
 		});
 	protocol.addSetCommand("SetSpeed",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   if (param_c == 1)
 							   {
 								   long s = atoi(param_v[0]);
@@ -295,7 +314,8 @@ void addCommands()
 							   return false;
 						   });
 	protocol.addSetCommand("SetAccel",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   if (param_c == 1)
 							   {
 								   long a = atoi(param_v[0]);
@@ -308,7 +328,8 @@ void addCommands()
 							   return false;
 						   });
 	protocol.addSetCommand("SetBalanceCalibration",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   if (param_c == 1)
 							   {
 								   long cal = atol(param_v[0]);
@@ -321,7 +342,8 @@ void addCommands()
 							   return false;
 						   });
 	protocol.addSetCommand("SetBalanceOffset",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   if (param_c == 1)
 							   {
 								   long offset = atol(param_v[0]);
@@ -331,7 +353,8 @@ void addCommands()
 							   return false;
 						   });
 	protocol.addSetCommand("SetPumpPower",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   if (param_c == 1)
 							   {
 								   long a = atoi(param_v[0]);
@@ -344,7 +367,8 @@ void addCommands()
 							   return false;
 						   });
 	protocol.addSetCommand("SetLED",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   if (param_c == 1)
 							   {
 								   long a = atoi(param_v[0]);
@@ -357,13 +381,22 @@ void addCommands()
 							   return false;
 						   });
 	protocol.addGetCommand("GetWeight",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   (*result) = (long)balance.getWeight();
 							   return true;
 						   });
 	protocol.addGetCommand("HasGlas",
-						   [](int param_c, char **param_v, long *result) {
+						   [](int param_c, char **param_v, long *result)
+						   {
 							   (*result) = balance.getWeight() > GLASS_WEIGHT_MIN;
+							   return true;
+						   });
+	protocol.addGetCommand("GetConnectedBoards",
+						   [](int param_c, char **param_v, long *result)
+						   {
+							   state_m.start_pingAll();
+							   (*result) = state_m.get_ping_result();
 							   return true;
 						   });
 }

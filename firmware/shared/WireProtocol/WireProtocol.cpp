@@ -78,3 +78,11 @@ void WireProtocol::blinkAddress(byte address, byte pin)
         delay(100);
     }
 }
+
+bool WireProtocol::ping(uint8_t address)
+{
+    //Send a ping to the defined address, the response should be the address again
+    byte response;
+    bool success = WireProtocol::getByte(address, WIREPROTOCOL_CMD_PING, &response);
+    return success && (response == address);
+}

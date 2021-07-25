@@ -57,6 +57,10 @@ void handleGetters()
 #endif
   switch (i2c_command)
   {
+  case WIREPROTOCOL_CMD_PING:
+    Wire.write(STRAW_BOARD_ADDRESS);
+    break;
+
   case STRAW_CMD_GET_IS_DISPENSING:
     Wire.write(dispensing);
     break;
