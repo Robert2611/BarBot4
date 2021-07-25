@@ -287,7 +287,8 @@ class StateMachine(threading.Thread):
                         self.set_state(State.connecting)
                     # get weight if flag is set
                     if self._get_weight_at_next_idle:
-                        self.weight = float(self.protocol.try_get("GetWeight"))
+                        value = self.protocol.try_get("GetWeight")
+                        self.weight = float(value) if value != None else None
                         self._get_weight_at_next_idle = False
                 else:
                     time.sleep(0.1)
