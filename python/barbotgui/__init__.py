@@ -521,6 +521,30 @@ class BusyView(View):
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
+        elif self.bot.message == barbot.UserMessages.board_not_connected_balance:
+            text = "Waage konnte nicht gefunden werden. Bitte Verbindung überprüfen."
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.board_not_connected_crusher:
+            text = "Eis Crusher konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.board_not_connected_mixer:
+            text = "Mixer konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
+            message_label.setText(text)
+
+            add_button("OK", True)
+
+        elif self.bot.message == barbot.UserMessages.board_not_connected_straw:
+            text = "Strohhalm dispenser konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
+            message_label.setText(text)
+
+            add_button("OK", True)
+
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
         self._title_label.setVisible(False)

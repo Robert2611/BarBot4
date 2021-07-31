@@ -36,6 +36,14 @@ class State(Enum):
     stirring = auto()
 
 
+class Boards(Enum):
+    # board addresses must match "shared.h"
+    balance = 0x01
+    mixer = 0x02
+    straw = 0x03
+    crusher = 0x04
+
+
 class UserMessages(Enum):
     mixing_done_remove_glas = auto()
     place_glas = auto()
@@ -50,6 +58,10 @@ class UserMessages(Enum):
     glas_removed_while_drafting = auto()
     crusher_cover_open = auto()
     crusher_timeout = auto()
+    board_not_connected_balance = auto()
+    board_not_connected_mixer = auto()
+    board_not_connected_straw = auto()
+    board_not_connected_crusher = auto()
 
 
 class RecipeItem(object):
@@ -99,7 +111,6 @@ class BarBotConfig(object):
         self.config = configparser.ConfigParser()
         self.config.add_section("default")
         self.set_value("mac_address", "")
-        self.set_value("rainbow_duration", 30 * 1000)
         self.set_value("max_speed", 200)
         self.set_value("max_accel", 300)
         self.set_value("max_cocktail_size", 30)
@@ -116,7 +127,6 @@ class BarBotConfig(object):
 
     def apply(self):
         self.mac_address = self.__get_str("mac_address")
-        self.rainbow_duration = self.__get_int("rainbow_duration")
         self.max_speed = self.__get_int("max_speed")
         self.max_accel = self.__get_int("max_accel")
         self.max_cocktail_size = self.__get_int("max_cocktail_size")
@@ -168,6 +178,7 @@ class StateMachine(threading.Thread):
     on_state_changed = None
     on_message_changed = None
 
+    # error codes (must match "shared.h")
     error_ingredient_empty = 33
     error_balance_communication = 34
     error_I2C = 35
@@ -227,6 +238,11 @@ class StateMachine(threading.Thread):
         self.protocol.try_set("SetBalanceCalibration",
                               int(self.config.balance_calibration))
 
+    def get_boards_connected(self):
+        boards = self.protocol.try_get("GetConnectedBoards")
+        boards = int(boards) if boards != None else 0
+        self.ConnectedBoards = [b for b in Boards if (boards & 1 << b.value)]
+
     # main loop, runs the whole time
     def run(self):
         logging.debug("State machine started" +
@@ -255,6 +271,27 @@ class StateMachine(threading.Thread):
                     self.set_state(State.connecting)
                 elif self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
                     p = self.protocol
+                    # check all boards that should be connected and warn if they are not
+                    self.get_boards_connected()
+                    if not Boards.balance in self.ConnectedBoards:
+                        self._set_message(
+                            UserMessages.board_not_connected_balance)
+                    if self.config.stirrer_connected and not Boards.mixer in self.ConnectedBoards:
+                        self._set_message(
+                            UserMessages.board_not_connected_mixer)
+                        if not self._wait_for_user_input():
+                            return
+                    if self.config.straw_dispenser_connected and not Boards.straw in self.ConnectedBoards:
+                        self._set_message(
+                            UserMessages.board_not_connected_straw)
+                        if not self._wait_for_user_input():
+                            return
+                    if self.config.ice_crusher_connected and not Boards.crusher in self.ConnectedBoards:
+                        self._set_message(
+                            UserMessages.board_not_connected_crusher)
+                        if not self._wait_for_user_input():
+                            return
+                    self._set_message(None)
                     p.try_set("SetLED", 3)
                     p.try_set("SetSpeed", self.config.max_speed)
                     p.try_set("SetAccel", self.config.max_accel)
@@ -668,7 +705,7 @@ class StateMachine(threading.Thread):
         self._get_weight_at_next_idle = True
         start_time = time.time()
         while(self._get_weight_at_next_idle and time.time() < start_time + self.weight_timeout):
-            time.sleep(0.01)
+            time.sleep(0.1)
         if self._get_weight_at_next_idle:
             self._get_weight_at_next_idle = False
             return None

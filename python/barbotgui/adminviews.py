@@ -1,8 +1,7 @@
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
 import barbot
-from barbotgui import IdleView, MainWindow
-import os
+from barbotgui import IdleView
 
 
 class AdminLogin(IdleView):
@@ -92,14 +91,15 @@ class Overview(IdleView):
         self._content.layout().addWidget(self.admin_navigation)
 
         admin_navigation_items = [
-            ["Positionen", Ports],
-            ["Reinigung", Cleaning],
             ["System", System],
-            ["Löschen", RemoveRecipe],
-            ["Kalibrierung", BalanceCalibration],
-            ["Einstellungen", Settings]
+            ["Positionen", Ports],
+            ["Einstellungen", Settings],
+            ["Reinigung", Cleaning],
+            ["Cocktails Löschen", RemoveRecipe],
+            ["Waage kalibrieren", BalanceCalibration],
+            ["Zutaten kalibrieren", IngredientCalibration]
         ]
-        columns = 2
+        columns = 1
         column = 0
         row = 0
         for text, _class in admin_navigation_items:
@@ -113,30 +113,6 @@ class Overview(IdleView):
                 column = 0
                 row += 1
 
-        # table
-        table = QtWidgets.QWidget()
-        table.setLayout(QtWidgets.QGridLayout())
-        self._content.layout().addWidget(table)
-
-        # fill table
-        ingredients = self.db.list_ingredients(True)
-        ports = self.db.ingredient_of_port()
-        for i in range(12):
-            label = QtWidgets.QLabel("Position %i" % (i+1))
-            table.layout().addWidget(label, i, 0)
-            if i in ports.keys() and ports[i] in ingredients.keys():
-                ingredient = ingredients[ports[i]]
-                label = QtWidgets.QLabel(ingredient["name"])
-                table.layout().addWidget(label, i, 1)
-                label = QtWidgets.QLabel(str(ingredient["calibration"]))
-                table.layout().addWidget(label, i, 2)
-                # calibrate button
-                button = QtWidgets.QPushButton(
-                    barbotgui.qt_icon_from_file_name("calibrate.png"), "")
-                button.clicked.connect(
-                    lambda checked, portId=i: self._open_ingredient_calibration(portId))
-                table.layout().addWidget(button, i, 3, QtCore.Qt.AlignLeft)
-
         # weight label
         self._weight_label = QtWidgets.QLabel()
         self._content.layout().addWidget(self._weight_label)
@@ -149,9 +125,6 @@ class Overview(IdleView):
         self._update_timer = QtCore.QTimer(self)
         self._update_timer.timeout.connect(self._update_weight)
         self._update_timer.start(500)
-
-    def _open_ingredient_calibration(self, id):
-        self.window.set_view(IngredientCalibration(self.window, id))
 
     def _update_weight(self):
         res = self.window.bot.get_weight()
@@ -223,11 +196,44 @@ class IngredientCalibration(IdleView):
 
         self._fixed_content.layout().addWidget(QtWidgets.QLabel("Zutat kalibrieren"))
 
+        if portId == -1:
+            # show table to choose port
+            table = QtWidgets.QWidget()
+            table.setLayout(QtWidgets.QGridLayout())
+            self._content.layout().addWidget(table)
+            # fill table
+            ingredients = self.db.list_ingredients(True)
+            ports = self.db.ingredient_of_port()
+            for i in range(12):
+                label = QtWidgets.QLabel("Position %i" % (i+1))
+                table.layout().addWidget(label, i, 0)
+                if i in ports.keys() and ports[i] in ingredients.keys():
+                    ingredient = ingredients[ports[i]]
+                    label = QtWidgets.QLabel(ingredient["name"])
+                    table.layout().addWidget(label, i, 1)
+                    label = QtWidgets.QLabel(str(ingredient["calibration"]))
+                    table.layout().addWidget(label, i, 2)
+                    # calibrate button
+                    button = QtWidgets.QPushButton(
+                        barbotgui.qt_icon_from_file_name("calibrate.png"), "")
+                    button.clicked.connect(
+                        lambda checked, portId=i: self._open_ingredient_calibration(portId))
+                    table.layout().addWidget(button, i, 3, QtCore.Qt.AlignLeft)
+        else:
+            # TODO: show screen to calibrate ingredient
+            label = QtWidgets.QLabel(
+                "Diese Funktion ist noch nicht implementiert.")
+            self._content.layout().addWidget(label)
+            pass
+
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
         def btn_click(): return self.window.set_view(Overview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
+
+    def _open_ingredient_calibration(self, id):
+        self.window.set_view(IngredientCalibration(self.window, id))
 
 
 class BalanceCalibration(IdleView):
@@ -487,24 +493,22 @@ class Settings(IdleView):
 
         self.entries = [
             # {"name": "Mac Address", "setting": "mac_address", "type": str},
-            {"name": "Dauer Regenbogen Animation",
-                "setting": "rainbow_duration", "type": int, "min": 1, "max": 60000},
-            {"name": "Max. Geschwindigkeit", "setting": "max_speed",
+            {"name": "Max. Geschwindigkeit [mm/s]", "setting": "max_speed",
                 "type": int, "min": 1, "max": 1000},
-            {"name": "Max. Beschleunigung", "setting": "max_accel",
+            {"name": "Max. Beschleunigung [mm/s^2]", "setting": "max_accel",
                 "type": int, "min": 1, "max": 1000},
-            {"name": "Max Cocktail Größe",
+            {"name": "Max Cocktail Größe [cl]",
                 "setting": "max_cocktail_size", "type": int, "min": 1, "max": 50},
             {"name": "Leistung Pumpe [0..255]",
                 "setting": "pump_power", "type": int, "min": 1, "max": 255},
-            {"name": "Dauer Reinigung", "setting": "cleaning_time",
+            {"name": "Dauer Reinigung [ms]", "setting": "cleaning_time",
                 "type": int, "min": 1, "max": 20000},
             {"name": "Rührer verbunden", "setting": "stirrer_connected", "type": bool},
-            {"name": "Dauer Rühren", "setting": "stirring_time",
+            {"name": "Dauer Rühren [ms]", "setting": "stirring_time",
                 "type": int, "min": 1, "max": 10000},
-            {"name": "Eis crucher verbunden",
+            {"name": "Eis Crucher verbunden",
                 "setting": "ice_crusher_connected", "type": bool},
-            {"name": "Eis Menge", "setting": "ice_amount",
+            {"name": "Eis Menge [g]", "setting": "ice_amount",
                 "type": int, "min": 1, "max": 300},
             {"name": "Strohhalm Dispenser verbunden",
                 "setting": "straw_dispenser_connected", "type": bool},
