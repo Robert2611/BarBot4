@@ -194,7 +194,7 @@ class StateMachine(threading.Thread):
     _user_input = None
     _abort_mixing = False
     weight_timeout = 1
-    _get_weight_at_next_idle = False
+    _get_async = None
     demo = False
     protocol: barbot.communication.Protocol = None
     add_straw = False
@@ -202,6 +202,7 @@ class StateMachine(threading.Thread):
     current_recipe: barbot.Recipe = None
     current_recipe_item: RecipeItem = None
     pumps_to_clean = []
+    connected_boards = []
     bt_timeout = 1
 
     def __init__(self, config_path, demo=False):
@@ -220,6 +221,7 @@ class StateMachine(threading.Thread):
             self.protocol = barbot.communication.Protocol()
             self.set_state(State.connecting)
         else:
+            self.connected_boards = [Boards.balance]
             self.set_state(State.idle)
 
     def is_mac_address_valid(self):
@@ -237,11 +239,6 @@ class StateMachine(threading.Thread):
                               int(self.config.balance_offset))
         self.protocol.try_set("SetBalanceCalibration",
                               int(self.config.balance_calibration))
-
-    def get_boards_connected(self):
-        boards = self.protocol.try_get("GetConnectedBoards")
-        boards = int(boards) if boards != None else 0
-        self.ConnectedBoards = [b for b in Boards if (boards & 1 << b.value)]
 
     # main loop, runs the whole time
     def run(self):
@@ -272,21 +269,21 @@ class StateMachine(threading.Thread):
                 elif self.protocol.read_message().type == barbot.communication.MessageTypes.STATUS:
                     p = self.protocol
                     # check all boards that should be connected and warn if they are not
-                    self.get_boards_connected()
-                    if not Boards.balance in self.ConnectedBoards:
+                    self.get_boards_connected(synchronous=True)
+                    if not Boards.balance in self.connected_boards:
                         self._set_message(
                             UserMessages.board_not_connected_balance)
-                    if self.config.stirrer_connected and not Boards.mixer in self.ConnectedBoards:
+                    if self.config.stirrer_connected and not Boards.mixer in self.connected_boards:
                         self._set_message(
                             UserMessages.board_not_connected_mixer)
                         if not self._wait_for_user_input():
                             return
-                    if self.config.straw_dispenser_connected and not Boards.straw in self.ConnectedBoards:
+                    if self.config.straw_dispenser_connected and not Boards.straw in self.connected_boards:
                         self._set_message(
                             UserMessages.board_not_connected_straw)
                         if not self._wait_for_user_input():
                             return
-                    if self.config.ice_crusher_connected and not Boards.crusher in self.ConnectedBoards:
+                    if self.config.ice_crusher_connected and not Boards.crusher in self.connected_boards:
                         self._set_message(
                             UserMessages.board_not_connected_crusher)
                         if not self._wait_for_user_input():
@@ -322,14 +319,11 @@ class StateMachine(threading.Thread):
                     self.protocol.read_message()
                     if not self.protocol.is_connected:
                         self.set_state(State.connecting)
-                    # get weight if flag is set
-                    if self._get_weight_at_next_idle:
-                        value = self.protocol.try_get("GetWeight")
-                        if value != None:
-                            self.weight = float(value)
-                        else:
-                            self.weight = None
-                        self._get_weight_at_next_idle = False
+                    # get async if flag is set
+                    if self._get_async != None:
+                        self._async_result = self.protocol.try_get(
+                            self._get_async)
+                        self._get_async = None
                 else:
                     time.sleep(0.1)
         if not self.demo:
@@ -699,17 +693,33 @@ class StateMachine(threading.Thread):
     def start_straw(self):
         self.set_state(State.straw)
 
-    def get_weight(self):
+    def get_async(self, parameter):
         if self.state != State.idle:
             return None
-        self._get_weight_at_next_idle = True
+        self._get_async = parameter
         start_time = time.time()
-        while(self._get_weight_at_next_idle and time.time() < start_time + self.weight_timeout):
+        while(self._get_async != None and time.time() < start_time + self.weight_timeout):
             time.sleep(0.1)
-        if self._get_weight_at_next_idle:
-            self._get_weight_at_next_idle = False
+        if self._get_async != None:
+            self._get_async = None
             return None
+        return self._async_result
+
+    def get_weight(self):
+        if self.get_async("GetWeight") != None:
+            self.weight = float(self._async_result)
+        else:
+            self.weight = None
         return self.weight
+
+    def get_boards_connected(self, synchronous=False):
+        if synchronous:
+            boards = self.protocol.try_get("GetConnectedBoards")
+        else:
+            boards = self.get_async("GetConnectedBoards")
+        boards = int(boards) if boards != None else 0
+        self.connected_boards = [b for b in Boards if (boards & 1 << b.value)]
+        return self.connected_boards
 
 
 class RecipeOrder(Enum):

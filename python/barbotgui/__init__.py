@@ -7,7 +7,7 @@ import platform
 import sys
 
 
-def is_raspberry():
+def is_raspberry() -> bool:
     if platform.system() != "Linux":
         return False
     try:
@@ -23,12 +23,12 @@ def set_no_spacing(layout):
     layout.setContentsMargins(0, 0, 0, 0)
 
 
-def css_path():
+def css_path() -> str:
     script_dir = os.path.dirname(__file__)
     return os.path.join(script_dir, "asset")
 
 
-def qt_icon_from_file_name(fileName):
+def qt_icon_from_file_name(fileName) -> Qt.QIcon:
     script_dir = os.path.dirname(__file__)
     path = os.path.join(script_dir, "asset", fileName)
     return Qt.QIcon(path)

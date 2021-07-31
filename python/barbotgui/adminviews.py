@@ -113,10 +113,44 @@ class Overview(IdleView):
                 column = 0
                 row += 1
 
-        # weight label
-        self._weight_label = QtWidgets.QLabel()
-        self._content.layout().addWidget(self._weight_label)
+        if not self.bot.demo:
+            self.bot.get_boards_connected()
+        boards = [
+            [barbot.Boards.balance, "balance.png"],
+            [barbot.Boards.straw, "straw.png"],
+            [barbot.Boards.crusher, "ice.png"],
+            [barbot.Boards.mixer, "stir.png"]
+        ]
+        row = 1
+        # wrapper
+        wrapper = QtWidgets.QWidget()
+        wrapper.setProperty("class", "Boards")
+        wrapper.setLayout(QtWidgets.QGridLayout())
+        self._content.layout().addWidget(wrapper)
+        for board, icon in boards:
+            connected = board in self.bot.connected_boards
+            # board icon
+            icon = barbotgui.qt_icon_from_file_name(icon)
+            button = QtWidgets.QPushButton(icon, "")
+            button.setProperty("class", "IconPresenter")
+            button.setEnabled(connected)
+            wrapper.layout().addWidget(button, row, 0, 1, 1)
+            # connected / disconnected icon
+            icon = barbotgui.qt_icon_from_file_name(
+                "plug-on.png" if connected else "plug-off.png")
+            button = QtWidgets.QPushButton(icon, "")
+            button.setProperty("class", "IconPresenter")
+            button.setEnabled(connected)
+            wrapper.layout().addWidget(button, row, 1, 1, 1)
 
+            if board == barbot.Boards.balance:
+                # weight label
+                self._weight_label = QtWidgets.QLabel()
+                wrapper.layout().addWidget(self._weight_label, row, 2, 1, 3)
+            row += 1
+        # dummy
+        wrapper.layout().addWidget(QtWidgets.QWidget(), 0, 0)
+        wrapper.layout().addWidget(QtWidgets.QWidget(), row, 0)
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
