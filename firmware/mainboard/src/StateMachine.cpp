@@ -177,23 +177,32 @@ void StateMachine::update()
 						set_status(BarBotStatus_t::ErrorI2C);
 				}
 			}
-			else if (millis() > draft_timeout_last_check_millis + DRAFT_TIMOUT_MILLIS)
+			//Empty error for drafting
+			else if ((status == BarBotStatus_t::Drafting) && (millis() > draft_timeout_last_check_millis + DRAFT_TIMEOUT_MILLIS))
 			{
-				if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMOUT_WEIGHT)
+				if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMEOUT_WEIGHT)
 				{
 					//error
-					if (status == BarBotStatus_t::Drafting)
-					{
-						stop_pumps();
+					stop_pumps();
+					set_status(BarBotStatus_t::ErrorIngredientEmpty);
+				}
+				else
+				{
+					//reset the timeout
+					draft_timeout_last_check_millis = millis();
+					draft_timeout_last_weight = balance->getWeight();
+				}
+			}
+			//Empty error for ice, the constants are different here since crusing is slower
+			else if ((status == BarBotStatus_t::CrushingIce) && (millis() > draft_timeout_last_check_millis + ICE_TIMEOUT_MILLIS))
+			{
+				if (balance->getWeight() < draft_timeout_last_weight + ICE_TIMEOUT_WEIGHT)
+				{
+					//error
+					if (crusher->StopCrushing())
 						set_status(BarBotStatus_t::ErrorIngredientEmpty);
-					}
-					else if (status == BarBotStatus_t::CrushingIce)
-					{
-						if (crusher->StopCrushing())
-							set_status(BarBotStatus_t::ErrorIngredientEmpty);
-						else
-							set_status(BarBotStatus_t::ErrorI2C);
-					}
+					else
+						set_status(BarBotStatus_t::ErrorI2C);
 				}
 				else
 				{

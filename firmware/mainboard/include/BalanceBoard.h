@@ -3,7 +3,7 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-//if it takes longer than DRAFT_TIMOUT_MILLIS to receive a new value an error is thrown
+//if it takes longer than DRAFT_TIMEOUT_MILLIS to receive a new value an error is thrown
 //the update time of the balance is 80Hz
 #define BALANCE_DATA_TIMEOUT 1000
 

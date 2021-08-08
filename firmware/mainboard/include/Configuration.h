@@ -40,7 +40,10 @@
 #define LEDC_CHANNEL_PUMP 0
 
 //timeout if weight did not increase by a certain amount in the specified time
-#define DRAFT_TIMOUT_MILLIS 3000
-#define DRAFT_TIMOUT_WEIGHT 20
+#define DRAFT_TIMEOUT_MILLIS 3000
+#define DRAFT_TIMEOUT_WEIGHT 20
+
+#define ICE_TIMEOUT_MILLIS 5000
+#define ICE_TIMEOUT_WEIGHT 10
 
 #define CHILD_UPDATE_PERIOD 100
