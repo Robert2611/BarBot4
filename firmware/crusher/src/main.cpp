@@ -4,15 +4,11 @@
 #include "WireProtocol.h"
 
 #define SERIAL_DEBUG
-#define PIN_EN 3
-#define PIN_MOTOR_A 4
-#define PIN_MOTOR_B 5
 #define PIN_PWM 6
-#define PIN_SENSE A6
 #define PIN_LED 13
 #define PIN_COVER_SWITCH 8
 
-#define CRUSHING_MAX_TIME 5000
+#define CRUSHING_MAX_TIME 30000
 
 byte i2c_command = 0xFF;
 
@@ -27,13 +23,13 @@ void startCrushing()
   error = CRUSHER_ERROR_NO_ERROR;
   crushing = true;
   crushing_start_time = millis();
-  analogWrite(PIN_EN, 255);
+  analogWrite(PIN_PWM, 255);
 }
 
 void stopChrushing()
 {
   crushing = false;
-  digitalWrite(PIN_EN, LOW);
+  digitalWrite(PIN_PWM, LOW);
 }
 
 void handleSetters(int parameters_count)
@@ -113,67 +109,36 @@ void setup()
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif
-  pinMode(PIN_EN, INPUT);
-  pinMode(PIN_MOTOR_A, OUTPUT);
-  pinMode(PIN_MOTOR_B, OUTPUT);
   pinMode(PIN_PWM, OUTPUT);
-  pinMode(PIN_SENSE, INPUT);
   pinMode(PIN_COVER_SWITCH, INPUT_PULLUP);
   initWire();
 #ifdef SERIAL_DEBUG
   Serial.println("Crusher board initialised");
 #endif
-  digitalWrite(PIN_MOTOR_A, LOW);
-  digitalWrite(PIN_MOTOR_B, LOW);
   digitalWrite(PIN_PWM, LOW);
-  digitalWrite(PIN_MOTOR_A, HIGH);
-  analogWrite(PIN_PWM, 255);
 }
 
 void loop()
 {
-  // if (Serial.available())
-  // {
-  //   String input = Serial.readString();
-  //   String command = input.substring(0, 1);
-  //   command.toLowerCase();
-  //   String parameter;
+  if (Serial.available())
+  {
+    String input = Serial.readString();
+    String command = input.substring(0, 1);
+    command.toLowerCase();
+    String parameter;
 
-  //   if (input.length() > 2)
-  //   {
-  //     parameter = input.substring(2);
-  //   }
+    if (input.length() > 2)
+    {
+      parameter = input.substring(2);
+    }
 
-  //   if (command == "a")
-  //   {
-  //     Serial.print("A->");
-  //     Serial.println(parameter.toInt());
-  //     digitalWrite(PIN_MOTOR_A, parameter.toInt() ? HIGH : LOW);
-  //   }
-  //   else if (command == "b")
-  //   {
-  //     Serial.print("B->");
-  //     Serial.println(parameter.toInt());
-  //     digitalWrite(PIN_MOTOR_B, parameter.toInt() ? HIGH : LOW);
-  //   }
-  //   else if (command == "p")
-  //   {
-  //     Serial.print("PWM->");
-  //     Serial.println(parameter.toInt());
-  //     analogWrite(PIN_PWM, parameter.toInt());
-  //   }
-  //   else if (command == "e")
-  //   {
-  //     Serial.print("ENABLED->");
-  //     Serial.println(digitalRead(PIN_EN));
-  //   }
-  //   else if (command == "c")
-  //   {
-  //     Serial.print("Current->");
-  //     Serial.println(analogRead(PIN_SENSE));
-  //   }
-  // }
-
+    if (command == "p")
+    {
+      Serial.print("PWM->");
+      Serial.println(parameter.toInt());
+      analogWrite(PIN_PWM, parameter.toInt());
+    }
+  }
   if (crushing)
   {
     //timeout
