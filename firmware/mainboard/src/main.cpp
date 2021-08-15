@@ -12,10 +12,6 @@
 #include "StateMachine.h"
 #include "CrusherBoard.h"
 
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
-
 #define SERIAL_DEBUG
 
 TaskHandle_t BluetoothTask;
@@ -296,6 +292,7 @@ void addCommands()
 			else
 			{
 				(*error_code) = state_m.status;
+				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
 		});
@@ -395,6 +392,7 @@ void addCommands()
 	protocol.addGetCommand("GetConnectedBoards",
 						   [](int param_c, char **param_v, long *result)
 						   {
+							   //TODO: Find a way to make synchronous I2C communication possible as this has to be called twice to work
 							   state_m.start_pingAll();
 							   (*result) = state_m.get_ping_result();
 							   return true;
