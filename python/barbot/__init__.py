@@ -714,8 +714,12 @@ class StateMachine(threading.Thread):
 
     def get_boards_connected(self, synchronous=False):
         if synchronous:
+            # workaround: call twice so the result is really there
+            self.protocol.try_get("GetConnectedBoards")
             boards = self.protocol.try_get("GetConnectedBoards")
         else:
+            # workaround: call twice so the result is really there
+            self.get_async("GetConnectedBoards")
             boards = self.get_async("GetConnectedBoards")
         boards = int(boards) if boards != None else 0
         self.connected_boards = [b for b in Boards if (boards & 1 << b.value)]
