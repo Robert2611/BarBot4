@@ -20,6 +20,13 @@
                 "-d"
             ],
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "name": "Python: BarBotTools",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/python/barbottools.py",
+            "console": "integratedTerminal"
+        },
     ]
 }
