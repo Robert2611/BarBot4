@@ -4,10 +4,8 @@ from PyQt5 import QtWidgets
 import barbot
 import barbotgui
 import os
-import qdarkstyle
 import sys
 import logging
-import configparser
 from datetime import datetime
 
 # cofigure logging
