@@ -267,35 +267,40 @@ void addCommands()
 			else
 				return CommandStatus_t::Running;
 		});
-	//PlatformLED needs to be sent via I2C in the main loop, so it must be a "Do" command
-	protocol.addDoCommand(
-		"PlatformLED",
-		[](int param_c, char **param_v, long *result)
-		{
-			if (param_c == 1)
-			{
-				long a = atoi(param_v[0]);
-				if (a >= 0 && a < 10)
-				{
-					state_m.start_setBalanceLED(a);
-					return true;
-				}
-			}
-			return false;
-		},
-		[](int *error_code, long *parameter)
-		{
-			if (state_m.status == BarBotStatus_t::Idle)
-				return CommandStatus_t::Done;
-			else if (state_m.status == BarBotStatus_t::SetBalanceLED)
-				return CommandStatus_t::Running;
-			else
-			{
-				(*error_code) = state_m.status;
-				state_m.reset_error();
-				return CommandStatus_t::Error;
-			}
-		});
+	protocol.addSetCommand("PlatformLED",
+						   [](int param_c, char **param_v, long *result)
+						   {
+							   if (param_c == 1)
+							   {
+								   long a = atoi(param_v[0]);
+								   if (a >= 0 && a < 10)
+								   {
+									   state_m.start_setBalanceLED(a);
+									   //Wait blocking!
+									   while (true)
+									   {
+										   if (state_m.status == BarBotStatus_t::Idle)
+										   {
+											   (*result) = state_m.get_ping_result();
+											   return true;
+										   }
+										   else if (state_m.status == BarBotStatus_t::SetBalanceLED)
+										   {
+											   //wait
+											   yield();
+										   }
+										   else
+										   {
+											   (*result) = -state_m.status;
+											   state_m.reset_error();
+											   Serial.println(state_m.status);
+											   return false;
+										   }
+									   }
+								   }
+							   }
+							   return false;
+						   });
 	protocol.addSetCommand("SetSpeed",
 						   [](int param_c, char **param_v, long *result)
 						   {
@@ -392,10 +397,28 @@ void addCommands()
 	protocol.addGetCommand("GetConnectedBoards",
 						   [](int param_c, char **param_v, long *result)
 						   {
-							   //TODO: Find a way to make synchronous I2C communication possible as this has to be called twice to work
 							   state_m.start_pingAll();
-							   (*result) = state_m.get_ping_result();
-							   return true;
+							   //Wait blocking!
+							   while (true)
+							   {
+								   if (state_m.status == BarBotStatus_t::Idle)
+								   {
+									   (*result) = state_m.get_ping_result();
+									   return true;
+								   }
+								   else if (state_m.status == BarBotStatus_t::PingAll)
+								   {
+									   //wait
+									   yield();
+								   }
+								   else
+								   {
+									   (*result) = -state_m.status;
+									   state_m.reset_error();
+									   Serial.println(state_m.status);
+									   return false;
+								   }
+							   }
 						   });
 }
 
