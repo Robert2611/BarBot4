@@ -112,10 +112,10 @@ class ProtocolThread(threading.Thread):
                                 self._next_command["name"], self._next_command["parameters"][0], self._next_command["parameters"][1])
                     elif self._next_command["type"] == "Set":
                         self.protocol.try_set(
-                            self._next_command["name"], self._next_command["parameters"])
+                            self._next_command["name"], self._next_command["parameters"][0])
                     elif self._next_command["type"] == "Get":
                         self.protocol.try_get(
-                            self._next_command["name"], self._next_command["parameters"])
+                            self._next_command["name"], self._next_command["parameters"][0])
                     # reset command
                     self._next_command = None
 
