@@ -1,73 +1,92 @@
 import yaml
 import os
 from enum import Enum
+from pprint import pprint
+from datetime import datetime
 
+def in_data_dir(*paths):
+    script_dir = os.path.dirname(__file__)
+    filepath = os.path.join(script_dir,"..","..","data", *paths)
+    return filepath
 
 class IngregientType(Enum):
-    Spirit = 0
-    Juice = 1
-    Sirup = 2
-    Other = 3
-    Stirr = 255
-    Empty = 256
+    Spirit = "spirit"
+    Juice = "juice"
+    Sirup = "sirup"
+    Other = "other"
+    Stirr = "stirr"
 
 
 class Ingredient(object):
-    def __init__(self, Id: int, Name: str, Type: IngregientType, Color: int):
-        self.Id = Id
+    def __init__(self, Identifier:str, Name: str, Type: IngregientType, Color: int):
+        self.Identifier = Identifier
         self.Name = Name
         self.Type = Type
         self.Color = Color
 
+class RecipeItem(object):
+    def __init__(self, Ingredient:Ingredient, Amount:int):
+        self.Ingredient = Ingredient
+        self.Amount = Amount
 
-class Ports(object):
-    Count = 12
-    Filename = 'ports.yml'
-
+class Recipe(object):
     def __init__(self):
-        script_dir = os.path.dirname(__file__)
-        self.Filepath = os.path.join(
-            script_dir, "..", "..",  "data", self.Filename)
-        self.List = {i: IngredientsById[-1] for i in range(self.Count)}
+        self.Items = []
+        self.Id = -1
+        self.Name = "Neues Rezept"
+        self.Created = datetime.now()
+        self.Instruction = ""
 
-    def Write(self):
-        with open(self.Filepath, 'w') as outfile:
-            data = {port: ingredient.Id for port,
-                    ingredient in self.List.items()}
-            yaml.dump(data, outfile, default_flow_style=False)
-
-    def Read(self):
-        with open(self.Filepath, 'r') as outfile:
-            data = yaml.load(self.Filepath)
-        self.List = {port: IngredientsById[id] for port, id in data.items()}
-
-
+    def Load(self, folder:str, filename:str):
+        try:
+            filepath = in_data_dir(folder, filename)
+            with open(filepath, 'r') as file:
+                data = yaml.load(file, Loader=yaml.FullLoader)
+            #first six letters are the id
+            self.Id = int(filename[:6])
+            # skip id + separator, do not include '.yaml'
+            self.Name = filename[7:-5]
+            self.Created = data["created"]
+            self.Instruction = data["instruction"]
+            self.Items = []
+            for item_data in data["items"]:
+                #all errors are handled by the try catch
+                ingredient = IngredientsByIdentifier[item_data["ingredient"]]
+                item = RecipeItem(ingredient, item_data["amount"])
+                self.Items.append(item)
+            return True
+        except Exception as ex:
+            print("Error: {0}".format(ex))
+            return False
+            
 Ingredients = [
-    Ingredient(-1, 'Leer', IngregientType.Empty, 0x00000000),
-    Ingredient(1, 'Weißer Rum', IngregientType.Spirit, 0x55FFFFFF),
-    Ingredient(2, 'Brauner Rum', IngregientType.Spirit, 0x99D16615),
-    Ingredient(3, 'Vodka', IngregientType.Spirit, 0x55FFFFFF),
-    Ingredient(4, 'Tequila', IngregientType.Spirit, 0x55FFFFFF),
+    Ingredient('rum weiss', 'Weißer Rum', IngregientType.Spirit, 0x55FFFFFF),
+    Ingredient('rum braun', 'Brauner Rum', IngregientType.Spirit, 0x99D16615),
+    Ingredient('vodka', 'Vodka', IngregientType.Spirit, 0x55FFFFFF),
+    Ingredient('tequila', 'Tequila', IngregientType.Spirit, 0x55FFFFFF),
 
-    Ingredient(6, 'Zitronensaft', IngregientType.Juice, 0xAAF7EE99),
-    Ingredient(7, 'Limettensaft', IngregientType.Juice, 0xFF9FBF36),
-    Ingredient(8, 'Orangensaft', IngregientType.Juice, 0xDDFACB23),
-    Ingredient(9, 'Annanassaft', IngregientType.Juice, 0xFFFAEF23),
-    Ingredient(10, 'Tripple Sec', IngregientType.Sirup, 0x44FACB23),
-    Ingredient(11, 'Kokossirup', IngregientType.Sirup, 0xDDE3E1D3),
-    Ingredient(12, 'Blue Curacao', IngregientType.Sirup, 0xFF2D57E0),
-    Ingredient(13, 'Grenadine', IngregientType.Sirup, 0xDD911111),
-    Ingredient(14, 'Cranberrysaft', IngregientType.Juice, 0x55F07373),
-    Ingredient(15, 'Milch', IngregientType.Other, 0xFFF7F7F7),
-    Ingredient(16, 'Maracujasaft', IngregientType.Juice, 0xAA0CC73),
-    Ingredient(17, 'Zuckersirup', IngregientType.Sirup, 0xDDE3E1D3),
+    Ingredient('saft zitrone', 'Zitronensaft', IngregientType.Juice, 0xAAF7EE99),
+    Ingredient('saft limette', 'Limettensaft', IngregientType.Juice, 0xFF9FBF36),
+    Ingredient('saft orange', 'Orangensaft', IngregientType.Juice, 0xDDFACB23),
+    Ingredient('saft ananas', 'Annanassaft', IngregientType.Juice, 0xFFFAEF23),
+    Ingredient('tripple sec', 'Tripple Sec', IngregientType.Sirup, 0x44FACB23),
+    Ingredient('sirup kokos', 'Kokossirup', IngregientType.Sirup, 0xDDE3E1D3),
+    Ingredient('sirup curacao', 'Blue Curacao', IngregientType.Sirup, 0xFF2D57E0),
+    Ingredient('sirup grenadine', 'Grenadine', IngregientType.Sirup, 0xDD911111),
+    Ingredient('saft cranberry', 'Cranberrysaft', IngregientType.Juice, 0x55F07373),
+    Ingredient('milch', 'Milch', IngregientType.Other, 0xFFF7F7F7),
+    Ingredient('saft maracuja', 'Maracujasaft', IngregientType.Juice, 0xAA0CC73),
+    Ingredient('sirup zucker', 'Zuckersirup', IngregientType.Sirup, 0xDDE3E1D3),
 
-    Ingredient(255, 'Rühren', IngregientType.Sirup, 0xDDE3E1D3),
+    Ingredient('ruehren', 'Rühren', IngregientType.Sirup, 0xDDE3E1D3),
 ]
 
 # for faster access
-IngredientsById = {ingredient.Id: ingredient for ingredient in Ingredients}
+IngredientsByIdentifier = {ingredient.Identifier: ingredient for ingredient in Ingredients}
 
-p = Ports()
-p.Read()
-print(p.List)
+if __name__ == '__main__':
+    p =  Ports()
+    r = Recipe()
+    success = r.Load("recipes_to_import","000058 Tequila Sunrise.yaml")
+    print(success)
+    pprint(r.Created)

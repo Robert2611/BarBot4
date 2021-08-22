@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
 from barbot import communication
 import re
 import os
 import sys
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbot.communication as com
-from barbot import BarBotConfig
+from barbot import botconfig
 import threading
 import time
 import logging
@@ -80,12 +81,10 @@ def print_all_commands():
 
 class ProtocolThread(threading.Thread):
     abort = False
-    protocol: communication.Protocol
     mac_address: str
 
     def __init__(self):
         threading.Thread.__init__(self)
-        self.protocol = communication.Protocol()
         self._next_command = None
 
     def run_next(self, command):
@@ -93,28 +92,28 @@ class ProtocolThread(threading.Thread):
 
     def run(self):
         while not self.abort:
-            if not self.protocol.is_connected:
-                self.protocol.connect(self.mac_address, 2)
-                if not self.protocol.is_connected:
+            if not communication.is_connected:
+                communication.connect(self.mac_address, 2)
+                if not communication.is_connected:
                     # only try connecting every 500ms
                     time.sleep(0.5)
             else:
-                m = self.protocol.read_message()
+                m = communication.read_message()
                 if m is not None and self._next_command is not None:
                     if self._next_command["type"] == "Do":
                         if len(self._next_command["parameters"]) == 0:
-                            self.protocol.try_do(self._next_command["name"])
+                            communication.try_do(self._next_command["name"])
                         elif len(self._next_command["parameters"]) == 1:
-                            self.protocol.try_do(
+                            communication.try_do(
                                 self._next_command["name"], self._next_command["parameters"][0])
                         elif len(self._next_command["parameters"]) == 2:
-                            self.protocol.try_do(
+                            communication.try_do(
                                 self._next_command["name"], self._next_command["parameters"][0], self._next_command["parameters"][1])
                     elif self._next_command["type"] == "Set":
-                        self.protocol.try_set(
+                        communication.try_set(
                             self._next_command["name"], self._next_command["parameters"][0])
                     elif self._next_command["type"] == "Get":
-                        self.protocol.try_get(
+                        communication.try_get(
                             self._next_command["name"], self._next_command["parameters"][0])
                     # reset command
                     self._next_command = None
@@ -136,7 +135,7 @@ class ToolsWindow(QtWidgets.QMainWindow):
 
     def __init__(self, protocol_thread: ProtocolThread):
         super().__init__()
-        self.protocol_thread = protocol_thread
+        communication_thread = protocol_thread
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
         self.center.setLayout(QtWidgets.QHBoxLayout())
@@ -204,10 +203,10 @@ if __name__ == '__main__':
         # load mac address from config
         script_dir = os.path.dirname(__file__)
         cfg_path = os.path.join(script_dir, "../bar_bot.cfg")
-        config = BarBotConfig(cfg_path)
+        botconfig.load(cfg_path)
         # create protocol thread
         protocol_thread = ProtocolThread()
-        protocol_thread.mac_address = config.mac_address
+        protocol_thread.mac_address = botconfig.mac_address
         protocol_thread.start()
         app = QtWidgets.QApplication(sys.argv)
         # redirect logging to gui
