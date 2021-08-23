@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from barbot import statemachine
 from PyQt5 import QtWidgets
 import barbot
 import barbotgui
 import os
 import sys
 import logging
+import threading
 from datetime import datetime
+from barbot import botconfig
 
 # cofigure logging
 log_path = os.path.join(sys.path[0], "../log/")
@@ -23,28 +26,26 @@ logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
 
 is_demo = "-d" in sys.argv[1:]
-
-# open database
-db_filename = os.path.join(sys.path[0], '../bar_bot.sqlite')
-db = barbot.Database(db_filename)
-db.clear_order()
+# db.clear_order()
 
 # create statemachine
 config_path = os.path.join(sys.path[0], '../bar_bot.cfg')
-bot = barbot.StateMachine(config_path, is_demo)
-bot.on_mixing_finished = lambda rid: db.close_order(rid)
-bot.start()
+botconfig.load(config_path)
+#bot.on_mixing_finished = lambda rid: db.close_order(rid)
+if not is_demo:
+    bar_bot_thread = threading.Thread(target=statemachine.run)
+    bar_bot_thread.start()
 
 # show gui and join the threads
 try:
     app = QtWidgets.QApplication(sys.argv)
-    form = barbotgui.MainWindow(db, bot)
+    form = barbotgui.MainWindow()
     form.show()
     app.exec_()
     # tell the statemachine to stop
-    bot.abort = True
+    statemachine.abort = True
     if not is_demo:
-        bot.join()
+        bar_bot_thread.join()
 except KeyboardInterrupt:
     raise
 

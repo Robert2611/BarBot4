@@ -2,6 +2,9 @@ import subprocess
 import sqlite3 as lite
 from enum import Enum, auto
 
+is_demo = False
+
+
 def run_command(cmd_str, cmd_str2=None):
     if cmd_str2:
         subprocess.Popen([cmd_str, cmd_str2], shell=True, stdin=None,
@@ -9,14 +12,6 @@ def run_command(cmd_str, cmd_str2=None):
     else:
         subprocess.Popen([cmd_str], shell=True, stdin=None,
                          stdout=None, stderr=None, close_fds=True)
-
-
-class Boards(Enum):
-    # board addresses must match "shared.h"
-    balance = 0x01
-    mixer = 0x02
-    straw = 0x03
-    crusher = 0x04
 
 
 class UserMessages(Enum):

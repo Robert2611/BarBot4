@@ -3,6 +3,15 @@ from enum import Enum, auto
 import logging
 import bluetooth
 
+
+class Boards(Enum):
+    # board addresses must match "shared.h"
+    balance = 0x01
+    mixer = 0x02
+    straw = 0x03
+    crusher = 0x04
+
+
 class MessageTypes(Enum):
     ACK = auto()
     NAK = auto()
@@ -19,10 +28,12 @@ class ProtocolMessage():
         self.command = command
         self.parameters = parameters
 
+
 conn: bluetooth.BluetoothSocket = None
 error = None
 is_connected = False
 buffer: str = ""
+
 
 def find_bar_bot():
     try:
@@ -34,11 +45,13 @@ def find_bar_bot():
     except:
         return None
 
+
 def clear_input(self):
     # clear the input
     read_message()
     # if an arror accured, return false
     return is_connected
+
 
 def connect(mac_address: str, timeout):
     global conn
@@ -58,6 +71,7 @@ def connect(mac_address: str, timeout):
         logging.warn("connection failed %s" % (type(e)))
         return False
     return True
+
 
 def _send_do(command, parameter1=None, parameter2=None):
     global error
@@ -98,6 +112,7 @@ def _send_do(command, parameter1=None, parameter2=None):
             error = "wrong answer"
             return False
 
+
 def _send_set(command, parameter=None):
     global error
     if not clear_input():
@@ -116,6 +131,7 @@ def _send_set(command, parameter=None):
         error = "wrong answer"
         return False
     return True
+
 
 def _send_get(command, parameters=None):
     global error
@@ -139,6 +155,7 @@ def _send_get(command, parameters=None):
         return None
     return None
 
+
 def try_get(command, parameters=None):
     for _ in range(3):
         res = _send_get(command, parameters)
@@ -146,11 +163,13 @@ def try_get(command, parameters=None):
             return res
     return None
 
+
 def try_set(command, parameters=None):
     for _ in range(3):
         if _send_set(command, parameters):
             return True
     return False
+
 
 def try_do(command, parameter1=None, parameter2=None):
     for _ in range(3):
@@ -158,6 +177,7 @@ def try_do(command, parameter1=None, parameter2=None):
         if res:
             return res
     return False
+
 
 def send_command(command, parameters=None):
     global conn, is_connected
@@ -175,10 +195,12 @@ def send_command(command, parameters=None):
             logging.exception("Send command failed")
     return False
 
+
 def close():
     global conn
     if conn is not None:
         conn.close()
+
 
 def _read_existing():
     global conn
@@ -189,6 +211,7 @@ def _read_existing():
         if len(data) < 1024:
             break
     return data.decode('utf-8')
+
 
 def read_message() -> ProtocolMessage:
     global conn, is_connected

@@ -1,5 +1,6 @@
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbot
+from barbot import data
 import os
 import barbotgui
 import logging
@@ -146,9 +147,7 @@ class Keyboard(QtWidgets.QWidget):
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    db: barbot.Database
-    bot: barbot.StateMachine
-    recipe_filter: barbot.RecipeFilter
+    recipe_filter: data.RecipeFilter
     _current_view = None
     _barbot_state_trigger = QtCore.pyqtSignal()
     _last_idle_view = None
@@ -159,7 +158,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.recipe_filter = barbot.RecipeFilter()
+        self.recipe_filter = data.RecipeFilter()
 
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
@@ -349,14 +348,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
 class View(QtWidgets.QWidget):
     window: MainWindow
-    dab: barbot.Database
-    bot: barbot.StateMachine
 
     def __init__(self, window: MainWindow):
         super().__init__(window)
         self.window = window
-        self.db = window.db
-        self.bot = window.bot
 
 
 class BusyView(View):
@@ -403,7 +398,7 @@ class BusyView(View):
             self._message.setParent(None)
 
         # if message is none show the content again
-        if bot.message is None:
+        if bot.current_message() is None:
             self._message_container.setVisible(False)
             self._content_container.setVisible(True)
             self._title_label.setVisible(True)
@@ -426,7 +421,7 @@ class BusyView(View):
             button.clicked.connect(callback)
             buttons_container.layout().addWidget(button)
 
-        if bot.message == barbot.UserMessages.ingredient_empty:
+        if bot.current_message() == barbot.UserMessages.ingredient_empty:
             message_string = "Die Zutat '%s' ist leer.\n" % bot.current_recipe_item.name
             message_string = message_string + "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
@@ -434,10 +429,10 @@ class BusyView(View):
             add_button("Cocktail abbrechen", False)
             add_button("Erneut versuchen", True)
 
-        elif bot.message == barbot.UserMessages.place_glas:
+        elif bot.current_message() == barbot.UserMessages.place_glas:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
 
-        elif bot.message == barbot.UserMessages.mixing_done_remove_glas:
+        elif bot.current_message() == barbot.UserMessages.mixing_done_remove_glas:
             message_label.setText(
                 "Der Cocktail ist fertig gemischt.\n" +
                 "Du kannst ihn von der Platform nehmen."
@@ -451,27 +446,27 @@ class BusyView(View):
                     bot.current_recipe.instruction)
                 self._message.layout().addWidget(instruction)
 
-        elif bot.message == barbot.UserMessages.ask_for_straw:
+        elif bot.current_message() == barbot.UserMessages.ask_for_straw:
             message_label.setText(
                 "Möchtest du einen Strohhalm haben?")
 
             add_button("Ja", True)
             add_button("Nein", False)
 
-        elif bot.message == barbot.UserMessages.ask_for_ice:
+        elif bot.current_message() == barbot.UserMessages.ask_for_ice:
             message_label.setText(
                 "Möchtest du Eis in deinem Cocktail haben?")
 
             add_button("Ja", True)
             add_button("Nein", False)
 
-        elif bot.message == barbot.UserMessages.straws_empty:
+        elif bot.current_message() == barbot.UserMessages.straws_empty:
             message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
 
             add_button("Egal", False)
             add_button("Erneut versuchen", True)
 
-        elif bot.message == barbot.UserMessages.cleaning_adapter:
+        elif bot.current_message() == barbot.UserMessages.cleaning_adapter:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text += "Ist der Adapter angeschlossen?"
             message_label.setText(text)
@@ -479,66 +474,66 @@ class BusyView(View):
             add_button("Ja", True)
             add_button("Abbrechen", False)
 
-        elif bot.message == barbot.UserMessages.I2C_error:
+        elif bot.current_message() == barbot.UserMessages.I2C_error:
             text = "Ein Kommunikationsfehler ist aufegtreten.\n"
             text += "Bitte überprüfe, ob alle Module richtig angeschlossen sind und versuche es erneut"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif bot.message == barbot.UserMessages.unknown_error:
+        elif bot.current_message() == barbot.UserMessages.unknown_error:
             text = "Ein unbekannter Fehler ist aufgetreten.\n"
             text += "Weitere Informationen findest du im Log"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif bot.message == barbot.UserMessages.glas_removed_while_drafting:
+        elif bot.current_message() == barbot.UserMessages.glas_removed_while_drafting:
             text = "Das Glas wurde während des Mischens entfernt!\n"
             text += "Drücke auf OK, um zum Start zurück zu fahren"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif bot.message == barbot.UserMessages.ice_empty:
+        elif bot.current_message() == barbot.UserMessages.ice_empty:
             message_label.setText("Eis konnte nicht hinzugefügt werden.")
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif bot.message == barbot.UserMessages.crusher_cover_open:
+        elif bot.current_message() == barbot.UserMessages.crusher_cover_open:
             text = "Bitte den Deckel des Eiscrushers schließen!"
             message_label.setText(text)
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif bot.message == barbot.UserMessages.crusher_timeout:
+        elif bot.current_message() == barbot.UserMessages.crusher_timeout:
             text = "Eis crushen hat zu lange gedauert, bitte überprüfe Crusher und Akku"
             message_label.setText(text)
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif bot.message == barbot.UserMessages.board_not_connected_balance:
+        elif bot.current_message() == barbot.UserMessages.board_not_connected_balance:
             text = "Waage konnte nicht gefunden werden. Bitte Verbindung überprüfen."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif bot.message == barbot.UserMessages.board_not_connected_crusher:
+        elif bot.current_message() == barbot.UserMessages.board_not_connected_crusher:
             text = "Eis Crusher konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif bot.message == barbot.UserMessages.board_not_connected_mixer:
+        elif bot.current_message() == barbot.UserMessages.board_not_connected_mixer:
             text = "Mixer konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif bot.message == barbot.UserMessages.board_not_connected_straw:
+        elif bot.current_message() == barbot.UserMessages.board_not_connected_straw:
             text = "Strohhalm dispenser konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
@@ -562,7 +557,7 @@ class BusyView(View):
 
     def _init_by_status(self):
         # content
-        if bot.state == barbot.State.mixing:
+        if bot.get_state() == bot.State.mixing:
 
             # ingedrients
             recipe_items_list = QtWidgets.QWidget()
@@ -598,24 +593,24 @@ class BusyView(View):
             self._title_label.setText(
                 "'%s'\nwird gemischt." % bot.current_recipe.name)
 
-        elif bot.state == barbot.State.cleaning:
+        elif bot.get_state() == bot.State.cleaning:
             self._title_label.setText("Reinigung")
-        elif bot.state == barbot.State.connecting:
+        elif bot.get_state() == bot.State.connecting:
             self._title_label.setText("Stelle Verbindung her")
-        elif bot.state == barbot.State.searching:
+        elif bot.get_state() == bot.State.searching:
             self._title_label.setText("Suche nach BarBots in der Nähe")
-        elif bot.state == barbot.State.cleaning_cycle:
+        elif bot.get_state() == bot.State.cleaning_cycle:
             self._title_label.setText("Reinigung (Zyklus)")
-        elif bot.state == barbot.State.single_ingredient:
+        elif bot.get_state() == bot.State.single_ingredient:
             self._title_label.setText("Dein Nachschlag wird hinzugefügt")
-        elif bot.state == barbot.State.startup:
+        elif bot.get_state() == bot.State.startup:
             self._title_label.setText("Starte BarBot, bitte warten")
-        elif bot.state == barbot.State.crushing:
+        elif bot.get_state() == bot.State.crushing:
             self._title_label.setText("Eis wird hinzugefügt")
-        elif bot.state == barbot.State.straw:
+        elif bot.get_state() == bot.State.straw:
             self._title_label.setText("Strohhalm wird hinzugefügt")
         else:
-            self._title_label.setText("Unknown status: %s" % bot.state)
+            self._title_label.setText("Unknown status: %s" % bot.get_state())
 
 
 class IdleView(View):

@@ -68,7 +68,7 @@ class AdminLogin(IdleView):
         self._update()
 
     def check_password(self):
-        if self._entered_password == self.bot.config.admin_password:
+        if self._entered_password == botconfig.admin_password:
             self.window.is_admin = True
             self.window.set_view(Overview(self.window))
         self.clear_password()
@@ -408,8 +408,8 @@ class BalanceCalibration(IdleView):
 
     def _tare(self):
         self.tare_weight = self.bot.get_weight()
-        self.new_offset = self.bot.config.balance_offset + \
-            self.tare_weight * self.bot.config.balance_calibration
+        self.new_offset = botconfig.balance_offset + \
+            self.tare_weight * botconfig.balance_calibration
         if self._tare_and_calibrate:
             # continue with clibration
             self._show_dialog_enter_weight()
@@ -422,8 +422,8 @@ class BalanceCalibration(IdleView):
     def _calibrate(self):
         if self._entered_weight > 0:
             self.balance_calibration = (self.bot.get_weight(
-            )-self.tare_weight) * self.bot.config.balance_calibration/self._entered_weight
-            self.bot.config.set_balance_calibration(
+            )-self.tare_weight) * botconfig.balance_calibration/self._entered_weight
+            botconfig.set_balance_calibration(
                 self.new_offset, self.balance_calibration)
         self._show_calibration_buttons()
 
@@ -550,7 +550,7 @@ class Settings(IdleView):
         form_widget = QtWidgets.QWidget()
         form_widget.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(form_widget)
-        config = self.bot.config.config
+        config = botconfig.config
         row = 0
         for entry in self.entries:
             label = QtWidgets.QLabel(entry["name"])
@@ -579,7 +579,7 @@ class Settings(IdleView):
         self._content.layout().addWidget(save_button)
 
     def _save(self):
-        config = self.bot.config.config
+        config = botconfig.config
         for entry in self.entries:
             if entry["type"] == int:
                 config.set("default", entry["setting"], str(
@@ -590,8 +590,8 @@ class Settings(IdleView):
             else:
                 config.set("default", entry["setting"], str(
                     entry["widget"].text()))
-        self.bot.config.save()
-        self.bot.config.apply()
+        botconfig.save()
+        botconfig.apply()
         self.window.set_view(Overview(self.window))
         self.bot.set_state(barbot.State.connecting)
         self.window.show_message("Einstellungen wurden gespeichert")

@@ -3,25 +3,36 @@ import os
 
 config = configparser.ConfigParser()
 
+
 def set_value(name: str, value):
     config.set("default", name, str(value))
+
 
 def __get_str(name):
     return config.get("default", name)
 
+
 def __get_int(name):
     return config.getint("default", name)
+
 
 def __get_float(name):
     return config.getfloat("default", name)
 
+
 def __get_bool(name):
     return config.getboolean("default", name)
+
 
 def save():
     # safe file again
     with open(_Filename, 'w') as configfile:
         config.write(configfile)
+
+
+def is_mac_address_valid():
+    return len(mac_address.strip()) == 17
+
 
 def load(Filename):
     _Filename = Filename
@@ -40,23 +51,23 @@ def apply():
     global max_speed
     max_speed = __get_int("max_speed")
     global max_accel
-    max_accel =  __get_int("max_accel")
+    max_accel = __get_int("max_accel")
     global max_cocktail_size
-    max_cocktail_size =  __get_int("max_cocktail_size")
+    max_cocktail_size = __get_int("max_cocktail_size")
     global admin_password
-    admin_password =  __get_str("admin_password")
+    admin_password = __get_str("admin_password")
     global pump_power
-    pump_power =  __get_int("pump_power")
+    pump_power = __get_int("pump_power")
     global balance_offset
-    balance_offset =  __get_float("balance_offset")
+    balance_offset = __get_float("balance_offset")
     global balance_calibration
-    balance_calibration =  __get_float("balance_calibration")
+    balance_calibration = __get_float("balance_calibration")
     global cleaning_time
-    cleaning_time =  __get_int("cleaning_time")
+    cleaning_time = __get_int("cleaning_time")
     global stirrer_connected
-    stirrer_connected =  __get_bool("stirrer_connected")
+    stirrer_connected = __get_bool("stirrer_connected")
     global stirring_time
-    stirring_time =   __get_int("stirring_time")
+    stirring_time = __get_int("stirring_time")
     global ice_crusher_connected
     ice_crusher_connected = __get_bool("ice_crusher_connected")
     global ice_amount
@@ -64,7 +75,8 @@ def apply():
     global straw_dispenser_connected
     straw_dispenser_connected = __get_bool(
         "straw_dispenser_connected")
-        
+
+
 _Filename = None
 
 # setup config with default values

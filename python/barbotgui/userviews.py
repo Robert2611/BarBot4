@@ -3,6 +3,9 @@ import barbotgui
 import barbot
 from barbotgui import IdleView, MainWindow
 from enum import Enum, auto
+from barbot import recipes as bbrecipes
+from barbot.data import IngregientType
+from barbot import botconfig
 
 
 class ListRecipes(IdleView):
@@ -41,7 +44,7 @@ class ListRecipes(IdleView):
 
     def _update_list(self):
         from barbotgui.controls import GlasFilling, GlasIndicator
-        recipes = self.db.list_recipes(self.window.recipe_filter)
+        recipes = bbrecipes.filter(self.window.recipe_filter)
         # clear the list
         while self._listbox.layout().count():
             item = self._listbox.layout().takeAt(0)
@@ -87,10 +90,11 @@ class ListRecipes(IdleView):
             item: barbot.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item.isStirringItem():
+                if item.ingredient.type == IngregientType.Stirr:
                     label.setText("-%s-" % (item.name))
                 else:
-                    label.setText("%i cl %s" % (item.amount, item.name))
+                    label.setText("%i cl %s" %
+                                  (item.amount, item.ingredient.name))
                 recipe_items_container.layout().addWidget(label)
 
             # right column
@@ -100,9 +104,9 @@ class ListRecipes(IdleView):
 
             fillings = []
             for item in recipe.items:
-                if not item.isStirringItem():
-                    relative = item.amount / self.bot.config.max_cocktail_size
-                    filling = GlasFilling(item.color, relative, )
+                if item.ingredient.type != IngregientType.Stirr:
+                    relative = item.amount / botconfig.max_cocktail_size
+                    filling = GlasFilling(item.ingredient.color, relative)
                     fillings.append(filling)
             indicator = GlasIndicator(fillings)
             right_column.layout().addWidget(indicator)
@@ -115,7 +119,7 @@ class ListRecipes(IdleView):
                 right_column.layout().addWidget(instruction)
 
             # order button
-            if recipe.available:
+            if recipe.available():
                 icon = barbotgui.qt_icon_from_file_name("order.png")
                 order_button = QtWidgets.QPushButton(icon, "")
                 order_button.setProperty("class", "BtnOrder")
@@ -208,7 +212,7 @@ class RecipeNewOrEdit(IdleView):
             amount_widget = self.window.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(
                 lambda: self._update_table())
-            if(i >= len(self._recipe.items) or self._recipe.items[i].isStirringItem()):
+            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == IngregientType.Stirr):
                 amount_widget.setVisible(False)
             ingredients_container.layout().addWidget(amount_widget, i, 1)
 
@@ -351,7 +355,7 @@ class SingleIngredient(IdleView):
             lambda: self._start(self.ActionType.ingredient))
         panel.layout().addWidget(start_button)
 
-        if self.bot.config.straw_dispenser_connected:
+        if botconfig.straw_dispenser_connected:
             # straw button
             icon = barbotgui.qt_icon_from_file_name("straw.png")
             straw_button = QtWidgets.QPushButton(icon, "")
@@ -361,7 +365,7 @@ class SingleIngredient(IdleView):
             self._content.layout().addWidget(straw_button)
             self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
 
-        if self.bot.config.stirrer_connected:
+        if botconfig.stirrer_connected:
             # stir button
             icon = barbotgui.qt_icon_from_file_name("stir.png")
             stir_button = QtWidgets.QPushButton(icon, "")
@@ -371,7 +375,7 @@ class SingleIngredient(IdleView):
             self._content.layout().addWidget(stir_button)
             self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignCenter)
 
-        if self.bot.config.ice_crusher_connected:
+        if botconfig.ice_crusher_connected:
             # ice button
             icon = barbotgui.qt_icon_from_file_name("ice.png")
             ice_button = QtWidgets.QPushButton(icon, "")
@@ -409,15 +413,15 @@ class SingleIngredient(IdleView):
             else:
                 self.window.show_message(
                     "Bitte eine Zutat und\neine Menge auswählen")
-        elif action_type == self.ActionType.stir and self.bot.config.stirrer_connected:
+        elif action_type == self.ActionType.stir and botconfig.stirrer_connected:
             item = barbot.RecipeItem()
             item.ingredient_id = barbot.ingredient_id_stirring
             self.bot.start_single_ingredient(item)
             self.window.show_message("Cocktail wird gerührt")
-        elif action_type == self.ActionType.ice and self.bot.config.ice_crusher_connected:
+        elif action_type == self.ActionType.ice and botconfig.ice_crusher_connected:
             self.bot.start_crushing()
             self.window.show_message("Eis wird hinzugefügt")
-        elif action_type == self.ActionType.straw and self.bot.config.straw_dispenser_connected:
+        elif action_type == self.ActionType.straw and botconfig.straw_dispenser_connected:
             self.bot.start_straw()
             self.window.show_message("Strohhalm wird hinzugefügt")
 
