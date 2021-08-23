@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 import sqlite3 as lite
 import os
-import pprint
 import yaml
 from datetime import datetime
-from barbot import directories
-from barbot import recipes
+
+script_dir = os.path.dirname(__file__)
+base_dir = os.path.join(script_dir, "..")
 
 
 def db_fetch(sql):
-    con = lite.connect(directories.relative("bar_bot.sqlite"))
+    global base_dir
+    dbfilepath = os.path.join(base_dir, "bar_bot.sqlite")
+    con = lite.connect(dbfilepath)
     con.row_factory = lite.Row
     cursor = con.cursor()
     cursor.execute(sql)
@@ -69,11 +71,15 @@ IngredientIdToIdentifier = {
     255: 'ruehren'
 }
 
+importpath = os.path.join(base_dir, "data", "import_recipes")
 for recipe in get_recipes():
-    name = recipes.get_reipe_filename(recipe["id"], recipe["name"])
+    name = "{0:06d} {1}.yaml".format(recipe["id"], recipe["name"])
     # id and name are coded in the filename, remove it to avoid redundancy
     recipe.pop("id")
     recipe.pop("name")
-    filename = os.path.join(directories.import_recipes, name)
+    # make sure the import folder exists
+    if not os.path.exists(importpath):
+        os.mkdir(importpath)
+    filename = os.path.join(importpath, name)
     with open(filename, 'w') as outfile:
         yaml.dump(recipe, outfile, default_flow_style=False)
