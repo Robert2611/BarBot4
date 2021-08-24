@@ -1,12 +1,21 @@
 import os
+from barbot.data import Ingredient
 import yaml
 from barbot import directories
 from barbot.data import IngredientsByIdentifier
 
 Count = 12
 _Filename = 'ports.yml'
-_Filepath = directories.relative("data", _Filename)
+_Filepath = directories.join("data", _Filename)
 List = {i: None for i in range(Count)}
+
+
+def port_of_ingredient(ingredient: Ingredient):
+    global List
+    for port, list_ingredient in List.items():
+        if list_ingredient == ingredient:
+            return port
+    return None
 
 
 def save():
@@ -16,12 +25,12 @@ def save():
             data = {}
             for port, ingredient in List.items():
                 if ingredient is not None:
-                    data[port] = ingredient.Identifier
+                    data[port] = ingredient.identifier
                 else:
                     data[port] = None
             yaml.dump(data, outfile, default_flow_style=False)
             return True
-    except:
+    except Exception as ex:
         return False
 
 

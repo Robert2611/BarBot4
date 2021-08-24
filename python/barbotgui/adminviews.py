@@ -6,6 +6,7 @@ from barbotgui import IdleView
 from barbot import botconfig
 from barbot import statemachine
 from barbot import communication
+from barbot import ports
 import sys
 
 
@@ -194,12 +195,11 @@ class Ports(IdleView):
         table.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(table)
         # fill table
-        ports = self.db.ingredient_of_port()
         self._ingredient_widgets = dict()
         for i in range(12):
             label = QtWidgets.QLabel("Position %i" % (i+1))
             table.layout().addWidget(label, i, 0)
-            selectedPort = ports[i] if i in ports.keys() else 0
+            selectedPort = ports.List[i] if i in ports.List.keys() else 0
             cbPort = self.window.combobox_ingredients(selectedPort)
             self._ingredient_widgets[i] = cbPort
             table.layout().addWidget(cbPort, i, 1)
@@ -214,17 +214,20 @@ class Ports(IdleView):
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def _save(self):
-        ports = dict()
+        new_ports = {}
         for port, cb in self._ingredient_widgets.items():
-            ingredient = cb.currentData()
-            if ingredient not in ports.values():
-                ports[port] = ingredient
-            else:
-                self.window.show_message(
-                    "Jede Zutat darf nur einer\nPosition zugewiesen werden!")
-                return
+            new_ports[port] = cb.currentData()
+        # check for duplicates
+        not_none_entries = [
+            ing for ing in new_ports.values() if ing is not None]
+        if len(not_none_entries) != len(set(not_none_entries)):
+            self.window.show_message(
+                "Jede Zutat darf nur einer\nPosition zugewiesen werden!")
+            return
+        # update the ports list and save it
+        ports.List.update(new_ports)
+        ports.save()
         self.window.show_message("Positionen wurden gespeichert.")
-        self.db.update_ports(ports)
 
 
 class IngredientCalibration(IdleView):
@@ -460,8 +463,6 @@ class Cleaning(IdleView):
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
         self.amount = 50
-        # assume calibration value of water
-        self.calibration = 1000
 
         # title
         title = QtWidgets.QLabel("Reinigung")

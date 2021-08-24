@@ -6,6 +6,7 @@ import sys
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbot.communication as com
 from barbot import botconfig
+from barbot import directories
 import threading
 import time
 import logging
@@ -18,7 +19,7 @@ def get_commands():
         ([^\"]*if\s*\(param_c\s==\s(?P<count>\d+))?          #parameters
         """, re.DOTALL | re.VERBOSE)
     script_dir = os.path.dirname(__file__)
-    with open(os.path.join(script_dir, "../firmware/mainboard/src/main.cpp"), "r") as f:
+    with open(directories.join(directories.base, "firmware/mainboard/src/main.cpp"), "r") as f:
         content = f.read()
     commands = []
     for match in pattern.finditer(content):
@@ -36,7 +37,7 @@ def get_errors():
     script_dir = os.path.dirname(__file__)
     start_of_enum_found = False
     index = None
-    with open(os.path.join(script_dir, "../firmware/mainboard/include/StateMachine.h"), "r") as f:
+    with open(directories.join(directories.base, "firmware/mainboard/include/StateMachine.h"), "r") as f:
         for line in f:
             if not start_of_enum_found:
                 if line.startswith("enum BarBotStatus_t"):
@@ -200,10 +201,6 @@ class ToolsWindow(QtWidgets.QMainWindow):
 if __name__ == '__main__':
     try:
         print(get_errors())
-        # load mac address from config
-        script_dir = os.path.dirname(__file__)
-        cfg_path = os.path.join(script_dir, "../bar_bot.cfg")
-        botconfig.load(cfg_path)
         # create protocol thread
         protocol_thread = ProtocolThread()
         protocol_thread.mac_address = botconfig.mac_address

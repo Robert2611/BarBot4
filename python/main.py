@@ -9,15 +9,15 @@ import sys
 import logging
 import threading
 from datetime import datetime
-from barbot import botconfig
+from barbot import orders, recipes
+from barbot import directories
+from pprint import pprint
 
 # cofigure logging
-log_path = os.path.join(sys.path[0], "../log/")
-if not os.path.exists(log_path):
-    os.makedirs(log_path)
+log_file = datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")
+log_file_path = directories.join(directories.log, log_file)
 logging.basicConfig(
-    filename=os.path.join(
-        log_path, datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")),
+    filename=log_file_path,
     filemode='a',
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -25,10 +25,10 @@ logging.basicConfig(
 logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
 
-is_demo = "-d" in sys.argv[1:]
+barbot.is_demo = "-d" in sys.argv[1:]
 
 # create statemachine
-if not is_demo:
+if not barbot.is_demo:
     bar_bot_thread = threading.Thread(target=statemachine.run)
     bar_bot_thread.start()
 
@@ -40,7 +40,7 @@ try:
     app.exec_()
     # tell the statemachine to stop
     statemachine.abort = True
-    if not is_demo:
+    if not barbot.is_demo:
         bar_bot_thread.join()
 except KeyboardInterrupt:
     raise

@@ -3,12 +3,12 @@ balance_calibration: -1040
 balance_offset: -119.1
 cleaning_time: 3000
 ice_amount: 100
-ice_crusher_connected: false
-mac_address: ''
+ice_crusher_connected: true
+mac_address: 30:AE:A4:9C:9E:7A
 max_accel: 300
 max_cocktail_size: 30
 max_speed: 200
 pump_power: 100
 stirrer_connected: true
 stirring_time: 3000
-straw_dispenser_connected: false
+straw_dispenser_connected: true

@@ -1,4 +1,5 @@
 
+from barbot import statemachine
 from barbot import data
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
@@ -12,6 +13,7 @@ from barbot.data import IngredientType
 from barbot.data import Recipe
 from barbot.data import RecipeItem
 from barbot.data import Recipe
+from barbot import ports
 
 
 class ListRecipes(IdleView):
@@ -130,7 +132,7 @@ class ListRecipes(IdleView):
                 order_button = QtWidgets.QPushButton(icon, "")
                 order_button.setProperty("class", "BtnOrder")
                 order_button.clicked.connect(
-                    lambda checked, rid=recipe.id: self._order(rid))
+                    lambda _, r=recipe: self._order(r))
                 right_column.layout().addWidget(order_button, 0)
                 right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
 
@@ -139,17 +141,15 @@ class ListRecipes(IdleView):
     def _open_edit(self, recipe: Recipe):
         self.window.set_view(RecipeNewOrEdit(self.window, recipe))
 
-    def _order(self, id):
-        if self.bot.is_busy():
+    def _order(self, recipe):
+        if statemachine.is_busy():
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
-        recipe = self.db.recipe(id)
         if recipe == None:
             self.window.show_message("Rezept nicht gefunden")
             return
-        self.db.start_order(recipe.id)
-        self.bot.start_mixing(recipe)
+        statemachine.start_mixing(recipe)
 
 
 class RecipeNewOrEdit(IdleView):
@@ -411,40 +411,36 @@ class SingleIngredient(IdleView):
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def _start(self, action_type):
-        if self.bot.is_busy():
+        if statemachine.is_busy():
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
         if action_type == self.ActionType.ingredient:
-            ingredient_id = self._ingredient_widget.currentData()
+            ingredient = self._ingredient_widget.currentData()
             amount = self._amount_widget.currentData()
-            item = barbot.RecipeItem()
-            if ingredient_id >= 0 and amount > 0:
-                port_cal = self.db.port_and_calibration(ingredient_id)
-                if port_cal == None:
+            if ingredient is not None and amount > 0:
+                item = data.RecipeItem(ingredient, amount)
+                port = ports.port_of_ingredient(ingredient)
+                if port is None:
                     self.window.show_message(
                         "Diese Zutat ist nicht anschlossen")
                     return
-                item.port = port_cal["port"]
-                item.calibration = port_cal["calibration"]
-                item.name = port_cal["name"]
                 item.amount = amount
-                item.ingredient_id = ingredient_id
-                self.bot.start_single_ingredient(item)
+                item.ingredient = ingredient
+                statemachine.start_single_ingredient(item)
                 self.window.show_message("Zutat wird hinzugefügt")
             else:
                 self.window.show_message(
                     "Bitte eine Zutat und\neine Menge auswählen")
         elif action_type == self.ActionType.stir and botconfig.stirrer_connected:
-            item = barbot.RecipeItem()
-            item.ingredient_id = barbot.ingredient_id_stirring
-            self.bot.start_single_ingredient(item)
+            item = data.RecipeItem(data.IngredientsByIdentifier["ruehren"], 0)
+            statemachine.start_single_ingredient(item)
             self.window.show_message("Cocktail wird gerührt")
         elif action_type == self.ActionType.ice and botconfig.ice_crusher_connected:
-            self.bot.start_crushing()
+            statemachine.start_crushing()
             self.window.show_message("Eis wird hinzugefügt")
         elif action_type == self.ActionType.straw and botconfig.straw_dispenser_connected:
-            self.bot.start_straw()
+            statemachine.start_straw()
             self.window.show_message("Strohhalm wird hinzugefügt")
 
 

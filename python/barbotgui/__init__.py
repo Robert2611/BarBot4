@@ -354,7 +354,7 @@ class View(QtWidgets.QWidget):
 
 
 class BusyView(View):
-    _mixing_progress_trigger = QtCore.pyqtSignal()
+    _mixing_progress_trigger = QtCore.pyqtSignal(int)
     _message_trigger = QtCore.pyqtSignal()
     _message = None
 
@@ -363,7 +363,7 @@ class BusyView(View):
 
         # forward message changed
         self._message_trigger.connect(lambda: self._update_message())
-        bot.on_message_changed = lambda: self._message_trigger.emit()
+        bot.on_message_changed = lambda _: self._message_trigger.emit()
 
         self.setLayout(QtWidgets.QGridLayout())
         barbotgui.set_no_spacing(self.layout())
@@ -421,7 +421,7 @@ class BusyView(View):
             buttons_container.layout().addWidget(button)
 
         if bot.current_message() == barbot.UserMessages.ingredient_empty:
-            message_string = "Die Zutat '%s' ist leer.\n" % bot.current_recipe_item.name
+            message_string = "Die Zutat '%s' ist leer.\n" % bot.current_recipe_item().ingredient.name
             message_string = message_string + "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
 
@@ -437,12 +437,12 @@ class BusyView(View):
                 "Du kannst ihn von der Platform nehmen."
             )
 
-            if bot.current_recipe.instruction:
+            if bot.current_recipe().instruction:
                 label = QtWidgets.QLabel("Zusätzliche Informationen:")
                 self._message.layout().addWidget(label)
 
                 instruction = QtWidgets.QLabel(
-                    bot.current_recipe.instruction)
+                    bot.current_recipe().instruction)
                 self._message.layout().addWidget(instruction)
 
         elif bot.current_message() == barbot.UserMessages.ask_for_straw:
@@ -542,11 +542,11 @@ class BusyView(View):
         self._content_container.setVisible(False)
         self._title_label.setVisible(False)
 
-    def _set_progress(self):
-        for i in range(len(bot.current_recipe.items)):
-            if bot.progress is not None and i < bot.progress:
+    def _set_progress(self, progress):
+        for i in range(len(bot.current_recipe().items)):
+            if progress is not None and i < progress:
                 icon = barbotgui.qt_icon_from_file_name("done.png")
-            elif bot.progress is not None and i == bot.progress:
+            elif progress is not None and i == progress:
                 icon = barbotgui.qt_icon_from_file_name(
                     "processing.png")
             else:
@@ -569,20 +569,22 @@ class BusyView(View):
                 widget_item = QtWidgets.QLabel()
                 self.recipe_list_widgets.append(widget_item)
                 recipe_items_list.layout().addWidget(widget_item, row, 0)
-                recipe_items_list.layout().addWidget(QtWidgets.QLabel(item.name), row, 1)
-            for row, item in enumerate(bot.current_recipe.items):
-                add_widget(item.name)
+                recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), row, 1)
+            for row, item in enumerate(bot.current_recipe().items):
+                add_widget(item.ingredient.name)
             # TODO: add only on process updates, this is not known here yet
             if bot.add_straw:
                 add_widget("Strohhalm")
             if bot.add_ice:
                 add_widget("Eis")
 
-            self._set_progress()
+            self._set_progress(0)
 
             # forward mixing progress changed
-            self._mixing_progress_trigger.connect(lambda: self._set_progress())
-            bot.on_mixing_progress_changed = lambda: self._mixing_progress_trigger.emit()
+            self._mixing_progress_trigger.connect(
+                lambda progress: self._set_progress(progress))
+            bot.on_mixing_progress_changed = lambda progress: self._mixing_progress_trigger.emit(
+                progress)
 
             # buttons
             button = QtWidgets.QPushButton("Abbrechen")
@@ -590,7 +592,7 @@ class BusyView(View):
             self._content_container.layout().addWidget(button)
 
             self._title_label.setText(
-                "'%s'\nwird gemischt." % bot.current_recipe.name)
+                "'%s'\nwird gemischt." % bot.current_recipe().name)
 
         elif bot.get_state() == bot.State.cleaning:
             self._title_label.setText("Reinigung")

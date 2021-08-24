@@ -1,16 +1,11 @@
 
+from barbot import botconfig
 import yaml
 import os
 from enum import Enum, auto
 from datetime import datetime
 from typing import List
 from . import directories
-
-
-def in_data_dir(*paths):
-    script_dir = os.path.dirname(__file__)
-    filepath = os.path.join(script_dir, "..", "..", "data", *paths)
-    return filepath
 
 
 class IngredientType(Enum):
@@ -42,7 +37,9 @@ class Ingredient(object):
 
     def available(self):
         from barbot import ports
-        return self.identifier in ports.List
+        if self.type == IngredientType.Stirr:
+            return botconfig.stirrer_connected
+        return self in ports.List.values()
 
     def alcoholic(self) -> bool:
         return self.type == IngredientType.Spirit
@@ -65,7 +62,7 @@ class Recipe(object):
     def load(self, folder: str, filename: str):
         global IngredientsByIdentifier
         try:
-            filepath = directories.relative("data", folder, filename)
+            filepath = directories.join(directories.data, folder, filename)
             with open(filepath, 'r') as file:
                 data = yaml.safe_load(file)
             # first six letters are the id

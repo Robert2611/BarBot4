@@ -46,7 +46,7 @@ def find_bar_bot():
         return None
 
 
-def clear_input(self):
+def clear_input():
     # clear the input
     read_message()
     # if an arror accured, return false

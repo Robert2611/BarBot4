@@ -1,11 +1,13 @@
 
+from barbot.data import Recipe, RecipeItem
 import barbot
 from barbot import UserMessages, data, communication, botconfig
 import logging
 import time
 from enum import Enum, auto
-import threading
 from barbot.data import IngredientType
+from barbot import orders
+from . import ports
 
 
 class State(Enum):
@@ -48,6 +50,8 @@ _bt_timeout = 1
 _async_result = None
 _message: UserMessages = None
 _progress = 0
+add_straw = False
+add_ice = False
 
 # workaround for pylint, otherwise the functions are marked as not callable
 
@@ -62,6 +66,16 @@ def on_state_changed(_): return None
 
 
 def on_message_changed(_): return None
+
+
+def current_recipe() -> Recipe:
+    global _current_recipe
+    return _current_recipe
+
+
+def current_recipe_item() -> RecipeItem:
+    global _current_recipe_item
+    return _current_recipe_item
 
 
 def set_balance_calibration(offset, cal):
@@ -89,9 +103,8 @@ def run():
             logging.info("Search for BarBot4")
             res = barbot.communication.find_bar_bot()
             if res:
-                botconfig.set_value("mac_address", res)
+                botconfig.mac_address = res
                 botconfig.save()
-                botconfig.apply()
                 set_state(State.connecting)
             # else:
             #    set_state(State.searching)
@@ -239,7 +252,7 @@ def _wait_for_user_input():
 
 
 def _do_mixing():
-    global _user_input, _abort_mixing, _current_recipe, _current_recipe_item
+    global _user_input, _abort_mixing, _current_recipe, _current_recipe_item, add_straw, add_ice
     _set_mixing_progress(0)
     # wait for the glas
     if not barbot.is_demo and communication.try_get("HasGlas") != "1":
@@ -328,11 +341,12 @@ def _do_mixing():
             return
         _set_message(None)
         communication.try_do("PlatformLED", 0)
+        orders.add_order(_current_recipe)
         if on_mixing_finished is not None:
             on_mixing_finished(_current_recipe)
 
 
-def go_to_idle(self):
+def go_to_idle():
     _set_message(None)
     if not barbot.is_demo:
         communication.try_set("SetLED", 3)
@@ -431,13 +445,14 @@ def _draft_one(item: data.RecipeItem):
     # user aborted
     if _abort_mixing:
         return False
-    if item.Ingredient.Type == IngredientType.Stirr:
+    if item.ingredient.type == IngredientType.Stirr:
         communication.try_do("Mix", botconfig.stirring_time)
         return True
     else:
         while True:
-            weight = int(item.amount * item.calibration)
-            result = communication.try_do("Draft", item.port, weight)
+            weight = int(item.amount)
+            port = ports.port_of_ingredient(item.ingredient)
+            result = communication.try_do("Draft", port, weight)
             # user aborted
             if _abort_mixing:
                 return False
@@ -451,7 +466,7 @@ def _draft_one(item: data.RecipeItem):
                 if error == Error.ingredient_empty:
                     # ingredient is empty
                     # safe how much is left to draft
-                    item.amount = int(result[1]) / item.calibration
+                    item.amount = int(result[1])
                     _set_message(UserMessages.ingredient_empty)
                     _user_input = None
                     # wait for user input

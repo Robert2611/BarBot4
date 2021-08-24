@@ -5,7 +5,7 @@ from .data import Recipe
 from .data import RecipeFilter
 from . import directories
 
-_sequence_filename = directories.relative("data", "sequence.yaml")
+_sequence_filename = directories.join(directories.data, "sequence.yaml")
 _recipes: List[Recipe] = None
 
 
@@ -75,8 +75,8 @@ def import_from_directory():
             continue
         name = file[7:-5]
         id = generate_new_id()
-        old_name = os.path.join(directories.import_recipes, file)
-        new_name = os.path.join(
+        old_name = directories.join(directories.import_recipes, file)
+        new_name = directories.join(
             directories.recipes, get_recipe_filename(id, name))
         os.rename(old_name, new_name)
 
@@ -84,8 +84,8 @@ def import_from_directory():
 def move_to_old(recipe: Recipe):
     global _recipes
     filename = get_recipe_filename(recipe.id, recipe.name)
-    old_name = os.path.join(directories.recipes, filename)
-    new_name = os.path.join(directories.old_recipes, filename)
+    old_name = directories.join(directories.recipes, filename)
+    new_name = directories.join(directories.old_recipes, filename)
     os.rename(old_name, new_name)
     _recipes.remove(recipe)
 

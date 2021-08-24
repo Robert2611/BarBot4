@@ -4,7 +4,7 @@ import sys
 import yaml
 from barbot import directories
 
-_filename = directories.relative("data", "config.yaml")
+_filename = directories.join(directories.data, "config.yaml")
 
 mac_address = ""
 max_speed = 200
