@@ -26,12 +26,8 @@ logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
 
 is_demo = "-d" in sys.argv[1:]
-# db.clear_order()
 
 # create statemachine
-config_path = os.path.join(sys.path[0], '../bar_bot.cfg')
-botconfig.load(config_path)
-#bot.on_mixing_finished = lambda rid: db.close_order(rid)
 if not is_demo:
     bar_bot_thread = threading.Thread(target=statemachine.run)
     bar_bot_thread.start()

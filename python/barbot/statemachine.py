@@ -5,7 +5,7 @@ import logging
 import time
 from enum import Enum, auto
 import threading
-from barbot.data import IngregientType
+from barbot.data import IngredientType
 
 
 class State(Enum):
@@ -329,7 +329,7 @@ def _do_mixing():
         _set_message(None)
         communication.try_do("PlatformLED", 0)
         if on_mixing_finished is not None:
-            on_mixing_finished(_current_recipe.id)
+            on_mixing_finished(_current_recipe)
 
 
 def go_to_idle(self):
@@ -431,7 +431,7 @@ def _draft_one(item: data.RecipeItem):
     # user aborted
     if _abort_mixing:
         return False
-    if item.Ingredient.Type == IngregientType.Stirr:
+    if item.Ingredient.Type == IngredientType.Stirr:
         communication.try_do("Mix", botconfig.stirring_time)
         return True
     else:

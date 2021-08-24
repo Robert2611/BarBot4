@@ -1,9 +1,10 @@
-from barbot import directories
+
 import yaml
 import os
 from enum import Enum, auto
 from datetime import datetime
 from typing import List
+from . import directories
 
 
 def in_data_dir(*paths):
@@ -12,7 +13,7 @@ def in_data_dir(*paths):
     return filepath
 
 
-class IngregientType(Enum):
+class IngredientType(Enum):
     Spirit = "spirit"
     Juice = "juice"
     Sirup = "sirup"
@@ -33,7 +34,7 @@ class RecipeFilter(object):
 
 
 class Ingredient(object):
-    def __init__(self, Identifier: str, Name: str, Type: IngregientType, Color: int):
+    def __init__(self, Identifier: str, Name: str, Type: IngredientType, Color: int):
         self.identifier = Identifier
         self.name = Name
         self.type = Type
@@ -44,7 +45,7 @@ class Ingredient(object):
         return self.identifier in ports.List
 
     def alcoholic(self) -> bool:
-        return self.type == IngregientType.Spirit
+        return self.type == IngredientType.Spirit
 
 
 class RecipeItem(object):
@@ -61,11 +62,12 @@ class Recipe(object):
         self.created = datetime.now()
         self.instruction = ""
 
-    def Load(self, folder: str, filename: str):
+    def load(self, folder: str, filename: str):
+        global IngredientsByIdentifier
         try:
             filepath = directories.relative("data", folder, filename)
             with open(filepath, 'r') as file:
-                data = yaml.load(file, Loader=yaml.FullLoader)
+                data = yaml.safe_load(file)
             # first six letters are the id
             self.id = int(filename[:6])
             # skip id + separator, do not include '.yaml'
@@ -80,8 +82,47 @@ class Recipe(object):
                 self.items.append(item)
             return True
         except Exception as ex:
-            print("Error: {0}".format(ex))
+            print("Error in recipe load: {0}".format(ex))
             return False
+
+    def save(self, folder):
+        global IngredientsByIdentifier
+        try:
+            from . import recipes
+            filename = recipes.get_recipe_filename(self.id, self.name)
+            filepath = directories.relative("data", folder, filename)
+            data = {}
+            data["created"] = self.created
+            data["instruction"] = self.instruction
+            data["items"] = []
+            for item in self.items:
+                if item.ingredient is None:
+                    continue
+                data_item = {}
+                data_item["ingredient"] = item.ingredient.identifier
+                data_item["amount"] = item.amount
+                data["items"].append(data_item)
+            with open(filepath, 'w') as file:
+                data = yaml.dump(data, file)
+            return True
+        except Exception as ex:
+            print("Error in recipe save: {0}".format(ex))
+            return False
+
+    def equal_to(self, recipe):
+        """Determine whether this recipe has the given entries"""
+        if recipe.name != self.name:
+            return False
+        if recipe.instruction != self.instruction:
+            return False
+        if len(recipe.items) != len(self.items):
+            return False
+        for index, self_item in enumerate(self.items):
+            if self_item.ingredient != recipe.items[index].ingredient:
+                return False
+            if self_item.amount != recipe.items[index].amount:
+                return False
+        return True
 
     def available(self) -> bool:
         for item in self.items:
@@ -95,35 +136,58 @@ class Recipe(object):
                 return True
         return False
 
+    def copy(self):
+        recipe = Recipe()
+        recipe.name = self.name
+        recipe.instruction = self.instruction
+        recipe.name = self.name
+        for item in self.items:
+            item_copy = RecipeItem(item.ingredient, item.amount)
+            recipe.items.append(item_copy)
+        return recipe
+
 
 Ingredients = [
-    Ingredient('rum weiss', 'Weißer Rum', IngregientType.Spirit, 0x55FFFFFF),
-    Ingredient('rum braun', 'Brauner Rum', IngregientType.Spirit, 0x99D16615),
-    Ingredient('vodka', 'Vodka', IngregientType.Spirit, 0x55FFFFFF),
-    Ingredient('tequila', 'Tequila', IngregientType.Spirit, 0x55FFFFFF),
+    Ingredient('rum weiss', 'Weißer Rum', IngredientType.Spirit, 0x55FFFFFF),
+    Ingredient('rum braun', 'Brauner Rum', IngredientType.Spirit, 0x99D16615),
+    Ingredient('vodka', 'Vodka', IngredientType.Spirit, 0x55FFFFFF),
+    Ingredient('tequila', 'Tequila', IngredientType.Spirit, 0x55FFFFFF),
 
     Ingredient('saft zitrone', 'Zitronensaft',
-               IngregientType.Juice, 0xAAF7EE99),
+               IngredientType.Juice, 0xAAF7EE99),
     Ingredient('saft limette', 'Limettensaft',
-               IngregientType.Juice, 0xFF9FBF36),
-    Ingredient('saft orange', 'Orangensaft', IngregientType.Juice, 0xDDFACB23),
-    Ingredient('saft ananas', 'Annanassaft', IngregientType.Juice, 0xFFFAEF23),
-    Ingredient('tripple sec', 'Tripple Sec', IngregientType.Sirup, 0x44FACB23),
-    Ingredient('sirup kokos', 'Kokossirup', IngregientType.Sirup, 0xDDE3E1D3),
+               IngredientType.Juice, 0xFF9FBF36),
+    Ingredient('saft orange', 'Orangensaft', IngredientType.Juice, 0xDDFACB23),
+    Ingredient('saft ananas', 'Annanassaft', IngredientType.Juice, 0xFFFAEF23),
+    Ingredient('tripple sec', 'Tripple Sec', IngredientType.Sirup, 0x44FACB23),
+    Ingredient('sirup kokos', 'Kokossirup', IngredientType.Sirup, 0xDDE3E1D3),
     Ingredient('sirup curacao', 'Blue Curacao',
-               IngregientType.Sirup, 0xFF2D57E0),
+               IngredientType.Sirup, 0xFF2D57E0),
     Ingredient('sirup grenadine', 'Grenadine',
-               IngregientType.Sirup, 0xDD911111),
+               IngredientType.Sirup, 0xDD911111),
     Ingredient('saft cranberry', 'Cranberrysaft',
-               IngregientType.Juice, 0x55F07373),
-    Ingredient('milch', 'Milch', IngregientType.Other, 0xFFF7F7F7),
+               IngredientType.Juice, 0x55F07373),
+    Ingredient('milch', 'Milch', IngredientType.Other, 0xFFF7F7F7),
     Ingredient('saft maracuja', 'Maracujasaft',
-               IngregientType.Juice, 0xAA0CC73),
+               IngredientType.Juice, 0xAA0CC73),
     Ingredient('sirup zucker', 'Zuckersirup',
-               IngregientType.Sirup, 0xDDE3E1D3),
+               IngredientType.Sirup, 0xDDE3E1D3),
 
-    Ingredient('ruehren', 'Rühren', IngregientType.Sirup, 0xDDE3E1D3),
+    Ingredient('ruehren', 'Rühren', IngredientType.Stirr, 0xDDE3E1D3),
 ]
+
+
+def get_ingredients(only_available=False, special_ingredients=True) -> List[Ingredient]:
+    global Ingredients
+    filtered = []
+    for ingredient in Ingredients:
+        if only_available and not ingredient.available():
+            continue
+        if not special_ingredients and ingredient.type == IngredientType.Stirr:
+            continue
+        filtered.append(ingredient)
+    return filtered
+
 
 # for faster access
 IngredientsByIdentifier = {

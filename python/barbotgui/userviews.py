@@ -1,11 +1,17 @@
+
+from barbot import data
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
 import barbot
 from barbotgui import IdleView, MainWindow
 from enum import Enum, auto
 from barbot import recipes as bbrecipes
-from barbot.data import IngregientType
 from barbot import botconfig
+from barbot import directories
+from barbot.data import IngredientType
+from barbot.data import Recipe
+from barbot.data import RecipeItem
+from barbot.data import Recipe
 
 
 class ListRecipes(IdleView):
@@ -73,7 +79,7 @@ class ListRecipes(IdleView):
             edit_button = QtWidgets.QPushButton(icon, "")
             edit_button.setProperty("class", "BtnEdit")
             edit_button.clicked.connect(
-                lambda checked, rid=recipe.id: self._open_edit(rid))
+                lambda checked, r=recipe: self._open_edit(r))
             recipe_title_container.layout().addWidget(edit_button, 0)
 
             # title
@@ -90,8 +96,8 @@ class ListRecipes(IdleView):
             item: barbot.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item.ingredient.type == IngregientType.Stirr:
-                    label.setText("-%s-" % (item.name))
+                if item.ingredient.type == IngredientType.Stirr:
+                    label.setText("-%s-" % (item.ingredient.name))
                 else:
                     label.setText("%i cl %s" %
                                   (item.amount, item.ingredient.name))
@@ -104,7 +110,7 @@ class ListRecipes(IdleView):
 
             fillings = []
             for item in recipe.items:
-                if item.ingredient.type != IngregientType.Stirr:
+                if item.ingredient.type != IngredientType.Stirr:
                     relative = item.amount / botconfig.max_cocktail_size
                     filling = GlasFilling(item.ingredient.color, relative)
                     fillings.append(filling)
@@ -130,8 +136,8 @@ class ListRecipes(IdleView):
 
         self._listbox.layout().addWidget(QtWidgets.QWidget(), 1)
 
-    def _open_edit(self, id):
-        self.window.set_view(RecipeNewOrEdit(self.window, id))
+    def _open_edit(self, recipe: Recipe):
+        self.window.set_view(RecipeNewOrEdit(self.window, recipe))
 
     def _order(self, id):
         if self.bot.is_busy():
@@ -147,19 +153,23 @@ class ListRecipes(IdleView):
 
 
 class RecipeNewOrEdit(IdleView):
-    def __init__(self, window: MainWindow, recipe_id=None):
+    def __init__(self, window: MainWindow, recipe: Recipe = None):
         super().__init__(window)
-        self._id = recipe_id
-        if self._id is not None:
-            self._recipe = self.db.recipe(self._id)
+
+        if recipe is not None:
+            self._original_recipe = recipe
+            self._recipe = recipe.copy()
+            self._new = False
         else:
-            self._recipe = barbot.Recipe("", -1, "", True)
+            self._recipe = data.Recipe()
+            self._original_recipe = None
+            self._new = True
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel(
-            "Neues Rezept" if self._id is None else "Rezept bearbeiten")
+            "Neues Rezept" if self._new else "Rezept bearbeiten")
         title.setProperty("class", "Headline")
         self._fixed_content.layout().addWidget(title)
 
@@ -196,12 +206,12 @@ class RecipeNewOrEdit(IdleView):
         self._ingredient_widgets = []
         for i in range(10):
             # get selected checkbox entry or default
-            if self._id is not None and i < len(self._recipe.items):
+            if not self._new and i < len(self._recipe.items):
                 selected_amount = self._recipe.items[i].amount
-                selected_ingredient = self._recipe.items[i].ingredient_id
+                selected_ingredient = self._recipe.items[i].ingredient
             else:
                 selected_amount = 0
-                selected_ingredient = 0
+                selected_ingredient = None
             # add ingredient name
             ingredient_widget = self.window.combobox_ingredients(
                 selected_ingredient)
@@ -212,7 +222,7 @@ class RecipeNewOrEdit(IdleView):
             amount_widget = self.window.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(
                 lambda: self._update_table())
-            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == IngregientType.Stirr):
+            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == IngredientType.Stirr):
                 amount_widget.setVisible(False)
             ingredients_container.layout().addWidget(amount_widget, i, 1)
 
@@ -240,11 +250,16 @@ class RecipeNewOrEdit(IdleView):
     def _get_cocktail_size(self):
         size = 0
         for ingredient_widget, amount_widget in self._ingredient_widgets:
-            ingredient = int(ingredient_widget.currentData())
+            ingredient = ingredient_widget.currentData()
             amount = int(amount_widget.currentData())
             # ignore the stirring when accumulating size
-            if ingredient >= 0 and ingredient != barbot.ingredient_id_stirring and amount >= 0:
-                size = size + amount
+            if ingredient is None:
+                continue
+            if ingredient.type == IngredientType.Stirr:
+                continue
+            if amount < 0:
+                continue
+            size = size + amount
         return size
 
     def _force_redraw(self, element):
@@ -254,7 +269,7 @@ class RecipeNewOrEdit(IdleView):
     def _update_table(self):
         # cocktail size
         size = self._get_cocktail_size()
-        max_size = self.window.bot.config.max_cocktail_size
+        max_size = botconfig.max_cocktail_size
         label = self._filling_label
         label.setText("%i von %i cl" % (size, max_size))
         if size > max_size:
@@ -264,48 +279,55 @@ class RecipeNewOrEdit(IdleView):
         self._force_redraw(label)
         # visibility
         for ingredient_widget, amount_widget in self._ingredient_widgets:
-            ingredient = int(ingredient_widget.currentData())
-            should_be_visible = ingredient > 0 and ingredient != barbot.ingredient_id_stirring
+            ingredient = ingredient_widget.currentData()
+            should_be_visible = ingredient is not None and ingredient.type != IngredientType.Stirr
             if(amount_widget.isVisible() != should_be_visible):
                 amount_widget.setVisible(should_be_visible)
 
     def _save(self):
         # check data
-        name = self._name_widget.text()
-        if name == None or name == "":
+        self._recipe.name = self._name_widget.text()
+        if self._recipe.name == None or self._recipe.name == "":
             self.window.show_message("Bitte einen Namen eingeben")
             return
-        if self._get_cocktail_size() > self.window.bot.config.max_cocktail_size:
+        size = self._get_cocktail_size()
+        if size > botconfig.max_cocktail_size:
             self.window.show_message("Dein Cocktail ist zu groß.")
             return
-        instruction = self._instruction_widget.text()
+        if size == 0:
+            self.window.show_message("Der Cocktail ist leer.")
+            return
+        self._recipe.instruction = self._instruction_widget.text()
         # prepare data
-        items = []
+        self._recipe.items = []
         for ingredient_widget, amount_widget in self._ingredient_widgets:
-            ingredient_id = int(ingredient_widget.currentData())
+            ingredient = ingredient_widget.currentData()
             amount = int(amount_widget.currentData())
-            if ingredient_id >= 0 and (amount >= 0 or ingredient_id == barbot.ingredient_id_stirring):
-                item = barbot.RecipeItem()
-                item.ingredient_id = ingredient_id
-                if ingredient_id == barbot.ingredient_id_stirring:
-                    item.amount = 2000
-                else:
-                    item.amount = amount
-                items.append(item)
-        if self._id is not None and not self.db.has_recipe_changed(self._id, name, items, instruction):
+            if ingredient is None:
+                continue
+            if amount == 0 and ingredient.type != IngredientType.Stirr:
+                continue
+
+            if ingredient.type == IngredientType.Stirr:
+                item = RecipeItem(ingredient, 2000)
+            else:
+                item = RecipeItem(ingredient, amount)
+            self._recipe.items.append(item)
+        if not self._new and self._recipe.equal_to(self._original_recipe):
             self.window.show_message("Rezept wurde nicht verändert")
             return
-        # update Database
-        new_id = self.db.create_or_update_recipe(name, instruction, self._id)
-        self.db._insert_recipe_items(new_id, items)
-        self._id = new_id
-        if self._id == None:
+        # save copy or new recipe
+        self._recipe.id = bbrecipes.generate_new_id()
+        self._recipe.save(directories.recipes)
+        if not self._new:
+            bbrecipes.move_to_old(self._original_recipe)
+        if self._new:
             self._reload_with_message("Neues Rezept gespeichert")
         else:
             self._reload_with_message("Rezept gespeichert")
 
     def _reload_with_message(self, message):
-        self.window.set_view(RecipeNewOrEdit(self.window, self._id))
+        self.window.set_view(RecipeNewOrEdit(self.window, self._recipe))
         self.window.show_message(message)
 
 

@@ -173,7 +173,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # forward status changed
         self._barbot_state_trigger.connect(self.update_view)
-        bot.on_state_changed = lambda: self._barbot_state_trigger.emit()
+        bot.on_state_changed = lambda _: self._barbot_state_trigger.emit()
 
         # remove borders and title bar
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
@@ -331,16 +331,15 @@ class MainWindow(QtWidgets.QMainWindow):
         return wAmount
 
     def combobox_ingredients(self, selectedData=None, only_available=False, special_ingredients=True):
-        ing = self.db.list_ingredients(
-            only_available, special_ingredients).values()
+        ingredients = data.get_ingredients(only_available, special_ingredients)
         # add ingredient name
         wIngredient = QtWidgets.QComboBox()
-        wIngredient.addItem("-", -1)
+        wIngredient.addItem("-", None)
         wIngredient.setCurrentIndex(0)
         i = 1
-        for item in ing:
-            wIngredient.addItem(str(item["name"]), item["id"])
-            if item["id"] == selectedData:
+        for item in ingredients:
+            wIngredient.addItem(str(item.name), item)
+            if item == selectedData:
                 wIngredient.setCurrentIndex(i)
             i += 1
         return wIngredient

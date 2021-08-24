@@ -1,9 +1,9 @@
-from barbot.data import Recipe
-from barbot.data import RecipeFilter
-from barbot import directories
 import yaml
 import os
 from typing import List
+from .data import Recipe
+from .data import RecipeFilter
+from . import directories
 
 _sequence_filename = directories.relative("data", "sequence.yaml")
 _recipes: List[Recipe] = None
@@ -16,7 +16,7 @@ def load():
         if not file.endswith(".yaml"):
             continue
         r = Recipe()
-        r.Load(directories.recipes, file)
+        r.load(directories.recipes, file)
         _recipes.append(r)
 
 
@@ -34,6 +34,14 @@ def filter(filter: RecipeFilter) -> List[Recipe]:
         filtered.append(recipe)
     filtered.sort(key=lambda r: r.id, reverse=filter.DESC)
     return filtered
+
+
+def by_id(id: int):
+    global _recipes
+    for recipe in _recipes:
+        if recipe.id == id:
+            return recipe
+    return None
 
 
 def get_next_id() -> int:
@@ -56,11 +64,12 @@ def generate_new_id() -> int:
     return sequence
 
 
-def get_reipe_filename(id: int, name: str) -> str:
+def get_recipe_filename(id: int, name: str) -> str:
     return"{0:06d} {1}.yaml".format(id, name)
 
 
 def import_from_directory():
+    """Replace recipe id with new one and move file to recipes folder"""
     for file in os.listdir(directories.import_recipes):
         if not file.endswith(".yaml"):
             continue
@@ -68,8 +77,17 @@ def import_from_directory():
         id = generate_new_id()
         old_name = os.path.join(directories.import_recipes, file)
         new_name = os.path.join(
-            directories.recipes, get_reipe_filename(id, name))
+            directories.recipes, get_recipe_filename(id, name))
         os.rename(old_name, new_name)
+
+
+def move_to_old(recipe: Recipe):
+    global _recipes
+    filename = get_recipe_filename(recipe.id, recipe.name)
+    old_name = os.path.join(directories.recipes, filename)
+    new_name = os.path.join(directories.old_recipes, filename)
+    os.rename(old_name, new_name)
+    _recipes.remove(recipe)
 
 
 # import what is in the import directory
