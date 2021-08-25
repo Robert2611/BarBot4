@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from barbot import statemachine
 from barbot import data
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
@@ -13,6 +14,7 @@ from barbot.data import IngredientType
 from barbot.data import Recipe
 from barbot.data import RecipeItem
 from barbot.data import Recipe
+from barbot import orders
 from barbot import ports
 
 
@@ -465,12 +467,13 @@ class Statistics(IdleView):
         label = QtWidgets.QLabel("Datum")
         row.layout().addWidget(label)
 
-        self.parties = self.db.list_parties()
+        self.parties = orders.list_dates()
         dates_widget = QtWidgets.QComboBox()
-        for party in self.parties:
-            dates_widget.addItem(party["partydate"])
-        dates_widget.currentTextChanged.connect(
-            lambda newDate: self._update(newDate))
+        for datetime in self.parties:
+            dates_widget.addItem(datetime.strftime(
+                "%Y-%m-%d %H:%M:%S"), datetime)
+        dates_widget.currentIndexChanged.connect(
+            lambda newDate: self._update(dates_widget.currentData()))
         row.layout().addWidget(dates_widget)
 
         self._content_wrapper = QtWidgets.QWidget()
@@ -479,38 +482,37 @@ class Statistics(IdleView):
         self._content.layout().addWidget(self._content_wrapper)
 
         # initialize with date of last party
-        self._update(self.parties[0]["partydate"] if self.parties else None)
+        self._update(self.parties[0] if self.parties else None)
 
-    def _update(self, date):
+    def _update(self, date: datetime):
         if not date:
             return
         # self.total_count = self.parties[0]["ordercount"]
         from barbotgui.controls import BarChart
 
-        # get data from database
-        cocktail_count = self.db.ordered_cocktails_count(date)
-        ingredients_amount = self.db.ordered_ingredients_amount(date)
-        cocktails_by_time = self.db.ordered_cocktails_by_time(date)
+        statistics = orders.get_statistics(date)
+
         # create container
         container = QtWidgets.QWidget()
         container.setLayout(QtWidgets.QVBoxLayout())
 
         # total ordered cocktails
-        total_cocktails = sum(c["count"] for c in cocktail_count)
-        label = QtWidgets.QLabel("Bestellte Cocktails (%i)" % total_cocktails)
+        label = QtWidgets.QLabel("Bestellte Cocktails (%i)" %
+                                 statistics["total_cocktails"])
         container.layout().addWidget(label)
         # ordered cocktails by name
-        data = [(c["name"], c["count"]) for c in reversed(cocktail_count)]
+        data = statistics["cocktail_count"].items()
         chart = BarChart(data)
         container.layout().addWidget(chart)
 
         # total liters
-        total_amount = sum([amount["liters"] for amount in ingredients_amount])
-        label = QtWidgets.QLabel("Verbrauchte Zutaten (%i l)" % total_amount)
+        total_amount = sum(statistics["ingredients_amount"].values()) / 100.0
+        label = QtWidgets.QLabel(
+            "Verbrauchte Zutaten ({0:.2g} l)".format(total_amount))
         container.layout().addWidget(label)
         # ingrediends
-        data = [(c["ingredient"], c["liters"])
-                for c in reversed(ingredients_amount)]
+        data = [(ingr.name, amount / 100.0)
+                for ingr, amount in statistics["ingredients_amount"].items()]
         chart = BarChart(data)
         container.layout().addWidget(chart)
 
@@ -518,7 +520,9 @@ class Statistics(IdleView):
         label = QtWidgets.QLabel("Bestellungen")
         container.layout().addWidget(label)
         # cocktails vs. time chart
-        data = [(c["hour"], c["count"]) for c in reversed(cocktails_by_time)]
+        format = "%Y-%m-%d %H"
+        data = [(dt.strftime(format), count)
+                for dt, count in statistics["cocktails_by_time"].items()]
         chart = BarChart(data)
         container.layout().addWidget(chart)
 

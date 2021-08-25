@@ -2,13 +2,15 @@ import yaml
 from datetime import datetime
 from . import directories
 from .data import Recipe
+from . import data
 import os
-from typing import Dict
+from typing import List
 _prefix = "orders "
 _extension = ".yaml"
 _timeformat = "%Y-%m-%d %H-%M-%S"
 _filename = datetime.now().strftime(_prefix + _timeformat + _extension)
 _filepath = directories.join(directories.orders, _filename)
+_dates = {}
 
 
 def add_order(recipe: Recipe):
@@ -27,9 +29,10 @@ def add_order(recipe: Recipe):
         yaml.dump([data], file)
 
 
-def list_dates() -> Dict[datetime, str]:
-    global _prefix
-    result = {}
+def list_dates() -> List[datetime]:
+    global _prefix, _dates
+    _dates = {}
+    result = []
     for file in os.listdir(directories.orders):
         if not file.endswith(_extension):
             continue
@@ -39,7 +42,45 @@ def list_dates() -> Dict[datetime, str]:
         # ignore empty files
         if os.path.getsize(full_path) == 0:
             continue
+        # use str instead of datetime as dict key to avoid hashing problems
         str_datetime = file[len(_prefix):-len(_extension)]
+        _dates[str_datetime] = full_path
         created = datetime.strptime(str_datetime, _timeformat)
-        result[created] = full_path
+        result.append(created)
     return result
+
+
+def _increase_entry(item: dict, key, increment=1):
+    if key in item.keys():
+        item[key] += increment
+    else:
+        item[key] = increment
+
+
+def get_statistics(date: datetime):
+    global _dates
+    statistics = {}
+    with open(_dates[date.strftime(_timeformat)], "r") as file:
+        orders_data = yaml.safe_load(file)
+    ingredients_amount = {}
+    cocktail_count = {}
+    cocktails_by_time = {}
+    for order in orders_data:
+        _increase_entry(cocktail_count, order["recipe"])
+        hour = datetime(
+            order["date"].year,
+            order["date"].month,
+            order["date"].day,
+            order["date"].hour,
+        )
+        _increase_entry(cocktails_by_time, hour)
+        for item in order["items"]:
+            ing = data.IngredientsByIdentifier[item["ingredient"]]
+            _increase_entry(ingredients_amount, ing, item["amount"])
+        order["recipe"]
+    statistics["ingredients_amount"] = ingredients_amount
+    statistics["cocktail_count"] = cocktail_count
+    statistics["cocktails_by_time"] = cocktails_by_time
+    statistics["total_cocktails"] = len(orders_data)
+
+    return statistics

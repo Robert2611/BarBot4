@@ -7,7 +7,8 @@ from barbot import botconfig
 from barbot import statemachine
 from barbot import communication
 from barbot import ports
-import sys
+from barbot import recipes as bbrecipes
+from barbot.data import Recipe
 
 
 class AdminLogin(IdleView):
@@ -102,8 +103,7 @@ class Overview(IdleView):
             ["Einstellungen", Settings],
             ["Reinigung", Cleaning],
             ["Cocktails Löschen", RemoveRecipe],
-            ["Waage kalibrieren", BalanceCalibration],
-            ["Zutaten kalibrieren", IngredientCalibration]
+            ["Waage kalibrieren", BalanceCalibration]
         ]
         columns = 1
         column = 0
@@ -228,54 +228,6 @@ class Ports(IdleView):
         ports.List.update(new_ports)
         ports.save()
         self.window.show_message("Positionen wurden gespeichert.")
-
-
-class IngredientCalibration(IdleView):
-    def __init__(self, window: barbotgui.MainWindow, portId=-1):
-        super().__init__(window)
-        self._content.setLayout(QtWidgets.QVBoxLayout())
-        self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
-
-        self._fixed_content.layout().addWidget(QtWidgets.QLabel("Zutat kalibrieren"))
-
-        if portId == -1:
-            # show table to choose port
-            table = QtWidgets.QWidget()
-            table.setLayout(QtWidgets.QGridLayout())
-            self._content.layout().addWidget(table)
-            # fill table
-            ingredients = self.db.list_ingredients(True)
-            ports = self.db.ingredient_of_port()
-            for i in range(12):
-                label = QtWidgets.QLabel("Position %i" % (i+1))
-                table.layout().addWidget(label, i, 0)
-                if i in ports.keys() and ports[i] in ingredients.keys():
-                    ingredient = ingredients[ports[i]]
-                    label = QtWidgets.QLabel(ingredient["name"])
-                    table.layout().addWidget(label, i, 1)
-                    label = QtWidgets.QLabel(str(ingredient["calibration"]))
-                    table.layout().addWidget(label, i, 2)
-                    # calibrate button
-                    button = QtWidgets.QPushButton(
-                        barbotgui.qt_icon_from_file_name("calibrate.png"), "")
-                    button.clicked.connect(
-                        lambda checked, portId=i: self._open_ingredient_calibration(portId))
-                    table.layout().addWidget(button, i, 3, QtCore.Qt.AlignLeft)
-        else:
-            # TODO: show screen to calibrate ingredient
-            label = QtWidgets.QLabel(
-                "Diese Funktion ist noch nicht implementiert.")
-            self._content.layout().addWidget(label)
-            pass
-
-        # back button
-        back_button = QtWidgets.QPushButton("Übersicht")
-        def btn_click(): return self.window.set_view(Overview(self.window))
-        back_button.clicked.connect(btn_click)
-        self._fixed_content.layout().addWidget(back_button)
-
-    def _open_ingredient_calibration(self, id):
-        self.window.set_view(IngredientCalibration(self.window, id))
 
 
 class BalanceCalibration(IdleView):
@@ -675,9 +627,7 @@ class RemoveRecipe(IdleView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-
-        recipes = self.db.list_recipes(self.window.recipe_filter)
-        for recipe in recipes:
+        for recipe in bbrecipes.filter(self.window.recipe_filter):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())
@@ -692,11 +642,11 @@ class RemoveRecipe(IdleView):
             icon = barbotgui.qt_icon_from_file_name("remove.png")
             remove_button = QtWidgets.QPushButton(icon, "")
             remove_button.clicked.connect(
-                lambda checked, rid=recipe.id: self._show_confirmation(rid))
+                lambda checked, r=recipe: self._show_confirmation(r))
             recipe_box.layout().addWidget(remove_button, 0)
 
-    def _show_confirmation(self, id):
-        self._id = id
+    def _show_confirmation(self, recipe: Recipe):
+        self._recipe = recipe
         self._list.setVisible(False)
         self._confirmation_dialog.setVisible(True)
 
@@ -705,5 +655,6 @@ class RemoveRecipe(IdleView):
         self._list.setVisible(True)
 
     def _remove(self):
-        self.db.remove_recipe(self._id)
+        bbrecipes.move_to_old(self._recipe)
+        self._hide_confirmation()
         self.add_list()
