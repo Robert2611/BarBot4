@@ -6,6 +6,7 @@ from enum import Enum, auto
 from datetime import datetime
 from typing import List
 from . import directories
+import logging
 
 
 class IngredientType(Enum):
@@ -54,7 +55,6 @@ class RecipeItem(object):
 class Recipe(object):
     def __init__(self):
         self.items: List[RecipeItem] = []
-        self.id: int = -1
         self.name = "Neues Rezept"
         self.created = datetime.now()
         self.instruction = ""
@@ -65,10 +65,8 @@ class Recipe(object):
             filepath = directories.join(directories.data, folder, filename)
             with open(filepath, 'r') as file:
                 data = yaml.safe_load(file)
-            # first six letters are the id
-            self.id = int(filename[:6])
-            # skip id + separator, do not include '.yaml'
-            self.name = filename[7:-5]
+            # do not include '.yaml'
+            self.name = filename[:-5]
             self.created = data["created"]
             self.instruction = data["instruction"]
             self.items = []
@@ -79,15 +77,14 @@ class Recipe(object):
                 self.items.append(item)
             return True
         except Exception as ex:
-            print("Error in recipe load: {0}".format(ex))
+            logging.warn("Error in recipe load: {0}".format(ex))
             return False
 
     def save(self, folder):
         global IngredientsByIdentifier
         try:
-            from . import recipes
-            filename = recipes.get_recipe_filename(self.id, self.name)
-            filepath = directories.relative("data", folder, filename)
+            filename = self.name + ".yaml"
+            filepath = directories.join(directories.data, folder, filename)
             data = {}
             data["created"] = self.created
             data["instruction"] = self.instruction
@@ -103,7 +100,7 @@ class Recipe(object):
                 data = yaml.dump(data, file)
             return True
         except Exception as ex:
-            print("Error in recipe save: {0}".format(ex))
+            logging.warn("Error in recipe save: {0}".format(ex))
             return False
 
     def equal_to(self, recipe):
@@ -117,6 +114,9 @@ class Recipe(object):
         for index, self_item in enumerate(self.items):
             if self_item.ingredient != recipe.items[index].ingredient:
                 return False
+            # ignore the amount for stirring
+            if self_item.ingredient.type == IngredientType.Stirr:
+                continue
             if self_item.amount != recipe.items[index].amount:
                 return False
         return True

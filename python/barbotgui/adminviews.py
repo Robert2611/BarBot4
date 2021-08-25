@@ -655,6 +655,6 @@ class RemoveRecipe(IdleView):
         self._list.setVisible(True)
 
     def _remove(self):
-        bbrecipes.move_to_old(self._recipe)
+        bbrecipes.remove(self._recipe)
         self._hide_confirmation()
         self.add_list()

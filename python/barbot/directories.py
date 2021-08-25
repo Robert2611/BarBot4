@@ -20,7 +20,6 @@ def make_absolute(*path):
 data = make("data")
 recipes = make_absolute(data, "recipes")
 old_recipes = make_absolute(data, "old_recipes")
-import_recipes = make_absolute(data, "import_recipes")
 orders = make_absolute(data, "orders")
 log = make_absolute(data, "log")
 

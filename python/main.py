@@ -1,29 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import logging
+
 from barbot import statemachine
 from PyQt5 import QtWidgets
 import barbot
 import barbotgui
-import os
 import sys
-import logging
 import threading
 from datetime import datetime
-from barbot import orders, recipes
 from barbot import directories
-from pprint import pprint
 
 # cofigure logging
 log_file = datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")
 log_file_path = directories.join(directories.log, log_file)
+# for some reason the logger is already configured, so we have to remove the handler
+logging.getLogger().handlers.clear()
 logging.basicConfig(
     filename=log_file_path,
-    filemode='a',
+    filemode='w',
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(levelname)s\t%(message)s'
 )
 logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
+
 
 barbot.is_demo = "-d" in sys.argv[1:]
 

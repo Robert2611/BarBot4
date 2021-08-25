@@ -292,6 +292,12 @@ class RecipeNewOrEdit(IdleView):
         if self._recipe.name == None or self._recipe.name == "":
             self.window.show_message("Bitte einen Namen eingeben")
             return
+        if self._new or self._recipe.name != self._original_recipe.name:
+            # name changed or new recipe
+            if self._recipe.name in [recipe.name for recipe in bbrecipes.filter(None)]:
+                self.window.show_message(
+                    "Ein Cocktail mit diesem Namen existiert bereits")
+                return
         size = self._get_cocktail_size()
         if size > botconfig.max_cocktail_size:
             self.window.show_message("Dein Cocktail ist zu groß.")
@@ -319,10 +325,9 @@ class RecipeNewOrEdit(IdleView):
             self.window.show_message("Rezept wurde nicht verändert")
             return
         # save copy or new recipe
-        self._recipe.id = bbrecipes.generate_new_id()
-        self._recipe.save(directories.recipes)
         if not self._new:
-            bbrecipes.move_to_old(self._original_recipe)
+            bbrecipes.remove(self._original_recipe)
+        bbrecipes.add(self._recipe)
         if self._new:
             self._reload_with_message("Neues Rezept gespeichert")
         else:

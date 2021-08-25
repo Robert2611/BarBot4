@@ -5,7 +5,7 @@ from barbot import directories
 from barbot.data import IngredientsByIdentifier
 
 Count = 12
-_Filename = 'ports.yml'
+_Filename = 'ports.yaml'
 _Filepath = directories.join("data", _Filename)
 List = {i: None for i in range(Count)}
 
