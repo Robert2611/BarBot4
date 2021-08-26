@@ -14,6 +14,7 @@ def run_command(cmd_str, cmd_str2=None):
 
 
 class UserMessages(Enum):
+    none = auto()
     mixing_done_remove_glas = auto()
     place_glas = auto()
     ingredient_empty = auto()

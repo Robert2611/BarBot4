@@ -139,7 +139,7 @@ def run():
                     _set_message(UserMessages.board_not_connected_crusher)
                     if not _wait_for_user_input():
                         return
-                _set_message(None)
+                _set_message(UserMessages.none)
                 communication.try_set("SetLED", 3)
                 communication.try_set("SetSpeed", botconfig.max_speed)
                 communication.try_set("SetAccel", botconfig.max_accel)
@@ -170,6 +170,7 @@ def run():
                 communication.read_message()
                 if not communication.is_connected:
                     set_state(State.connecting)
+                # TODO: Combine get_async and set_async into lambda that is called asynchronously
                 # get async if flag is set
                 if _get_async != None:
                     _async_result = communication.try_get(_get_async)
@@ -275,7 +276,7 @@ def _do_mixing():
 
     if not barbot.is_demo:
         communication.try_set("PlatformLED", 3)
-    _set_message(None)
+    _set_message(UserMessages.none)
     # ask for ice if module is connected
     if botconfig.ice_crusher_connected:
         _set_message(UserMessages.ask_for_ice)
@@ -283,7 +284,7 @@ def _do_mixing():
             communication.try_set("PlatformLED", 4)
         if not _wait_for_user_input():
             return
-        _set_message(None)
+        _set_message(UserMessages.none)
         add_ice = _user_input
     else:
         add_ice = False
@@ -294,7 +295,7 @@ def _do_mixing():
             communication.try_set("PlatformLED", 4)
         if not _wait_for_user_input():
             return
-        _set_message(None)
+        _set_message(UserMessages.none)
         add_straw = _user_input
     else:
         add_straw = False
@@ -347,7 +348,7 @@ def _do_mixing():
         _user_input = None
         if not _wait_for(lambda: communication.try_get("HasGlas") != "1"):
             return
-        _set_message(None)
+        _set_message(UserMessages.none)
         communication.try_set("PlatformLED", 0)
         orders.add_order(_current_recipe)
         if on_mixing_finished is not None:
@@ -355,7 +356,7 @@ def _do_mixing():
 
 
 def go_to_idle():
-    _set_message(None)
+    _set_message(UserMessages.none)
     if not barbot.is_demo:
         communication.try_set("SetLED", 3)
         # first move to what is supposed to be zero, then home
@@ -392,7 +393,7 @@ def _do_crushing():
                 if not _wait_for_user_input():
                     return False
                 # remove the message
-                _set_message(None)
+                _set_message(UserMessages.none)
                 if not _user_input:
                     return False
                 # repeat the loop
@@ -418,7 +419,7 @@ def _do_crushing():
                 if not _wait_for_user_input():
                     return False
                 # remove the message
-                _set_message(None)
+                _set_message(UserMessages.none)
                 if not _user_input:
                     return False
                 # repeat the loop
@@ -430,7 +431,7 @@ def _do_crushing():
                 if not _wait_for_user_input():
                     return False
                 # remove the message
-                _set_message(None)
+                _set_message(UserMessages.none)
                 if not _user_input:
                     return False
                 # repeat the loop
@@ -482,7 +483,7 @@ def _draft_one(item: recipes.RecipeItem):
                     if not _wait_for_user_input():
                         return False
                     # remove the message
-                    _set_message(None)
+                    _set_message(UserMessages.none)
                     if not _user_input:
                         return False
                     # repeat the loop
@@ -516,7 +517,7 @@ def _do_cleaning_cycle():
         return
     if _user_input == False:
         return
-    _set_message(None)
+    _set_message(UserMessages.none)
     if barbot.is_demo:
         time.sleep(2)
         return
@@ -546,7 +547,7 @@ def _do_single_ingredient():
         return
     if _user_input == False:
         return
-    _set_message(None)
+    _set_message(UserMessages.none)
     _draft_one(_current_recipe_item)
 
 
@@ -558,7 +559,7 @@ def _do_straw():
         _set_message(UserMessages.straws_empty)
         if not _wait_for_user_input():
             return
-        _set_message(None)
+        _set_message(UserMessages.none)
         if _user_input == False:
             break
 
