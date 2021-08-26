@@ -375,14 +375,14 @@ class BalanceCalibration(IdleView):
         else:
             # tare only: set offset, keep calibration
             statemachine.set_balance_calibration(
-                self.new_offset, statemachine.balance_calibration)
+                self.new_offset, botconfig.balance_calibration)
             self._show_calibration_buttons()
 
     def _calibrate(self):
         if self._entered_weight > 0:
             self.balance_calibration = (statemachine.get_weight(
             )-self.tare_weight) * botconfig.balance_calibration/self._entered_weight
-            botconfig.set_balance_calibration(
+            statemachine.set_balance_calibration(
                 self.new_offset, self.balance_calibration)
         self._show_calibration_buttons()
 

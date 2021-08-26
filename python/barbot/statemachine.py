@@ -82,8 +82,8 @@ def current_recipe_item() -> recipes.RecipeItem:
 
 def set_balance_calibration(offset, cal):
     # change config
-    botconfig.set_value("balance_offset", offset)
-    botconfig.set_value("balance_calibration", cal)
+    botconfig.balance_offset = offset
+    botconfig.balance_calibration = cal
     # write and reload config
     botconfig.save()
     botconfig.load()
