@@ -544,7 +544,7 @@ class BusyView(View):
         self._title_label.setVisible(False)
 
     def _set_progress(self, progress):
-        for i in range(len(bot.current_recipe().items)):
+        for i in range(len(statemachine.current_recipe().items)):
             if progress is not None and i < progress:
                 icon = barbotgui.qt_icon_from_file_name("done.png")
             elif progress is not None and i == progress:
@@ -571,7 +571,7 @@ class BusyView(View):
                 self.recipe_list_widgets.append(widget_item)
                 recipe_items_list.layout().addWidget(widget_item, row, 0)
                 recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), row, 1)
-            for row, item in enumerate(bot.current_recipe().items):
+            for row, item in enumerate(statemachine.current_recipe().items):
                 add_widget(item.ingredient.name)
             # TODO: add only on process updates, this is not known here yet
             if statemachine.add_straw:
