@@ -43,12 +43,13 @@ _user_input = None
 _abort_mixing = False
 _weight_timeout = 1
 _get_async = None
+_set_async = None
+_set_async_parameter = None
 _weight = None
 _current_recipe: recipes.Recipe = None
 _current_recipe_item: recipes.RecipeItem = None
 _pumps_to_clean = []
 _connected_boards = []
-_bt_timeout = 1
 _async_result = None
 _message: UserMessages = None
 _progress = 0
@@ -81,6 +82,7 @@ def current_recipe_item() -> recipes.RecipeItem:
 
 
 def set_balance_calibration(offset, cal):
+    print("Config")
     # change config
     botconfig.balance_offset = offset
     botconfig.balance_calibration = cal
@@ -88,16 +90,15 @@ def set_balance_calibration(offset, cal):
     botconfig.save()
     botconfig.load()
     # send new values to mainboard
-    communication.try_set("SetBalanceOffset",
-                          int(botconfig.balance_offset))
-    communication.try_set("SetBalanceCalibration",
-                          int(botconfig.balance_calibration))
+    set_async("SetBalanceOffset", int(botconfig.balance_offset))
+    set_async("SetBalanceCalibration", int(botconfig.balance_calibration))
 
 # main loop, runs the whole time
 
 
 def run():
-    global abort, _abort_mixing, _state, _get_async, _bt_timeout, connected_boards, _async_result
+    global abort, _abort_mixing, _state, _get_async
+    global _connected_boards, _async_result, _set_async
     logging.debug("State machine started" +
                   (" in demo mode" if barbot.is_demo else ""))
     while not abort:
@@ -173,6 +174,11 @@ def run():
                 if _get_async != None:
                     _async_result = communication.try_get(_get_async)
                     _get_async = None
+                # set async if flag is set
+                if _set_async != None:
+                    _async_result = communication.try_set(
+                        _set_async, _set_async_parameter)
+                    _set_async = None
             else:
                 time.sleep(0.1)
     if not barbot.is_demo:
@@ -597,18 +603,33 @@ def start_straw():
     set_state(State.straw)
 
 
-def get_async(parameter):
+def get_async(command):
     global _get_async, _state, _weight_timeout, _async_result
     if _state != State.idle:
         return None
-    _get_async = parameter
+    _get_async = command
     start_time = time.time()
-    while(_get_async != None and time.time() < start_time + _weight_timeout):
+    while _get_async != None and time.time() < start_time + _weight_timeout:
         time.sleep(0.1)
     if _get_async != None:
         _get_async = None
         return None
     return _async_result
+
+
+def set_async(command, parameter):
+    global _set_async, _state, _weight_timeout, _set_async_parameter
+    if _state != State.idle:
+        return False
+    _set_async = command
+    _set_async_parameter = parameter
+    start_time = time.time()
+    while _set_async != None and time.time() < start_time + _weight_timeout:
+        time.sleep(0.1)
+    if _set_async != None:
+        _set_async = None
+        return False
+    return True
 
 
 def get_state():

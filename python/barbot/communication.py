@@ -232,14 +232,15 @@ def read_message() -> ProtocolMessage:
         tokens = line.split()
         # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
         # find message type
-        for msg_type in MessageTypes:
-            if msg_type.name == tokens[0]:
-                if len(tokens) < 2:
-                    return ProtocolMessage(MessageTypes.COMM_ERROR, "wrong format")
-                elif len(tokens) == 2:
-                    return ProtocolMessage(msg_type, tokens[1])
-                else:
-                    return ProtocolMessage(msg_type, tokens[1], tokens[2:])
+        if len(tokens) > 0:
+            for msg_type in MessageTypes:
+                if msg_type.name == tokens[0]:
+                    if len(tokens) < 2:
+                        return ProtocolMessage(MessageTypes.COMM_ERROR, "wrong format")
+                    elif len(tokens) == 2:
+                        return ProtocolMessage(msg_type, tokens[1])
+                    else:
+                        return ProtocolMessage(msg_type, tokens[1], tokens[2:])
         return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
     except Exception as e:
         is_connected = False
