@@ -3,7 +3,7 @@ balance_calibration: -1040
 balance_offset: -119.1
 cleaning_time: 3000
 ice_amount: 100
-ice_crusher_connected: true
+ice_crusher_connected: false
 mac_address: 30:AE:A4:9C:9E:7A
 max_accel: 300
 max_cocktail_size: 30

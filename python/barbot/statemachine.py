@@ -1,13 +1,15 @@
 
-from barbot.data import Recipe, RecipeItem
 import barbot
-from barbot import UserMessages, data, communication, botconfig
 import logging
 import time
 from enum import Enum, auto
-from barbot.data import IngredientType
-from barbot import orders
+from . import orders
+from . import ingredients
 from . import ports
+from . import UserMessages
+from . import communication
+from . import botconfig
+from . import recipes
 
 
 class State(Enum):
@@ -42,8 +44,8 @@ _abort_mixing = False
 _weight_timeout = 1
 _get_async = None
 _weight = None
-_current_recipe: data.Recipe = None
-_current_recipe_item: data.RecipeItem = None
+_current_recipe: recipes.Recipe = None
+_current_recipe_item: recipes.RecipeItem = None
 _pumps_to_clean = []
 _connected_boards = []
 _bt_timeout = 1
@@ -68,12 +70,12 @@ def on_state_changed(_): return None
 def on_message_changed(_): return None
 
 
-def current_recipe() -> Recipe:
+def current_recipe() -> recipes.Recipe:
     global _current_recipe
     return _current_recipe
 
 
-def current_recipe_item() -> RecipeItem:
+def current_recipe_item() -> recipes.RecipeItem:
     global _current_recipe_item
     return _current_recipe_item
 
@@ -256,7 +258,7 @@ def _do_mixing():
     _set_mixing_progress(0)
     # wait for the glas
     if not barbot.is_demo and communication.try_get("HasGlas") != "1":
-        communication.try_do("PlatformLED", 2)
+        communication.try_set("PlatformLED", 2)
         _set_message(UserMessages.place_glas)
         _user_input = None
         # wait for glas or user abort
@@ -266,13 +268,13 @@ def _do_mixing():
             return
 
     if not barbot.is_demo:
-        communication.try_do("PlatformLED", 3)
+        communication.try_set("PlatformLED", 3)
     _set_message(None)
     # ask for ice if module is connected
     if botconfig.ice_crusher_connected:
         _set_message(UserMessages.ask_for_ice)
         if not barbot.is_demo:
-            communication.try_do("PlatformLED", 4)
+            communication.try_set("PlatformLED", 4)
         if not _wait_for_user_input():
             return
         _set_message(None)
@@ -283,7 +285,7 @@ def _do_mixing():
     if botconfig.straw_dispenser_connected:
         _set_message(UserMessages.ask_for_straw)
         if not barbot.is_demo:
-            communication.try_do("PlatformLED", 4)
+            communication.try_set("PlatformLED", 4)
         if not _wait_for_user_input():
             return
         _set_message(None)
@@ -293,7 +295,7 @@ def _do_mixing():
     # wait a second before actually starting the mixing
     time.sleep(1)
     if not barbot.is_demo:
-        communication.try_do("PlatformLED", 5)
+        communication.try_set("PlatformLED", 5)
         communication.try_set("SetLED", 5)
     set_user_input(None)
     for index, item in enumerate(_current_recipe.items):
@@ -334,13 +336,13 @@ def _do_mixing():
 
     if not barbot.is_demo:
         _set_message(UserMessages.mixing_done_remove_glas)
-        communication.try_do("PlatformLED", 2)
+        communication.try_set("PlatformLED", 2)
         communication.try_set("SetLED", 4)
         _user_input = None
         if not _wait_for(lambda: communication.try_get("HasGlas") != "1"):
             return
         _set_message(None)
-        communication.try_do("PlatformLED", 0)
+        communication.try_set("PlatformLED", 0)
         orders.add_order(_current_recipe)
         if on_mixing_finished is not None:
             on_mixing_finished(_current_recipe)
@@ -440,17 +442,18 @@ def _do_crushing():
             return False
 
 
-def _draft_one(item: data.RecipeItem):
+def _draft_one(item: recipes.RecipeItem):
     global _user_input, _abort_mixing
     # user aborted
     if _abort_mixing:
         return False
-    if item.ingredient.type == IngredientType.Stirr:
+    if item.ingredient.type == ingredients.IngredientType.Stirr:
         communication.try_do("Mix", botconfig.stirring_time)
         return True
     else:
         while True:
-            weight = int(item.amount)
+            # cl to g with density of water
+            weight = int(item.amount * 10)
             port = ports.port_of_ingredient(item.ingredient)
             result = communication.try_do("Draft", port, weight)
             # user aborted
@@ -556,14 +559,14 @@ def _do_straw():
 # start commands
 
 
-def start_mixing(recipe: data.Recipe):
+def start_mixing(recipe: recipes.Recipe):
     global _abort_mixing, _current_recipe
     _abort_mixing = False
     _current_recipe = recipe
     set_state(State.mixing)
 
 
-def start_single_ingredient(recipe_item: data.RecipeItem):
+def start_single_ingredient(recipe_item: recipes.RecipeItem):
     global _abort_mixing, _current_recipe_item
     _abort_mixing = False
     _current_recipe_item = recipe_item

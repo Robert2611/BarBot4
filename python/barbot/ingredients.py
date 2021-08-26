@@ -1,0 +1,81 @@
+from enum import Enum
+from typing import List
+from . import botconfig
+
+
+class IngredientType(Enum):
+    Spirit = "spirit"
+    Juice = "juice"
+    Sirup = "sirup"
+    Other = "other"
+    Stirr = "stirr"
+
+
+class Ingredient(object):
+    def __init__(self, Identifier: str, Name: str, Type: IngredientType, Color: int):
+        self.identifier = Identifier
+        self.name = Name
+        self.type = Type
+        self.color = Color
+
+    def available(self):
+        from barbot import ports
+        if self.type == IngredientType.Stirr:
+            return botconfig.stirrer_connected
+        return self in ports.List.values()
+
+    def alcoholic(self) -> bool:
+        return self.type == IngredientType.Spirit
+
+
+Stir = Ingredient('ruehren', 'Rühren', IngredientType.Stirr, 0xDDE3E1D3)
+
+_ingredients = [
+    Ingredient('rum weiss', 'Weißer Rum', IngredientType.Spirit, 0x55FFFFFF),
+    Ingredient('rum braun', 'Brauner Rum', IngredientType.Spirit, 0x99D16615),
+    Ingredient('vodka', 'Vodka', IngredientType.Spirit, 0x55FFFFFF),
+    Ingredient('tequila', 'Tequila', IngredientType.Spirit, 0x55FFFFFF),
+
+    Ingredient('saft zitrone', 'Zitronensaft',
+               IngredientType.Juice, 0xAAF7EE99),
+    Ingredient('saft limette', 'Limettensaft',
+               IngredientType.Juice, 0xFF9FBF36),
+    Ingredient('saft orange', 'Orangensaft', IngredientType.Juice, 0xDDFACB23),
+    Ingredient('saft ananas', 'Annanassaft', IngredientType.Juice, 0xFFFAEF23),
+    Ingredient('tripple sec', 'Tripple Sec',
+               IngredientType.Spirit, 0x44FACB23),
+    Ingredient('sirup kokos', 'Kokossirup', IngredientType.Sirup, 0xDDE3E1D3),
+    Ingredient('sirup curacao', 'Blue Curacao',
+               IngredientType.Sirup, 0xFF2D57E0),
+    Ingredient('sirup grenadine', 'Grenadine',
+               IngredientType.Sirup, 0xDD911111),
+    Ingredient('saft cranberry', 'Cranberrysaft',
+               IngredientType.Juice, 0x55F07373),
+    Ingredient('milch', 'Milch', IngredientType.Other, 0xFFF7F7F7),
+    Ingredient('saft maracuja', 'Maracujasaft',
+               IngredientType.Juice, 0xAA0CC73),
+    Ingredient('sirup zucker', 'Zuckersirup',
+               IngredientType.Sirup, 0xDDE3E1D3),
+
+    Stir
+]
+
+# for faster access
+_ingredientsByIdentifier = {
+    ingredient.identifier: ingredient for ingredient in _ingredients}
+
+
+def by_identifier(identifier: str):
+    return _ingredientsByIdentifier[identifier]
+
+
+def get(only_available=False, special_ingredients=True) -> List[Ingredient]:
+    global _ingredients
+    filtered = []
+    for ingredient in _ingredients:
+        if only_available and not ingredient.available():
+            continue
+        if not special_ingredients and ingredient.type == IngredientType.Stirr:
+            continue
+        filtered.append(ingredient)
+    return filtered

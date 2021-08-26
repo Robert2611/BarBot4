@@ -1,21 +1,17 @@
 
 from datetime import datetime
-from barbot import statemachine
-from barbot import data
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-import barbotgui
-import barbot
-from barbotgui import IdleView, MainWindow
 from enum import Enum, auto
+import barbotgui
+from barbotgui import IdleView, MainWindow
+import barbot
 from barbot import recipes as bbrecipes
 from barbot import botconfig
-from barbot import directories
-from barbot.data import IngredientType
-from barbot.data import Recipe
-from barbot.data import RecipeItem
-from barbot.data import Recipe
+from barbot import recipes
 from barbot import orders
 from barbot import ports
+from barbot import ingredients
+from barbot import statemachine
 
 
 class ListRecipes(IdleView):
@@ -100,7 +96,7 @@ class ListRecipes(IdleView):
             item: barbot.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item.ingredient.type == IngredientType.Stirr:
+                if item.ingredient.type == ingredients.IngredientType.Stirr:
                     label.setText("-%s-" % (item.ingredient.name))
                 else:
                     label.setText("%i cl %s" %
@@ -114,7 +110,7 @@ class ListRecipes(IdleView):
 
             fillings = []
             for item in recipe.items:
-                if item.ingredient.type != IngredientType.Stirr:
+                if item.ingredient.type != ingredients.IngredientType.Stirr:
                     relative = item.amount / botconfig.max_cocktail_size
                     filling = GlasFilling(item.ingredient.color, relative)
                     fillings.append(filling)
@@ -140,7 +136,7 @@ class ListRecipes(IdleView):
 
         self._listbox.layout().addWidget(QtWidgets.QWidget(), 1)
 
-    def _open_edit(self, recipe: Recipe):
+    def _open_edit(self, recipe: recipes.Recipe):
         self.window.set_view(RecipeNewOrEdit(self.window, recipe))
 
     def _order(self, recipe):
@@ -155,7 +151,7 @@ class ListRecipes(IdleView):
 
 
 class RecipeNewOrEdit(IdleView):
-    def __init__(self, window: MainWindow, recipe: Recipe = None):
+    def __init__(self, window: MainWindow, recipe: recipes.Recipe = None):
         super().__init__(window)
 
         if recipe is not None:
@@ -163,7 +159,7 @@ class RecipeNewOrEdit(IdleView):
             self._recipe = recipe.copy()
             self._new = False
         else:
-            self._recipe = data.Recipe()
+            self._recipe = recipes.Recipe()
             self._original_recipe = None
             self._new = True
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -224,7 +220,7 @@ class RecipeNewOrEdit(IdleView):
             amount_widget = self.window.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(
                 lambda: self._update_table())
-            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == IngredientType.Stirr):
+            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == ingredients.IngredientType.Stirr):
                 amount_widget.setVisible(False)
             ingredients_container.layout().addWidget(amount_widget, i, 1)
 
@@ -257,7 +253,7 @@ class RecipeNewOrEdit(IdleView):
             # ignore the stirring when accumulating size
             if ingredient is None:
                 continue
-            if ingredient.type == IngredientType.Stirr:
+            if ingredient.type == ingredients.IngredientType.Stirr:
                 continue
             if amount < 0:
                 continue
@@ -282,7 +278,7 @@ class RecipeNewOrEdit(IdleView):
         # visibility
         for ingredient_widget, amount_widget in self._ingredient_widgets:
             ingredient = ingredient_widget.currentData()
-            should_be_visible = ingredient is not None and ingredient.type != IngredientType.Stirr
+            should_be_visible = ingredient is not None and ingredient.type != ingredients.IngredientType.Stirr
             if(amount_widget.isVisible() != should_be_visible):
                 amount_widget.setVisible(should_be_visible)
 
@@ -313,13 +309,13 @@ class RecipeNewOrEdit(IdleView):
             amount = int(amount_widget.currentData())
             if ingredient is None:
                 continue
-            if amount == 0 and ingredient.type != IngredientType.Stirr:
+            if amount == 0 and ingredient.type != ingredients.IngredientType.Stirr:
                 continue
 
-            if ingredient.type == IngredientType.Stirr:
-                item = RecipeItem(ingredient, 2000)
+            if ingredient.type == ingredients.IngredientType.Stirr:
+                item = recipes.RecipeItem(ingredient, 2000)
             else:
-                item = RecipeItem(ingredient, amount)
+                item = recipes.RecipeItem(ingredient, amount)
             self._recipe.items.append(item)
         if not self._new and self._recipe.equal_to(self._original_recipe):
             self.window.show_message("Rezept wurde nicht verändert")
@@ -426,7 +422,7 @@ class SingleIngredient(IdleView):
             ingredient = self._ingredient_widget.currentData()
             amount = self._amount_widget.currentData()
             if ingredient is not None and amount > 0:
-                item = data.RecipeItem(ingredient, amount)
+                item = recipes.RecipeItem(ingredient, amount)
                 port = ports.port_of_ingredient(ingredient)
                 if port is None:
                     self.window.show_message(
@@ -440,7 +436,7 @@ class SingleIngredient(IdleView):
                 self.window.show_message(
                     "Bitte eine Zutat und\neine Menge auswählen")
         elif action_type == self.ActionType.stir and botconfig.stirrer_connected:
-            item = data.RecipeItem(data.IngredientsByIdentifier["ruehren"], 0)
+            item = recipes.RecipeItem(ingredients.Stir, 0)
             statemachine.start_single_ingredient(item)
             self.window.show_message("Cocktail wird gerührt")
         elif action_type == self.ActionType.ice and botconfig.ice_crusher_connected:

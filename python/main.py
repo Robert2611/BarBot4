@@ -20,7 +20,7 @@ logging.basicConfig(
     filename=log_file_path,
     filemode='w',
     level=logging.DEBUG,
-    format='%(levelname)s\t%(message)s'
+    format='%(asctime)s %(levelname)s\t%(message)s'
 )
 logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")

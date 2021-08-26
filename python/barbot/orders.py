@@ -1,8 +1,10 @@
+
 import yaml
 from datetime import datetime
 from . import directories
-from .data import Recipe
-from . import data
+from . import ingredients
+from . import recipes
+
 import os
 from typing import List
 _prefix = "orders "
@@ -13,7 +15,7 @@ _filepath = directories.join(directories.orders, _filename)
 _dates = {}
 
 
-def add_order(recipe: Recipe):
+def add_order(recipe: recipes.Recipe):
     global _filepath
     data = {}
     data["recipe"] = recipe.name
@@ -75,7 +77,7 @@ def get_statistics(date: datetime):
         )
         _increase_entry(cocktails_by_time, hour)
         for item in order["items"]:
-            ing = data.IngredientsByIdentifier[item["ingredient"]]
+            ing = ingredients.by_identifier(item["ingredient"])
             _increase_entry(ingredients_amount, ing, item["amount"])
         order["recipe"]
     statistics["ingredients_amount"] = ingredients_amount

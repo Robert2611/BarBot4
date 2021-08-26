@@ -1,9 +1,120 @@
 import yaml
 import os
+import logging
 from typing import List
-from .data import Recipe
-from .data import RecipeFilter
+from enum import Enum, auto
+from datetime import datetime
+from . import ingredients
 from . import directories
+
+
+class RecipeOrder(Enum):
+    Newest = auto()
+    Makes = auto()
+
+
+class RecipeFilter(object):
+    Alcoholic: bool = True
+    Order: RecipeOrder = RecipeOrder.Newest
+    AvailableOnly: bool = True
+    DESC: bool = False
+
+
+class RecipeItem(object):
+    def __init__(self, Ingredient: ingredients.Ingredient, Amount: int):
+        self.ingredient = Ingredient
+        self.amount = Amount
+
+
+class Recipe(object):
+    def __init__(self):
+        self.items: List[RecipeItem] = []
+        self.name = "Neues Rezept"
+        self.created = datetime.now()
+        self.instruction = ""
+
+    def load(self, folder: str, filename: str):
+        try:
+            filepath = directories.join(directories.data, folder, filename)
+            with open(filepath, 'r') as file:
+                data = yaml.safe_load(file)
+            # do not include '.yaml'
+            self.name = filename[:-5]
+            self.created = data["created"]
+            self.instruction = data["instruction"]
+            self.items = []
+            for item_data in data["items"]:
+                # all errors are handled by the try catch
+                ingredient = ingredients.by_identifier(item_data["ingredient"])
+                item = RecipeItem(ingredient, item_data["amount"])
+                self.items.append(item)
+            return True
+        except Exception as ex:
+            logging.warn("Error in recipe load: {0}".format(ex))
+            return False
+
+    def save(self, folder):
+        try:
+            filename = self.name + ".yaml"
+            filepath = directories.join(directories.data, folder, filename)
+            data = {}
+            data["created"] = self.created
+            data["instruction"] = self.instruction
+            data["items"] = []
+            for item in self.items:
+                if item.ingredient is None:
+                    continue
+                data_item = {}
+                data_item["ingredient"] = item.ingredient.identifier
+                data_item["amount"] = item.amount
+                data["items"].append(data_item)
+            with open(filepath, 'w') as file:
+                data = yaml.dump(data, file)
+            return True
+        except Exception as ex:
+            logging.warn("Error in recipe save: {0}".format(ex))
+            return False
+
+    def equal_to(self, recipe):
+        """Determine whether this recipe has the given entries"""
+        if recipe.name != self.name:
+            return False
+        if recipe.instruction != self.instruction:
+            return False
+        if len(recipe.items) != len(self.items):
+            return False
+        for index, self_item in enumerate(self.items):
+            if self_item.ingredient != recipe.items[index].ingredient:
+                return False
+            # ignore the amount for stirring
+            if self_item.ingredient.type == ingredients.IngredientType.Stirr:
+                continue
+            if self_item.amount != recipe.items[index].amount:
+                return False
+        return True
+
+    def available(self) -> bool:
+        for item in self.items:
+            if not item.ingredient.available():
+                return False
+        return True
+
+    def alcoholic(self) -> bool:
+        for item in self.items:
+            if item.ingredient.alcoholic():
+                return True
+        return False
+
+    def copy(self):
+        recipe = Recipe()
+        recipe.name = self.name
+        recipe.instruction = self.instruction
+        recipe.name = self.name
+        for item in self.items:
+            item_copy = RecipeItem(item.ingredient, item.amount)
+            recipe.items.append(item_copy)
+        return recipe
+
 
 _sequence_filename = directories.join(directories.data, "sequence.yaml")
 _recipes: List[Recipe] = None

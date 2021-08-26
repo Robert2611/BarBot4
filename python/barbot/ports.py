@@ -1,8 +1,6 @@
-import os
-from barbot.data import Ingredient
 import yaml
-from barbot import directories
-from barbot.data import IngredientsByIdentifier
+from . import directories
+from . import ingredients
 
 Count = 12
 _Filename = 'ports.yaml'
@@ -10,7 +8,7 @@ _Filepath = directories.join("data", _Filename)
 List = {i: None for i in range(Count)}
 
 
-def port_of_ingredient(ingredient: Ingredient):
+def port_of_ingredient(ingredient: ingredients.Ingredient):
     global List
     for port, list_ingredient in List.items():
         if list_ingredient == ingredient:
@@ -44,7 +42,7 @@ def load():
                 if identifier is None or identifier == "":
                     List[port] = None
                 else:
-                    List[port] = IngredientsByIdentifier[identifier]
+                    List[port] = ingredients.by_identifier(identifier)
             return True
     except:
         return False

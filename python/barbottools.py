@@ -114,8 +114,7 @@ class ProtocolThread(threading.Thread):
                         communication.try_set(
                             self._next_command["name"], self._next_command["parameters"][0])
                     elif self._next_command["type"] == "Get":
-                        communication.try_get(
-                            self._next_command["name"], self._next_command["parameters"][0])
+                        communication.try_get(self._next_command["name"])
                     # reset command
                     self._next_command = None
 

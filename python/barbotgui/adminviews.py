@@ -7,8 +7,7 @@ from barbot import botconfig
 from barbot import statemachine
 from barbot import communication
 from barbot import ports
-from barbot import recipes as bbrecipes
-from barbot.data import Recipe
+from barbot import recipes
 
 
 class AdminLogin(IdleView):
@@ -627,7 +626,7 @@ class RemoveRecipe(IdleView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-        for recipe in bbrecipes.filter(self.window.recipe_filter):
+        for recipe in recipes.filter(self.window.recipe_filter):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())
@@ -645,7 +644,7 @@ class RemoveRecipe(IdleView):
                 lambda checked, r=recipe: self._show_confirmation(r))
             recipe_box.layout().addWidget(remove_button, 0)
 
-    def _show_confirmation(self, recipe: Recipe):
+    def _show_confirmation(self, recipe: recipes.Recipe):
         self._recipe = recipe
         self._list.setVisible(False)
         self._confirmation_dialog.setVisible(True)
@@ -655,6 +654,6 @@ class RemoveRecipe(IdleView):
         self._list.setVisible(True)
 
     def _remove(self):
-        bbrecipes.remove(self._recipe)
+        recipes.remove(self._recipe)
         self._hide_confirmation()
         self.add_list()

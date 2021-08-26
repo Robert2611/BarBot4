@@ -66,9 +66,9 @@ def connect(mac_address: str, timeout):
         clear_input()
         global is_connected
         is_connected = True
-        logging.info("connection successfull")
+        logging.info("Connection successfull")
     except Exception as e:
-        logging.warn("connection failed %s" % (type(e)))
+        logging.warn("Connection failed %s" % e)
         return False
     return True
 

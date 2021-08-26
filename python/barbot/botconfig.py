@@ -2,7 +2,7 @@ from inspect import ismodule
 import os
 import sys
 import yaml
-from barbot import directories
+from . import directories
 
 _filename = directories.join(directories.data, "config.yaml")
 
@@ -32,6 +32,9 @@ def save():
 
 
 def is_mac_address_valid():
+    global mac_address
+    if mac_address is None:
+        return False
     return len(mac_address.strip()) == 17
 
 

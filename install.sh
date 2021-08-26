@@ -5,6 +5,8 @@ SCRIPT=`realpath $0`
 SETUP_FOLDER=`dirname $SCRIPT`
 PYTHON_FOLDER="$SETUP_FOLDER/python"
 
+echo "Python folder is: $PYTHON_FOLDER"
+
 #make main program executable
 sudo chmod +x "$PYTHON_FOLDER/main.py"
 #make touch rotate executable
@@ -39,7 +41,7 @@ if [ $RASPBERRY_PI_VERSION = "3" ]; then
 		echo "Display rotate was allready set"
 	fi
 else
-	echo "Cannot set display rotate"
+	echo "Cannot set display rotate autoatically, please set it in raspberry pi 4 settings manually"
 fi
 sudo apt-get install python3-pyqt5 -y
 pip3 install -r "$PYTHON_FOLDER/requirements.txt"

@@ -1,5 +1,4 @@
 import subprocess
-import sqlite3 as lite
 from enum import Enum, auto
 
 is_demo = False
