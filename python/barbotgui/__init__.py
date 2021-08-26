@@ -392,6 +392,10 @@ class BusyView(View):
 
         self._update_message()
 
+    def __del__(self):
+        # remove lambda from message changed to avoid reference error
+        statemachine.on_message_changed = None
+
     def _update_message(self):
         # delete old message
         if self._message is not None:
