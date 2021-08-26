@@ -73,7 +73,7 @@ IngredientIdToIdentifier = {
 
 importpath = os.path.join(base_dir, "data", "import_recipes")
 for recipe in get_recipes():
-    name = "{0:06d} {1}.yaml".format(recipe["id"], recipe["name"])
+    name = recipe["name"] + ".yaml"
     # id and name are coded in the filename, remove it to avoid redundancy
     recipe.pop("id")
     recipe.pop("name")
