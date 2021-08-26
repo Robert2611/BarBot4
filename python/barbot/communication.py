@@ -40,31 +40,30 @@ def find_bar_bot():
         nearby_devices = bluetooth.discover_devices(lookup_names=True)
         for x in nearby_devices:
             if "Bar Bot" in x[1]:
-                # save mac address into settings
+                # return address of first device with "Bar Bot" in its name
                 return x[0]
     except:
         return None
 
 
-def clear_input():
+def clear_input() -> bool:
+    global is_connected
     # clear the input
     read_message()
-    # if an arror accured, return false
+    # if an error accured, return false
     return is_connected
 
 
-def connect(mac_address: str, timeout):
-    global conn
+def connect(mac_address: str):
+    global conn, is_connected
     if conn is not None:
         conn.close()
     try:
         conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        conn.settimeout(timeout)
         conn.connect((mac_address, 1))
         # wait for Arduino to initialize
         time.sleep(1)
         clear_input()
-        global is_connected
         is_connected = True
         logging.info("Connection successfull")
     except Exception as e:

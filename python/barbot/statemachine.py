@@ -114,7 +114,7 @@ def run():
             if not botconfig.is_mac_address_valid():
                 set_state(State.searching)
             else:
-                if communication.connect(botconfig.mac_address, _bt_timeout):
+                if communication.connect(botconfig.mac_address):
                     set_state(State.startup)
                 else:
                     time.sleep(1)

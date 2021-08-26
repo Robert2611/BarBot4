@@ -94,7 +94,7 @@ class ProtocolThread(threading.Thread):
     def run(self):
         while not self.abort:
             if not communication.is_connected:
-                communication.connect(self.mac_address, 2)
+                communication.connect(self.mac_address)
                 if not communication.is_connected:
                     # only try connecting every 500ms
                     time.sleep(0.5)
