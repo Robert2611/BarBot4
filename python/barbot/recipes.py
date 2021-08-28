@@ -32,31 +32,15 @@ class Recipe(object):
         self.name = "Neues Rezept"
         self.created = datetime.now()
         self.instruction = ""
+        self.is_fixed = False
 
-    def load(self, folder: str, filename: str):
-        try:
-            filepath = directories.join(directories.data, folder, filename)
-            with open(filepath, 'r') as file:
-                data = yaml.safe_load(file)
-            # do not include '.yaml'
-            self.name = filename[:-5]
-            self.created = data["created"]
-            self.instruction = data["instruction"]
-            self.items = []
-            for item_data in data["items"]:
-                # all errors are handled by the try catch
-                ingredient = ingredients.by_identifier(item_data["ingredient"])
-                item = RecipeItem(ingredient, item_data["amount"])
-                self.items.append(item)
-            return True
-        except Exception as ex:
-            logging.warn("Error in recipe load: {0}".format(ex))
+    def save(self):
+        #fixed recipes cannot be modified
+        if self.is_fixed:
             return False
-
-    def save(self, folder):
         try:
             filename = self.name + ".yaml"
-            filepath = directories.join(directories.data, folder, filename)
+            filepath = directories.join(directories.recipes, filename)
             data = {}
             data["created"] = self.created
             data["instruction"] = self.instruction
@@ -115,21 +99,46 @@ class Recipe(object):
             recipe.items.append(item_copy)
         return recipe
 
-
-_sequence_filename = directories.join(directories.data, "sequence.yaml")
 _recipes: List[Recipe] = None
 
+def _load_recipe_from_file( folder: str, filename: str)->Recipe:
+    r = Recipe()
+    try:
+        filepath = directories.join(folder, filename)
+        with open(filepath, 'r') as file:
+            data = yaml.safe_load(file)
+        # do not include '.yaml'
+        r.name = filename[:-5]
+        r.created = data["created"]
+        r.instruction = data["instruction"]
+        r.items = []
+        for item_data in data["items"]:
+            # all errors are handled by the try catch
+            ingredient = ingredients.by_identifier(item_data["ingredient"])
+            item = RecipeItem(ingredient, item_data["amount"])
+            r.items.append(item)
+        return r
+    except Exception as ex:
+        logging.warn("Error in recipe load: {0}".format(ex))
+        return None
 
 def load():
     global _recipes
     _recipes = []
+    #user recipes
     for file in os.listdir(directories.recipes):
         if not file.endswith(".yaml"):
             continue
-        r = Recipe()
-        r.load(directories.recipes, file)
+        r = _load_recipe_from_file(directories.recipes, file)
+        r.is_fixed = False
         _recipes.append(r)
-
+    #fixed recipes
+    for file in os.listdir(directories.fixed_recipes):
+        if not file.endswith(".yaml"):
+            continue
+        r = _load_recipe_from_file(directories.fixed_recipes, file)
+        r.is_fixed = True
+        _recipes.append(r)
 
 def filter(filter: RecipeFilter) -> List[Recipe]:
     global _recipes
@@ -167,5 +176,5 @@ def remove(recipe: Recipe):
 
 def add(recipe: Recipe):
     global _recipes
-    recipe.save(directories.recipes)
+    recipe.save()
     _recipes.append(recipe)

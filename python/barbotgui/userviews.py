@@ -75,12 +75,13 @@ class ListRecipes(IdleView):
             left_column.layout().addWidget(recipe_title_container)
 
             # edit button
-            icon = barbotgui.qt_icon_from_file_name("edit.png")
-            edit_button = QtWidgets.QPushButton(icon, "")
-            edit_button.setProperty("class", "BtnEdit")
-            edit_button.clicked.connect(
-                lambda checked, r=recipe: self._open_edit(r))
-            recipe_title_container.layout().addWidget(edit_button, 0)
+            if not recipe.is_fixed:
+                icon = barbotgui.qt_icon_from_file_name("edit.png")
+                edit_button = QtWidgets.QPushButton(icon, "")
+                edit_button.setProperty("class", "BtnEdit")
+                edit_button.clicked.connect(
+                    lambda checked, r=recipe: self._open_edit(r))
+                recipe_title_container.layout().addWidget(edit_button, 0)
 
             # title
             recipe_title = QtWidgets.QLabel(recipe.name)
