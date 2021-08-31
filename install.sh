@@ -41,8 +41,24 @@ if [ $RASPBERRY_PI_VERSION = "3" ]; then
 		echo "Display rotate was allready set"
 	fi
 else
-	echo "Cannot set display rotate autoatically, please set it in raspberry pi 4 settings manually"
+	echo "Cannot set display rotate automatically, please set it in raspberry pi 4 settings manually"
 fi
+sudo apt-get install bluetooth bluez libbluetooth-dev -y
 sudo apt-get install python3-pyqt5 -y
 pip3 install -r "$PYTHON_FOLDER/requirements.txt"
-#nano /home/pi/.cache/lxsession/LXDE-pi/run.log
+# to check startup logs use:
+# nano /home/pi/.cache/lxsession/LXDE-pi/run.log
+
+#create desktop shortcut and make it executable
+DESKTOP_SHORTCUT="/home/pi/Desktop/barbot.desktop"
+#clear desktop shurtcut  
+> $DESKTOP_SHORTCUT
+echo "[Desktop Entry]" >> $DESKTOP_SHORTCUT
+echo "Name=BarBot" >> $DESKTOP_SHORTCUT
+echo "Comment=Starte BarBot" >> $DESKTOP_SHORTCUT
+echo "Exec=$PYTHON_FOLDER/main.py" >> $DESKTOP_SHORTCUT
+echo "Type=Application" >> $DESKTOP_SHORTCUT
+echo "Encoding=UTF-8" >> $DESKTOP_SHORTCUT
+echo "Terminal=false" >> $DESKTOP_SHORTCUT
+echo "" >> $DESKTOP_SHORTCUT
+sudo chmod +x "$DESKTOP_SHORTCUT"
