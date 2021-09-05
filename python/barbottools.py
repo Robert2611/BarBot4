@@ -184,22 +184,29 @@ class ToolsWindow(QtWidgets.QMainWindow):
         command["parameters"] = parameters if parameters is not None else None
         protocol_thread.run_next(command)
 
-    def log_add_line(self, text):
+    def log_add_line(self, line):
         # only show 100 lines
-        self._log_lines.append(text)
+        self._log_lines.append(line)
         while len(self._log_lines) > 100:
             self._log_lines.pop(0)
         text = "".join(self._log_lines)
         self.log_widget.setPlainText(text)
         scrollbar = self.log_widget.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
-        if "ERROR" in text:
-            re.search("ERROR\s(?P<id>\d+)\s")
+        if "ERROR" in line:
+            m = re.search(
+                "ERROR (?P<command>.+) (?P<id>\d+) (?P<parameter>\d+)", line)
+            error_id = int(m.group("id"))
+            errors = get_errors()
+            if error_id in errors.keys():
+                error = errors[error_id]
+            else:
+                error = "Unkown error %i".format(error_id)
+            self.errors_widget.setText(error)
 
 
 if __name__ == '__main__':
     try:
-        print(get_errors())
         # create protocol thread
         protocol_thread = ProtocolThread()
         protocol_thread.mac_address = botconfig.mac_address
