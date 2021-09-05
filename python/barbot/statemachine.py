@@ -458,10 +458,10 @@ def _draft_one(item: recipes.RecipeItem):
         communication.try_do("Mix", botconfig.stirring_time)
         return True
     else:
+        # cl to g with density of water
+        weight = int(item.amount * 10)
+        port = ports.port_of_ingredient(item.ingredient)
         while True:
-            # cl to g with density of water
-            weight = int(item.amount * 10)
-            port = ports.port_of_ingredient(item.ingredient)
             result = communication.try_do("Draft", port, weight)
             # user aborted
             if _abort_mixing:
@@ -476,7 +476,7 @@ def _draft_one(item: recipes.RecipeItem):
                 if error == Error.ingredient_empty:
                     # ingredient is empty
                     # safe how much is left to draft
-                    item.amount = int(result[1])
+                    weight = int(result[1])
                     _set_message(UserMessages.ingredient_empty)
                     _user_input = None
                     # wait for user input
