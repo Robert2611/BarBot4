@@ -35,7 +35,7 @@ class Recipe(object):
         self.is_fixed = False
 
     def save(self):
-        #fixed recipes cannot be modified
+        # fixed recipes cannot be modified
         if self.is_fixed:
             return False
         try:
@@ -99,9 +99,11 @@ class Recipe(object):
             recipe.items.append(item_copy)
         return recipe
 
+
 _recipes: List[Recipe] = None
 
-def _load_recipe_from_file( folder: str, filename: str)->Recipe:
+
+def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
     r = Recipe()
     try:
         filepath = directories.join(folder, filename)
@@ -122,23 +124,25 @@ def _load_recipe_from_file( folder: str, filename: str)->Recipe:
         logging.warn("Error in recipe load: {0}".format(ex))
         return None
 
+
 def load():
     global _recipes
     _recipes = []
-    #user recipes
+    # user recipes
     for file in os.listdir(directories.recipes):
         if not file.endswith(".yaml"):
             continue
         r = _load_recipe_from_file(directories.recipes, file)
         r.is_fixed = False
         _recipes.append(r)
-    #fixed recipes
+    # fixed recipes
     for file in os.listdir(directories.fixed_recipes):
         if not file.endswith(".yaml"):
             continue
         r = _load_recipe_from_file(directories.fixed_recipes, file)
         r.is_fixed = True
         _recipes.append(r)
+
 
 def filter(filter: RecipeFilter) -> List[Recipe]:
     global _recipes

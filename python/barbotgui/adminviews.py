@@ -75,7 +75,6 @@ class AdminLogin(IdleView):
 
     def check_password(self):
         if self._entered_password == botconfig.admin_password:
-            self.window.is_admin = True
             self.window.set_view(Overview(self.window))
         self.clear_password()
 

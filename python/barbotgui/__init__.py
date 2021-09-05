@@ -156,13 +156,13 @@ class MainWindow(QtWidgets.QMainWindow):
     _message_trigger = QtCore.pyqtSignal(barbot.UserMessages)
     _last_idle_view = None
     _keyboard: Keyboard = None
-    is_admin = False
     _timer: QtCore.QTimer
     _admin_button_active = False
 
     def __init__(self):
         super().__init__()
         self.recipe_filter = recipes.RecipeFilter()
+        self.recipe_filter.DESC = True
 
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
@@ -268,7 +268,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _reset_admin_button(self):
         self._admin_button_active = False
 
-    def header_clicked(self, e):
+    def header_clicked(self, _):
         if not self._admin_button_active:
             self._admin_button_active = True
             # reset the admin button after one second
@@ -276,12 +276,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self._timer.singleShot(1000, self._reset_admin_button)
             return
         if not statemachine.is_busy():
-            if self.is_admin:
-                self.is_admin = False
-                self.update_view(True)
-            else:
-                from barbotgui.adminviews import AdminLogin
-                self.set_view(AdminLogin(self))
+            from barbotgui.adminviews import AdminLogin
+            self.set_view(AdminLogin(self))
         else:
             view = QtWidgets.QWidget()
             self.add_system_view(view)
@@ -321,10 +317,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_view(self, force_reload=False):
         if not statemachine.is_busy():
-            if self.is_admin:
-                from barbotgui.adminviews import Overview as AdminOverview
-                self.set_view(AdminOverview(self))
-            elif self._last_idle_view != self._current_view or self._last_idle_view is None or force_reload:
+            if self._last_idle_view != self._current_view or self._last_idle_view is None or force_reload:
                 if self._last_idle_view is None or force_reload:
                     from barbotgui.userviews import ListRecipes
                     self.set_view(ListRecipes(self))
@@ -341,7 +334,8 @@ class MainWindow(QtWidgets.QMainWindow):
         path = os.path.join(css_path(), "splash.png")
         splash.setPixmap(Qt.QPixmap(path))
         splash.show()
-        QtCore.QTimer.singleShot(1000, lambda splash=splash: splash.close())
+        QtCore.QTimer.singleShot(
+            1000, lambda s=splash, window=self: s.finish(window))
 
     def combobox_amounts(self, selectedData=None):
         # add ingredient name

@@ -78,7 +78,8 @@ def get_statistics(date: datetime):
         _increase_entry(cocktails_by_time, hour)
         for item in order["items"]:
             ing = ingredients.by_identifier(item["ingredient"])
-            _increase_entry(ingredients_amount, ing, item["amount"])
+            if ing.type != ingredients.IngredientType.Stirr:
+                _increase_entry(ingredients_amount, ing, item["amount"])
         order["recipe"]
     statistics["ingredients_amount"] = ingredients_amount
     statistics["cocktail_count"] = cocktail_count

@@ -299,8 +299,8 @@ def _do_mixing():
         add_straw = _user_input
     else:
         add_straw = False
-    # wait a second before actually starting the mixing
-    time.sleep(1)
+        # wait for the user to take the hands off the glas
+        time.sleep(1)
     if not barbot.is_demo:
         communication.try_set("PlatformLED", 5)
         communication.try_set("SetLED", 5)
@@ -345,9 +345,8 @@ def _do_mixing():
         _set_message(UserMessages.mixing_done_remove_glas)
         communication.try_set("PlatformLED", 2)
         communication.try_set("SetLED", 4)
-        _user_input = None
-        if not _wait_for(lambda: communication.try_get("HasGlas") != "1"):
-            return
+        # show message and led for 2 seconds
+        time.sleep(2)
         _set_message(UserMessages.none)
         communication.try_set("PlatformLED", 0)
         orders.add_order(_current_recipe)

@@ -514,7 +514,8 @@ class Statistics(IdleView):
         container.layout().addWidget(label)
         # ingrediends
         data = [(ingr.name, amount / 100.0)
-                for ingr, amount in statistics["ingredients_amount"].items()]
+                for ingr, amount in statistics["ingredients_amount"].items()
+                if ingr.type != ingredients.IngredientType.Stirr]
         chart = BarChart(data)
         container.layout().addWidget(chart)
 
