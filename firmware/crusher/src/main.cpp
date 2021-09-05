@@ -6,7 +6,7 @@
 #define SERIAL_DEBUG
 #define PIN_PWM 6
 #define PIN_LED 13
-#define PIN_COVER_SWITCH 8
+#define PIN_COVER_SWITCH 3
 
 #define CRUSHING_MAX_TIME 30000
 
@@ -110,7 +110,7 @@ void setup()
   Serial.begin(115200);
 #endif
   pinMode(PIN_PWM, OUTPUT);
-  pinMode(PIN_COVER_SWITCH, INPUT_PULLUP);
+  pinMode(PIN_COVER_SWITCH, INPUT);
   initWire();
 #ifdef SERIAL_DEBUG
   Serial.println("Crusher board initialised");
