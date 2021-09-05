@@ -154,6 +154,7 @@ class MainWindow(QtWidgets.QMainWindow):
     _barbot_state_trigger = QtCore.pyqtSignal(statemachine.State)
     _mixing_progress_trigger = QtCore.pyqtSignal(int)
     _message_trigger = QtCore.pyqtSignal(barbot.UserMessages)
+    _show_message_trigger = QtCore.pyqtSignal(str)
     _last_idle_view = None
     _keyboard: Keyboard = None
     _timer: QtCore.QTimer
@@ -189,6 +190,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._mixing_progress_trigger.connect(self._busyview_set_progress)
         statemachine.on_mixing_progress_changed = lambda progress: self._mixing_progress_trigger.emit(
             progress)
+
+        # make sure the message splash is created from gui thread
+        self._show_message_trigger.connect(self._add_message_splash)
 
         # remove borders and title bar
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
@@ -326,7 +330,10 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.set_view(BusyView(self))
 
-    def show_message(self, message):
+    def show_message(self, message: str):
+        self._show_message_trigger.emit(message)
+
+    def _add_message_splash(self, message):
         splash = QtWidgets.QSplashScreen()
         splash.showMessage(message, alignment=QtCore.Qt.AlignCenter)
         splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint |

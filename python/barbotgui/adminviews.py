@@ -1,7 +1,5 @@
-
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
-import barbot
 from barbotgui import IdleView
 from barbot import botconfig
 from barbot import statemachine
@@ -80,6 +78,8 @@ class AdminLogin(IdleView):
 
 
 class Overview(IdleView):
+    _is_deleted = False
+
     def __init__(self, window: barbotgui.MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -117,28 +117,27 @@ class Overview(IdleView):
                 column = 0
                 row += 1
 
-        if not barbot.is_demo:
-            statemachine.get_boards_connected()
-        boards = [
+        self.boards = [
             [communication.Boards.balance, "balance.png"],
             [communication.Boards.straw, "straw.png"],
             [communication.Boards.crusher, "ice.png"],
             [communication.Boards.mixer, "stir.png"]
         ]
+        self._board_widgets = {}
         row = 1
         # wrapper
         wrapper = QtWidgets.QWidget()
         wrapper.setProperty("class", "Boards")
         wrapper.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(wrapper)
-        for board, icon in boards:
+        for board, icon in self.boards:
             connected = board in statemachine._connected_boards
             # board icon
             icon = barbotgui.qt_icon_from_file_name(icon)
-            button = QtWidgets.QPushButton(icon, "")
-            button.setProperty("class", "IconPresenter")
-            button.setEnabled(connected)
-            wrapper.layout().addWidget(button, row, 0, 1, 1)
+            button_board_icon = QtWidgets.QPushButton(icon, "")
+            button_board_icon.setProperty("class", "IconPresenter")
+            button_board_icon.setEnabled(connected)
+            wrapper.layout().addWidget(button_board_icon, row, 0, 1, 1)
             # connected / disconnected icon
             icon = barbotgui.qt_icon_from_file_name(
                 "plug-on.png" if connected else "plug-off.png")
@@ -146,6 +145,8 @@ class Overview(IdleView):
             button.setProperty("class", "IconPresenter")
             button.setEnabled(connected)
             wrapper.layout().addWidget(button, row, 1, 1, 1)
+
+            self._board_widgets[board] = [button_board_icon, button]
 
             if board == communication.Boards.balance:
                 # weight label
@@ -158,17 +159,31 @@ class Overview(IdleView):
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
-        self._update_weight()
-
         self._update_timer = QtCore.QTimer(self)
-        self._update_timer.timeout.connect(self._update_weight)
+        self._update_timer.timeout.connect(
+            lambda: statemachine.get_weight(self.set_weight_label))
         self._update_timer.start(500)
 
-    def _update_weight(self):
-        res = statemachine.get_weight()
-        weight = res if res is not None else "-"
+        statemachine.get_weight(self.set_weight_label)
+
+    def set_weight_label(self, weight):
+        weight = weight if weight is not None else "-"
         text = "Gewicht: {} g".format(weight)
-        self._weight_label.setText(text)
+        try:
+            # this would cause a problem if the label was allready deleted
+            self._weight_label.setText(text)
+        except:
+            pass
+
+    def set_boards_enabled(self, connected_boards):
+        try:
+            for board, icon in self.boards:
+                connected = board in connected_boards
+                for widget in self._board_widgets[board]:
+                    # this would cause a problem if the label was allready deleted
+                    widget.setEnabled(connected)
+        except:
+            pass
 
 
 class Ports(IdleView):
@@ -282,7 +297,7 @@ class BalanceCalibration(IdleView):
         center_box.layout().addWidget(row)
 
         ok_button = QtWidgets.QPushButton("OK")
-        ok_button.clicked.connect(lambda: self._tare())
+        ok_button.clicked.connect(lambda: statemachine.get_weight(self._tare))
         row.layout().addWidget(ok_button)
 
         cancel_button = QtWidgets.QPushButton("Abbrechen")
@@ -364,25 +379,30 @@ class BalanceCalibration(IdleView):
         button.clicked.connect(lambda: self._start_calibration(True))
         self._calibration_buttons.layout().addWidget(button)
 
-    def _tare(self):
-        self.tare_weight = statemachine.get_weight()
+    def _tare(self, tare_weight):
+        self.tare_weight = tare_weight
         self.new_offset = botconfig.balance_offset + \
             self.tare_weight * botconfig.balance_calibration
         if self._tare_and_calibrate:
-            # continue with clibration
+            # continue with calibration
             self._show_dialog_enter_weight()
         else:
             # tare only: set offset, keep calibration
             statemachine.set_balance_calibration(
                 self.new_offset, botconfig.balance_calibration)
+            self.window.show_message("Kalibrierung wurde gespeichert")
             self._show_calibration_buttons()
 
     def _calibrate(self):
         if self._entered_weight > 0:
-            self.balance_calibration = (statemachine.get_weight(
-            )-self.tare_weight) * botconfig.balance_calibration/self._entered_weight
-            statemachine.set_balance_calibration(
-                self.new_offset, self.balance_calibration)
+            def set_calibration_and_save(weight):
+                cal = (weight-self.tare_weight) * \
+                    botconfig.balance_calibration/self._entered_weight
+                statemachine.set_balance_calibration(self.new_offset, cal)
+                self.window.show_message("Kalibrierung gespeichert")
+            statemachine.get_weight(set_calibration_and_save)
+        else:
+            self.window.show_message("Bitte ein Gewicht eingeben")
         self._show_calibration_buttons()
 
     def _start_calibration(self, tare_and_calibrate):
