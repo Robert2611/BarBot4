@@ -541,9 +541,9 @@ class Settings(IdleView):
             else:
                 setattr(botconfig, entry["setting"], entry["widget"].text())
         botconfig.save()
-        self.window.set_view(Overview(self.window))
         statemachine.set_state(statemachine.State.connecting)
-        self.window.show_message("Einstellungen wurden gespeichert")
+        self.window.show_message(
+            "Einstellungen wurden gespeichert, barbot wird neu gestartet")
 
 
 class System(IdleView):

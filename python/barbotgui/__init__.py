@@ -329,6 +329,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def show_message(self, message):
         splash = QtWidgets.QSplashScreen()
         splash.showMessage(message, alignment=QtCore.Qt.AlignCenter)
+        splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint |
+                              QtCore.Qt.FramelessWindowHint)
         splash.setProperty("class", "Splash")
         splash.setStyleSheet(self.styles)
         path = os.path.join(css_path(), "splash.png")
