@@ -4,7 +4,7 @@ from . import ingredients
 
 Count = 12
 _Filename = 'ports.yaml'
-_Filepath = directories.join("data", _Filename)
+_Filepath = directories.join(directories.data, _Filename)
 List = {i: None for i in range(Count)}
 
 

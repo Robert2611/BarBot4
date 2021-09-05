@@ -4,6 +4,7 @@ base = os.path.join(_script_dir, "..", "..")
 
 
 def make(*path):
+    global base
     dir = os.path.join(base, *path)
     if not os.path.exists(dir):
         os.makedirs(dir)
