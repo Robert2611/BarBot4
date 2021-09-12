@@ -52,6 +52,8 @@ void StateMachine::update()
 	case BarBotStatus_t::Idle:
 		// we do not check for any errors here!
 		balance->update();
+		//reset the abort flag on idle
+		abort = false;
 		break;
 
 	case BarBotStatus_t::Error:
@@ -63,6 +65,7 @@ void StateMachine::update()
 	case BarBotStatus_t::ErrorMixingFailed:
 	case BarBotStatus_t::ErrorCrusherCoverOpen:
 	case BarBotStatus_t::ErrorCrusherTimeout:
+	case BarBotStatus_t::ErrorCommandAborted:
 		//nothing to do here
 		break;
 
@@ -102,21 +105,42 @@ void StateMachine::update()
 
 		/** HOMING END **/
 
-	case BarBotStatus_t::MoveToPos:
+	case BarBotStatus_t::AbortMovement:
 		if (stepper->currentPosition() == stepper->targetPosition())
+			set_status(BarBotStatus_t::ErrorCommandAborted);
+		else
+			stepper->run();
+		break;
+
+	case BarBotStatus_t::MoveToPos:
+		if (abort)
+		{
+			//decelerrate until stop
+			stepper->stop();
+			set_status(BarBotStatus_t::AbortMovement);
+		}
+		else if (stepper->currentPosition() == stepper->targetPosition())
 			set_status(BarBotStatus_t::Idle);
 		else
 			stepper->run();
 		break;
 
 	case BarBotStatus_t::Delay:
-		if (millis() > (unsigned long)(current_action_start_millis + delay_time))
+		if (abort)
+			set_status(BarBotStatus_t::ErrorCommandAborted);
+		else if (millis() > (unsigned long)(current_action_start_millis + delay_time))
 			set_status(BarBotStatus_t::Idle);
 		break;
 
 	case BarBotStatus_t::MoveToDraft:
 	case BarBotStatus_t::MoveToCrusher:
-		if (stepper->currentPosition() == stepper->targetPosition())
+		if (abort)
+		{
+			//decelerrate until stop
+			stepper->stop();
+			set_status(BarBotStatus_t::AbortMovement);
+		}
+		else if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			//draft position is reached
 			//get new weight from the balance or throw error
@@ -158,7 +182,15 @@ void StateMachine::update()
 	{
 		//new data avaiable?
 		BalanceUpdateResult_t res = balance->update();
-		if (res == Balance_DataRead)
+		if (abort)
+		{
+			if (status == BarBotStatus_t::CrushingIce)
+				crusher->StartCrushing();
+			else
+				stop_pumps();
+			set_status(BarBotStatus_t::ErrorCommandAborted);
+		}
+		else if (res == Balance_DataRead)
 		{
 			//Serial.println(get_last_draft_remaining_weight());
 			if (balance->getWeight() > target_draft_weight)
@@ -258,7 +290,13 @@ void StateMachine::update()
 	break;
 
 	case BarBotStatus_t::MoveToClean:
-		if (stepper->currentPosition() == stepper->targetPosition())
+		if (abort)
+		{
+			//decelerrate until stop
+			stepper->stop();
+			set_status(BarBotStatus_t::AbortMovement);
+		}
+		else if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			current_action_start_millis = millis();
 			start_pump(pump_index, (pump_power_percent * 1024) / 100);
@@ -269,7 +307,12 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::Cleaning:
-		if (millis() > current_action_start_millis + current_action_duration)
+		if (abort)
+		{
+			stop_pumps();
+			set_status(BarBotStatus_t::ErrorCommandAborted);
+		}
+		else if (millis() > current_action_start_millis + current_action_duration)
 		{
 			stop_pumps();
 			set_status(BarBotStatus_t::Idle);
@@ -277,13 +320,26 @@ void StateMachine::update()
 		break;
 
 	case BarBotStatus_t::MoveToMixer:
-		if (stepper->currentPosition() == stepper->targetPosition())
+		if (abort)
+		{
+			//decelerrate until stop
+			stepper->stop();
+			set_status(BarBotStatus_t::AbortMovement);
+		}
+		else if (stepper->currentPosition() == stepper->targetPosition())
 			set_status(BarBotStatus_t::Mixing);
 		else
 			stepper->run();
 		break;
 
 	case BarBotStatus_t::Mixing:
+		// abort before mixing started
+		if (abort && !mixer_start_sent)
+		{
+			//nothing happend yet so we can just abort
+			set_status(BarBotStatus_t::ErrorCommandAborted);
+			break;
+		}
 		if (!mixer_start_sent)
 		{
 			//tell the board to start the mixing
@@ -485,14 +541,14 @@ void StateMachine::start_moveto(long position_in_mm)
 	set_status(BarBotStatus_t::MoveToPos);
 }
 
-void StateMachine::start_setBalanceLED(byte type)
+void StateMachine::start_set_balance_LED(byte type)
 {
 	balance_LED_type = type;
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::SetBalanceLED);
 }
 
-void StateMachine::start_pingAll()
+void StateMachine::start_ping_all()
 {
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::PingAll);
@@ -599,4 +655,9 @@ int StateMachine::get_drafting_pump_index()
 		return pump_index;
 	else
 		return -1;
+}
+
+void StateMachine::request_abort()
+{
+	abort = true;
 }

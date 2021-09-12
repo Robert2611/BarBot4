@@ -3,6 +3,7 @@
 Protocol::Protocol(Stream *str)
 {
     stream = str;
+    abort = false;
     // init the msg ptr
     msg_ptr = msg;
     last_send_millis = millis();
@@ -14,8 +15,8 @@ void Protocol::update()
     //a long running command is being executed
     if (running_command != 0)
     {
-        int error_code;
-        long parameter;
+        int error_code = 0;
+        long parameter = 0;
         //check if command is done or has an error. If so, notify master and stop the command
         switch (running_command->command_update(&error_code, &parameter))
         {
@@ -31,6 +32,11 @@ void Protocol::update()
             //nothing to do here
             break;
         }
+    }
+    if (running_command == 0)
+    {
+        // reset the abort flag
+        abort = false;
     }
     //handle incomming characters
     while (stream->available())
@@ -67,7 +73,7 @@ void Protocol::update()
         }
     }
 
-    if (millis() > last_send_millis + LINK_TIME)
+    if (millis() > last_send_millis + PROTOCOL_LINK_TIME)
         sendLink();
 }
 
@@ -75,7 +81,7 @@ void Protocol::process()
 {
     char *input = (char *)msg;
     uint8_t param_c = 0;
-    char *param_v[30];
+    char *param_v[PROTOCOL_PARAMETER_BUFFER_SIZE];
     char *command;
 
     //fflush(stdout);
@@ -95,10 +101,21 @@ void Protocol::process()
         {
             stop = true;
         }
-    } while ((param_c < 30) && !stop);
-    //only process the actual command if flag is set
+    } while ((param_c < PROTOCOL_PARAMETER_BUFFER_SIZE) && !stop);
+    //only process the actual command if flag is set...
     if (accepts_commands)
-        onCommand(command, param_c, param_v);
+    {
+        //.. and no command is running
+        if (running_command == 0)
+        {
+            onCommand(command, param_c, param_v);
+        }
+        // some command is running and abort was requested
+        else if (strcmp(command, PROTOCOL_CMD_STR_ABORT) == 0)
+        {
+            abort = true;
+        }
+    }
 }
 
 void Protocol::onCommand(const char *command, int param_c, char **param_v)
@@ -253,4 +270,9 @@ void Protocol::setAcceptsCommand(bool accept)
 bool Protocol::acceptsCommands()
 {
     return accepts_commands;
+}
+
+bool Protocol::abortRequested()
+{
+    return abort;
 }

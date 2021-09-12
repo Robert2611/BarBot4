@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-from barbot import communication
 import re
 import os
 import sys
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-import barbot.communication as com
+from barbot import communication
 from barbot import botconfig
 from barbot import directories
 import threading
@@ -178,6 +177,11 @@ class ToolsWindow(QtWidgets.QMainWindow):
         self.errors_widget = QtWidgets.QLabel("No Error")
         container.layout().addWidget(self.errors_widget)
         self.errors = get_errors()
+        # abort
+        self.btn_abort = QtWidgets.QPushButton("Abort")
+        self.btn_abort.clicked.connect(
+            lambda checked: communication.send_abort())
+        container.layout().addWidget(self.btn_abort)
 
     def send_command(self, command):
         parameters = [str(pw.value()) for pw in command["parameter_widgets"]]

@@ -155,6 +155,10 @@ def _send_get(command, parameters=None):
     return None
 
 
+def send_abort():
+    send_command("ABORT")
+
+
 def try_get(command, parameters=None):
     for _ in range(3):
         res = _send_get(command, parameters)

@@ -1,13 +1,15 @@
 #include "Arduino.h"
 
-#define MAX_MSG_SIZE 60
-#define LINK_TIME 300
+#define PROTOCOL_MAX_MSG_SIZE 60
+#define PROTOCOL_LINK_TIME 300
+#define PROTOCOL_CMD_STR_ABORT "ABORT"
+#define PROTOCOL_PARAMETER_BUFFER_SIZE 32
 
 enum class CommandType_t
 {
     Set,
     Do,
-    Get
+    Get,
 };
 
 enum class CommandStatus_t
@@ -39,12 +41,14 @@ public:
     void addDoCommand(const char *name, CommandStart_t command_start, CommandUpdate_t command_update);
     bool acceptsCommands();
     void setAcceptsCommand(bool accept);
+    bool abortRequested();
 
 private:
     Stream *stream;
-    uint8_t msg[MAX_MSG_SIZE];
+    uint8_t msg[PROTOCOL_MAX_MSG_SIZE];
     uint8_t *msg_ptr;
     Command_t *first_command;
+    bool abort;
     void process();
     void sendNAK(const char *command);
     void sendACK(const char *command);

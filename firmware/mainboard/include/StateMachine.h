@@ -31,6 +31,7 @@ enum BarBotStatus_t
 	MoveToCrusher,
 	CrushingIce,
 	PingAll,
+	AbortMovement,
 	//errors
 	Error = 32,
 	ErrorIngredientEmpty,
@@ -41,6 +42,7 @@ enum BarBotStatus_t
 	ErrorMixingFailed,
 	ErrorCrusherCoverOpen,
 	ErrorCrusherTimeout,
+	ErrorCommandAborted,
 };
 
 extern "C"
@@ -68,10 +70,10 @@ public:
 	void start_mixing(long duration);
 	void start_moveto(long position_in_mm);
 	void start_delay(long duration);
-	void start_setBalanceLED(byte type);
+	void start_set_balance_LED(byte type);
 	void start_dispense_straw();
 	void start_crushing(float _ice_weight);
-	void start_pingAll();
+	void start_ping_all();
 	void set_max_speed(float speed);
 	void set_max_accel(float accel);
 	void set_pump_power(byte percent);
@@ -80,6 +82,7 @@ public:
 	uint16_t get_ping_result();
 	bool is_started();
 	int get_drafting_pump_index();
+	void request_abort();
 
 private:
 	bool is_homed();
@@ -101,6 +104,8 @@ private:
 	CrusherBoard *crusher;
 	MCP23X17 *mcp;
 	BluetoothSerial *bt;
+
+	bool abort;
 
 	unsigned long child_last_check_millis;
 

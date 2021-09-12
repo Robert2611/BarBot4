@@ -49,6 +49,10 @@ void DoLEDandBluetoothTask(void *parameters)
 		}
 		//always update
 		protocol.update();
+		if (protocol.abortRequested())
+		{
+			state_m.request_abort();
+		}
 
 		//update LED controller
 		LEDContr.setPlatformPosition(state_m.position_in_mm() + HOME_DISTANCE);
@@ -80,7 +84,14 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status == BarBotStatus_t::Idle)
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = 0;
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
@@ -191,7 +202,14 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status == BarBotStatus_t::Idle)
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = 0; //error code sensefull??
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
@@ -234,7 +252,14 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status == BarBotStatus_t::Idle)
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = 0; //error code sensefull??
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
@@ -259,6 +284,7 @@ void addCommands()
 			if (state_m.status > BarBotStatus_t::Error)
 			{
 				(*error_code) = state_m.status;
+				(*parameter) = 0; //error code sensefull??
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
@@ -275,7 +301,7 @@ void addCommands()
 								   long a = atoi(param_v[0]);
 								   if (a >= 0 && a < 10)
 								   {
-									   state_m.start_setBalanceLED(a);
+									   state_m.start_set_balance_LED(a);
 									   //Wait blocking!
 									   while (true)
 									   {
@@ -397,7 +423,7 @@ void addCommands()
 	protocol.addGetCommand("GetConnectedBoards",
 						   [](int param_c, char **param_v, long *result)
 						   {
-							   state_m.start_pingAll();
+							   state_m.start_ping_all();
 							   //Wait blocking!
 							   while (true)
 							   {
