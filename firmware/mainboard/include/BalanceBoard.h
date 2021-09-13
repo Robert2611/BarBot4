@@ -7,6 +7,8 @@
 //the update time of the balance is 80Hz
 #define BALANCE_DATA_TIMEOUT 1000
 
+#define BALANCE_SEND_RETRIES 3
+
 enum BalanceUpdateResult_t
 {
   Balance_CommunicationError,
@@ -33,6 +35,7 @@ private:
   float raw_data;
   float calibration;
   float offset;
+  int retries;
   unsigned long last_check_millis;
   unsigned long last_data_millis;
 };

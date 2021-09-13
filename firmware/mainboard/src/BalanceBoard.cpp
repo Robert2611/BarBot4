@@ -43,8 +43,19 @@ BalanceUpdateResult_t BalanceBoard::update()
 	if (millis() < last_check_millis + 3)
 		return Balance_NoData;
 
+	// try to ask for new data
 	bool has_data = false;
-	if (!hasNewData(&has_data))
+	bool success = false;
+	for (int i = 0; i < BALANCE_SEND_RETRIES; i++)
+	{
+		if (hasNewData(&has_data))
+		{
+			success = true;
+			break;
+		}
+	}
+	// only count it as an error if it did not work after the retries
+	if (!success)
 		return Balance_CommunicationError;
 	last_check_millis = millis();
 	if (!has_data)
@@ -55,13 +66,19 @@ BalanceUpdateResult_t BalanceBoard::update()
 			return Balance_NoData;
 	}
 	float data;
-	bool success = WireProtocol::getFloat(BALANCE_BOARD_ADDRESS, BALANCE_CMD_GET_DATA, &data);
-	//only safe the data if it is valid and not higher than it can possibly be (24 bit of the HX711)
-	if (success && !isnan(data) && data < (2 << 24))
+	// try to recieve new data
+	for (int i = 0; i < BALANCE_SEND_RETRIES; i++)
 	{
-		raw_data = data;
-		last_data_millis = millis();
-		return Balance_DataRead;
+		if (WireProtocol::getFloat(BALANCE_BOARD_ADDRESS, BALANCE_CMD_GET_DATA, &data))
+		{
+			//only safe the data if it is valid and not higher than it can possibly be (24 bit of the HX711)
+			if (success && !isnan(data) && data < (2 << 24))
+			{
+				raw_data = data;
+				last_data_millis = millis();
+				return Balance_DataRead;
+			}
+		}
 	}
 	return Balance_CommunicationError;
 }
