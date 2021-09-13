@@ -461,12 +461,12 @@ class BusyView(View):
                 "Du kannst ihn von der Platform nehmen."
             )
 
-            if statemachine.current_recipe().instruction:
+            if statemachine.current_recipe().post_instruction:
                 label = QtWidgets.QLabel("Zusätzliche Informationen:")
                 self._message.layout().addWidget(label)
 
                 instruction = QtWidgets.QLabel(
-                    statemachine.current_recipe().instruction)
+                    statemachine.current_recipe().post_instruction)
                 self._message.layout().addWidget(instruction)
 
         elif message == barbot.UserMessages.ask_for_straw:

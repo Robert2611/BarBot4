@@ -120,8 +120,8 @@ class ListRecipes(IdleView):
             right_column.layout().setAlignment(indicator, QtCore.Qt.AlignRight)
 
             # instruction
-            if recipe.instruction:
-                instruction = QtWidgets.QLabel(recipe.instruction)
+            if recipe.post_instruction:
+                instruction = QtWidgets.QLabel(recipe.post_instruction)
                 instruction.setWordWrap(True)
                 right_column.layout().addWidget(instruction)
 
@@ -186,15 +186,26 @@ class RecipeNewOrEdit(IdleView):
         self._name_widget.mousePressEvent = open_keyboard_for_name
         label = QtWidgets.QLabel("Name:")
         wrapper.layout().addRow(label, self._name_widget)
-        # instruction
-        self._instruction_widget = QtWidgets.QLineEdit()
-        self._instruction_widget.setText(self._recipe.instruction)
 
-        def open_keyboard_for_instruction(event):
-            self.window.open_keyboard(self._instruction_widget)
-        self._instruction_widget.mousePressEvent = open_keyboard_for_instruction
-        label = QtWidgets.QLabel("Zusatzinfo:")
-        wrapper.layout().addRow(label, self._instruction_widget)
+        # pre instruction
+        self._pre_instruction_widget = QtWidgets.QLineEdit()
+        self._pre_instruction_widget.setText(self._recipe.pre_instruction)
+
+        def open_keyboard_for_pre_instruction(event):
+            self.window.open_keyboard(self._pre_instruction_widget)
+        self._pre_instruction_widget.mousePressEvent = open_keyboard_for_pre_instruction
+        label = QtWidgets.QLabel("Vorher:")
+        wrapper.layout().addRow(label, self._pre_instruction_widget)
+
+        # post instruction
+        self._post_instruction_widget = QtWidgets.QLineEdit()
+        self._post_instruction_widget.setText(self._recipe.post_instruction)
+
+        def open_keyboard_for_post_instruction(event):
+            self.window.open_keyboard(self._post_instruction_widget)
+        self._post_instruction_widget.mousePressEvent = open_keyboard_for_post_instruction
+        label = QtWidgets.QLabel("Nachher:")
+        wrapper.layout().addRow(label, self._post_instruction_widget)
 
         # ingredients
         self._content.layout().addWidget(QtWidgets.QLabel("Zutaten:"))
@@ -302,7 +313,8 @@ class RecipeNewOrEdit(IdleView):
         if size == 0:
             self.window.show_message("Der Cocktail ist leer.")
             return
-        self._recipe.instruction = self._instruction_widget.text()
+        self._recipe.pre_instruction = self._pre_instruction_widget.text()
+        self._recipe.post_instruction = self._post_instruction_widget.text()
         # prepare data
         self._recipe.items = []
         for ingredient_widget, amount_widget in self._ingredient_widgets:

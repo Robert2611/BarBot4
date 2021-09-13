@@ -1,19 +1,20 @@
-created: 2018-12-31 16:23:35
-instruction: ''
+created: 2021-09-06 20:46:54.104376
 items:
-- amount: 3.0
+- amount: 3
   ingredient: vodka
-- amount: 7.0
+- amount: 7
   ingredient: saft orange
-- amount: 2.0
+- amount: 2
   ingredient: rum weiss
-- amount: 2.0
+- amount: 2
   ingredient: saft limette
-- amount: 3.0
+- amount: 3
   ingredient: vodka
-- amount: 2.0
+- amount: 2
   ingredient: sirup kokos
-- amount: 1.0
+- amount: 1
   ingredient: sirup grenadine
-- amount: 4.0
+- amount: 2000
   ingredient: ruehren
+post_instruction: "Mit Cola auff\xFCllen"
+pre_instruction: ''

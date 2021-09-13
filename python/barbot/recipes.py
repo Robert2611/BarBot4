@@ -31,7 +31,8 @@ class Recipe(object):
         self.items: List[RecipeItem] = []
         self.name = "Neues Rezept"
         self.created = datetime.now()
-        self.instruction = ""
+        self.pre_instruction = ""
+        self.post_instruction = ""
         self.is_fixed = False
 
     def save(self):
@@ -43,7 +44,8 @@ class Recipe(object):
             filepath = directories.join(directories.recipes, filename)
             data = {}
             data["created"] = self.created
-            data["instruction"] = self.instruction
+            data["pre_instruction"] = self.pre_instruction
+            data["post_instruction"] = self.post_instruction
             data["items"] = []
             for item in self.items:
                 if item.ingredient is None:
@@ -63,7 +65,9 @@ class Recipe(object):
         """Determine whether this recipe has the given entries"""
         if recipe.name != self.name:
             return False
-        if recipe.instruction != self.instruction:
+        if recipe.pre_instruction != self.pre_instruction:
+            return False
+        if recipe.post_instruction != self.post_instruction:
             return False
         if len(recipe.items) != len(self.items):
             return False
@@ -92,7 +96,8 @@ class Recipe(object):
     def copy(self):
         recipe = Recipe()
         recipe.name = self.name
-        recipe.instruction = self.instruction
+        recipe.pre_instruction = self.pre_instruction
+        recipe.post_instruction = self.post_instruction
         recipe.name = self.name
         for item in self.items:
             item_copy = RecipeItem(item.ingredient, item.amount)
@@ -112,7 +117,10 @@ def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
         # do not include '.yaml'
         r.name = filename[:-5]
         r.created = data["created"]
-        r.instruction = data["instruction"]
+        if "pre_instruction" in data.keys():
+            r.pre_instruction = data["pre_instruction"]
+        if "post_instruction" in data.keys():
+            r.post_instruction = data["post_instruction"]
         r.items = []
         for item_data in data["items"]:
             # all errors are handled by the try catch
