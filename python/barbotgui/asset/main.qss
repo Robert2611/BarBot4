@@ -45,6 +45,18 @@ QPushButton{
     background-color: #DDDDDD;
 }
 
+.IconCheckButton:checked{
+    padding: 2px;
+    icon-size: 64px;
+    background-color: #DDDDDD;
+}
+
+.IconCheckButton{
+    padding: 2px;
+    icon-size: 64px;
+    background-color: #777777;
+}
+
 .IconPresenter{
     padding: 2px;
     icon-size: 30px;

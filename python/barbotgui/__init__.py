@@ -456,18 +456,20 @@ class BusyView(View):
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
 
         elif message == barbot.UserMessages.mixing_done_remove_glas:
-            message_label.setText(
-                "Der Cocktail ist fertig gemischt.\n" +
-                "Du kannst ihn von der Platform nehmen."
-            )
+            if statemachine.was_aborted():
+                message_label.setText("Cocktail abgebrochen!")
+            else:
+                if statemachine.current_recipe().post_instruction:
+                    label = QtWidgets.QLabel("Zusätzliche Informationen:")
+                    self._message.layout().addWidget(label)
 
-            if statemachine.current_recipe().post_instruction:
-                label = QtWidgets.QLabel("Zusätzliche Informationen:")
-                self._message.layout().addWidget(label)
-
-                instruction = QtWidgets.QLabel(
-                    statemachine.current_recipe().post_instruction)
-                self._message.layout().addWidget(instruction)
+                    instruction = QtWidgets.QLabel(
+                        statemachine.current_recipe().post_instruction)
+                    self._message.layout().addWidget(instruction)
+                else:
+                    text = "Der Cocktail ist fertig gemischt.\n" + \
+                        "Du kannst ihn von der Platform nehmen."
+                    message_label.setText(text)
 
         elif message == barbot.UserMessages.ask_for_straw:
             message_label.setText(
@@ -567,7 +569,7 @@ class BusyView(View):
         self._title_label.setVisible(False)
 
     def set_progress(self, progress):
-        for i in range(len(statemachine.current_recipe().items)):
+        for i, widget in enumerate(self.recipe_list_widgets):
             if progress is not None and i < progress:
                 icon = barbotgui.qt_icon_from_file_name("done.png")
             elif progress is not None and i == progress:
@@ -575,28 +577,30 @@ class BusyView(View):
                     "processing.png")
             else:
                 icon = barbotgui.qt_icon_from_file_name("queued.png")
-            self.recipe_list_widgets[i].setPixmap(
-                icon.pixmap(icon.availableSizes()[0]))
+            widget.setPixmap(icon.pixmap(icon.availableSizes()[0]))
 
     def _init_by_status(self):
         # content
         if statemachine.get_state() == statemachine.State.mixing:
 
-            # ingedrients
+            # ingredients
             recipe_items_list = QtWidgets.QWidget()
             recipe_items_list.setLayout(QtWidgets.QGridLayout())
             recipe_items_list.setProperty("class", "IngredientToDoList")
             self._content_container.layout().addWidget(recipe_items_list)
             self.recipe_list_widgets = []
+            self._row_index = 0
 
             def add_widget(name):
                 widget_item = QtWidgets.QLabel()
                 self.recipe_list_widgets.append(widget_item)
-                recipe_items_list.layout().addWidget(widget_item, row, 0)
-                recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), row, 1)
-            for row, item in enumerate(statemachine.current_recipe().items):
+                recipe_items_list.layout().addWidget(widget_item, self._row_index, 0)
+                recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), self._row_index, 1)
+                self._row_index += 1
+
+            for item in statemachine.current_recipe().items:
                 add_widget(item.ingredient.name)
-            # TODO: add only on process updates, this is not known here yet
+
             if statemachine.add_straw:
                 add_widget("Strohhalm")
             if statemachine.add_ice:

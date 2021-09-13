@@ -148,7 +148,7 @@ class ListRecipes(IdleView):
         if recipe == None:
             self.window.show_message("Rezept nicht gefunden")
             return
-        statemachine.start_mixing(recipe)
+        self.window.set_view(OrderRecipe(self.window, recipe))
 
 
 class RecipeNewOrEdit(IdleView):
@@ -547,3 +547,85 @@ class Statistics(IdleView):
             self.content.setParent(None)
         self.content = container
         self._content_wrapper.layout().addWidget(container)
+
+
+class OrderRecipe(IdleView):
+    def __init__(self, window: MainWindow, recipe: recipes.Recipe):
+        super().__init__(window)
+        self.recipe = recipe
+        self._content.setLayout(QtWidgets.QGridLayout())
+        self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
+
+        # title
+        title = QtWidgets.QLabel("Cocktail mischen")
+        title.setProperty("class", "Headline")
+        self._fixed_content.layout().addWidget(title)
+
+        centered = QtWidgets.QWidget()
+        centered.setLayout(QtWidgets.QVBoxLayout())
+        centered.setProperty("class", "CenteredContent")
+        self._content.layout().addWidget(centered, 0, 0, QtCore.Qt.AlignCenter)
+
+        # cocktail name
+        label = QtWidgets.QLabel(recipe.name)
+        label.setProperty("class", "Headline")
+        centered.layout().addWidget(label)
+
+        # container
+        container = QtWidgets.QWidget()
+        container.setLayout(QtWidgets.QHBoxLayout())
+        centered.layout().addWidget(container)
+
+        # ask for ice if module is connected
+        if botconfig.ice_crusher_connected:
+            icon = barbotgui.qt_icon_from_file_name("ice.png")
+            ice_button = QtWidgets.QPushButton(icon, "")
+            ice_button.setCheckable(True)
+            ice_button.setProperty("class", "IconCheckButton")
+            container.layout().addWidget(ice_button)
+            container.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
+            self._cb_ice = ice_button
+        else:
+            self._cb_ice = None
+
+        # ask for straw if module is connected
+        if botconfig.straw_dispenser_connected:
+            icon = barbotgui.qt_icon_from_file_name("straw.png")
+            straw_button = QtWidgets.QPushButton(icon, "")
+            straw_button.setCheckable(True)
+            straw_button.setProperty("class", "IconCheckButton")
+            container.layout().addWidget(straw_button)
+            container.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
+            self._cb_straw = straw_button
+        else:
+            self._cb_straw = None
+
+        if recipe.pre_instruction:
+            text = "Bitte Glas vorbereiten:\n" + recipe.pre_instruction
+            label = QtWidgets.QLabel(text)
+            centered.layout().addWidget(label)
+
+        # order and cancel button
+        buttons_container = QtWidgets.QWidget()
+        buttons_container.setLayout(QtWidgets.QHBoxLayout())
+        centered.layout().addWidget(buttons_container)
+        # cancel
+        button = QtWidgets.QPushButton("Abbrechen")
+
+        def show_list():
+            self.window.set_view(ListRecipes(self.window))
+        button.clicked.connect(show_list)
+        buttons_container.layout().addWidget(button)
+        # order
+        button = QtWidgets.QPushButton("Los!")
+        button.clicked.connect(lambda _: self.order())
+        buttons_container.layout().addWidget(button)
+
+    def order(self):
+        statemachine.add_ice = False
+        if self._cb_ice is not None:
+            statemachine.add_ice = self._cb_ice.isChecked()
+        statemachine.add_straw = False
+        if self._cb_straw is not None:
+            statemachine.add_straw = self._cb_straw.isChecked()
+        statemachine.start_mixing(self.recipe)

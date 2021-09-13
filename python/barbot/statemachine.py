@@ -69,6 +69,10 @@ def on_state_changed(_): return None
 def on_message_changed(_): return None
 
 
+def was_aborted():
+    return _abort_mixing
+
+
 def current_recipe() -> recipes.Recipe:
     global _current_recipe
     return _current_recipe
@@ -186,6 +190,7 @@ def set_user_input(value: bool):
 def abort_mixing():
     global _abort_mixing
     _abort_mixing = True
+    communication.send_abort()
 
 
 def set_state(state):
@@ -254,7 +259,12 @@ def _wait_for_user_input():
 
 def _do_mixing():
     global _user_input, _abort_mixing, _current_recipe, _current_recipe_item, add_straw, add_ice
-    _set_mixing_progress(0)
+    progress = 0
+    _set_mixing_progress(progress)
+
+    if not barbot.is_demo:
+        communication.try_set("PlatformLED", 3)
+
     # wait for the glas
     if not barbot.is_demo and communication.try_get("HasGlas") != "1":
         communication.try_set("PlatformLED", 2)
@@ -266,39 +276,13 @@ def _do_mixing():
         if _user_input == False:
             return
 
-    if not barbot.is_demo:
-        communication.try_set("PlatformLED", 3)
-    _set_message(UserMessages.none)
-    # ask for ice if module is connected
-    if botconfig.ice_crusher_connected:
-        _set_message(UserMessages.ask_for_ice)
-        if not barbot.is_demo:
-            communication.try_set("PlatformLED", 4)
-        if not _wait_for_user_input():
-            return
-        _set_message(UserMessages.none)
-        add_ice = _user_input
-    else:
-        add_ice = False
-    # ask for straw if module is connected
-    if botconfig.straw_dispenser_connected:
-        _set_message(UserMessages.ask_for_straw)
-        if not barbot.is_demo:
-            communication.try_set("PlatformLED", 4)
-        if not _wait_for_user_input():
-            return
-        _set_message(UserMessages.none)
-        add_straw = _user_input
-    else:
-        add_straw = False
-        # wait for the user to take the hands off the glas
-        time.sleep(1)
+    # wait for the user to take the hands off the glas
+    time.sleep(1)
     if not barbot.is_demo:
         communication.try_set("PlatformLED", 5)
         communication.try_set("SetLED", 5)
     set_user_input(None)
-    for index, item in enumerate(_current_recipe.items):
-        _set_mixing_progress(index)
+    for item in _current_recipe.items:
         # user aborted
         if _abort_mixing:
             break
@@ -312,48 +296,54 @@ def _do_mixing():
                 logging.warn("Waiting aborted")
                 return
             time.sleep(1)
-    progress = len(_current_recipe.items)
-
-    # add ice if desired and mixing was not aborted
-    if add_ice and not _abort_mixing:
+        progress += 1
         _set_mixing_progress(progress)
+
+    # add ice if it was selected and mixing was not aborted
+    if add_ice and not _abort_mixing:
         if not barbot.is_demo:
             _do_crushing()
         else:
             time.sleep(1)
+        progress += 1
+        _set_mixing_progress(progress)
+
+    # move to start
     if not barbot.is_demo:
         communication.try_do("Move", 0)
-    progress += 1
 
-    # add straw if desired and mixing was not aborted
+    # add straw if it was selected and mixing was not aborted
     if add_straw and not _abort_mixing:
         if not barbot.is_demo:
             _do_straw()
         else:
             time.sleep(1)
+        progress += 1
         _set_mixing_progress(progress)
 
+    #mising is done
+    _set_message(UserMessages.mixing_done_remove_glas)
     if not barbot.is_demo:
-        _set_message(UserMessages.mixing_done_remove_glas)
         communication.try_set("PlatformLED", 2)
         communication.try_set("SetLED", 4)
-        # show message and led for 2 seconds
-        time.sleep(2)
-        _set_message(UserMessages.none)
+    # show message and led for 2 seconds
+    time.sleep(2)
+    if not barbot.is_demo:
         communication.try_set("PlatformLED", 0)
         orders.add_order(_current_recipe)
-        if on_mixing_finished is not None:
-            on_mixing_finished(_current_recipe)
+    _set_message(UserMessages.none)
+    if on_mixing_finished is not None:
+        on_mixing_finished(_current_recipe)
 
 
 def go_to_idle():
     _set_message(UserMessages.none)
+    set_state(State.idle)
     if not barbot.is_demo:
         communication.try_set("SetLED", 3)
         # first move to what is supposed to be zero, then home
         communication.try_do("Move", 0)
         communication.try_do("Home")
-    set_state(State.idle)
 
 
 def _do_crushing():
