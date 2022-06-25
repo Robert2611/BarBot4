@@ -15,8 +15,39 @@ jobs:
         path: 'raspberry'
         filename: 'raspberry.zip'
         exclusions: '*.git* /*node_modules/* .editorconfig'
+    - name: Set up Python
+      uses: actions/setup-python@v1
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+    - name: Build mainboard firmware
+      run: |
+        cd firmware/mainboard/
+        platformio run
+    - name: Build balance firmware
+      run: |
+        cd firmware/balance/
+        platformio run
+    - name: Build mixer firmware
+      run: |
+        cd firmware/mixer/
+        platformio run
+    - name: Build straw firmware
+      run: |
+        cd firmware/straw/
+        platformio run
+    - name: Build crusher firmware
+      run: |
+        cd firmware/crusher/
+        platformio run
+    - name: Firmware Archive
+      uses: vimtor/action-zip@v1
+      with:
+        files: firmware\crusher\.pio\build\atmega_usbasp\firmware.hex firmware\balance\.pio\build\atmega_usbasp\firmware.hex firmware\mixer\.pio\build\atmega_usbasp\firmware.hex firmware\straw\.pio\build\atmega_usbasp\firmware.hex firmware\tool-avrdude firmware\flash.bat
+        dest: firmware.zip
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: "raspberry.zip"
+        artifacts: raspberry.zip, firmware.zip
         token: ${{ secrets.GITHUB_TOKEN }}
