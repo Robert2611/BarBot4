@@ -1,7 +1,7 @@
 name: Raspberry Archive
 on: [push]
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
