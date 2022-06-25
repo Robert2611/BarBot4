@@ -1,5 +1,8 @@
 name: Raspberry Archive
-on: [push]
+on:
+  push:
+    tags:
+      - '*'
 jobs:
   release:
     runs-on: ubuntu-latest
