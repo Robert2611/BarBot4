@@ -12,3 +12,8 @@ jobs:
         path: 'raspberry'
         filename: 'raspberry.zip'
         exclusions: '*.git* /*node_modules/* .editorconfig'
+    - name: Upload Release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "raspberry.zip"
+        token: ${{ secrets.GITHUB_TOKEN }}
