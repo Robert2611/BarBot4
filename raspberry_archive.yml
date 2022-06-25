@@ -1,0 +1,14 @@
+name: Raspberry Archive
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Raspberry Archive
+      uses: thedoctor0/zip-release@main
+      with:
+        type: 'zip'
+        path: 'raspbery'
+        filename: 'raspberry.zip'
+        exclusions: '*.git* /*node_modules/* .editorconfig'
