@@ -7,13 +7,17 @@ from PyQt5 import QtWidgets
 import barbot
 import barbotgui
 import sys
+import traceback
 import threading
+import psutil
 from datetime import datetime
 from barbot import directories
 
 # cofigure logging
-log_file = datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")
-log_file_path = directories.join(directories.log, log_file)
+exception_file_path = directories.join(
+    directories.log, datetime.now().strftime("#Exception %Y-%m-%d %H-%M-%S.txt"))
+log_file_path = directories.join(
+    directories.log, datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log"))
 # for some reason the logger is already configured, so we have to remove the handler
 logging.getLogger().handlers.clear()
 logging.basicConfig(
@@ -35,6 +39,7 @@ if not barbot.is_demo:
 
 # show gui and join the threads
 try:
+    x = [None] * 10**20
     app = QtWidgets.QApplication(sys.argv)
     form = barbotgui.MainWindow()
     form.show()
@@ -45,6 +50,12 @@ try:
         bar_bot_thread.join()
 except KeyboardInterrupt:
     raise
+except Exception as e:
+    logging.error(traceback.format_exc())
+    with open(exception_file_path, 'a') as f:
+        f.write(traceback.format_exc())
+        f.write('\n')
+        f.write(str(psutil.virtual_memory()))
 
 logging.info("-------------------------")
 logging.info(">>>>>>BarBot closed<<<<<<")
