@@ -11,7 +11,6 @@ ECHO.
 SET /P M=Buchstaben eingeben und ENTER druecken:
 IF %M%==B SET folder=balance
 IF %M%==C SET folder=crusher
-IF %M%==M SET folder=mainboard
 IF %M%==S SET folder=straw
 IF %M%==X SET folder=mixer
 

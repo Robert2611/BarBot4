@@ -35,6 +35,7 @@ _ingredients = [
     Ingredient('rum braun', 'Brauner Rum', IngredientType.Spirit, 0x99D16615),
     Ingredient('vodka', 'Vodka', IngredientType.Spirit, 0x55FFFFFF),
     Ingredient('tequila', 'Tequila', IngredientType.Spirit, 0x55FFFFFF),
+    Ingredient('gin', 'Gin', IngredientType.Spirit, 0x55FFFFFF),
     Ingredient('saft zitrone', 'Zitronensaft',
                IngredientType.Juice, 0xAAF7EE99),
     Ingredient('saft limette', 'Limettensaft',
