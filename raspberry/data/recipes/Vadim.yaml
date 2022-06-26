@@ -1,19 +1,21 @@
-created: 2019-12-27 18:15:29
+created: 2019-12-31 21:16:20
 post_instruction: ''
 items:
-- amount: 3.0
+- amount: 5.0
   ingredient: vodka
 - amount: 2.0
   ingredient: rum weiss
 - amount: 1.0
   ingredient: tequila
-- amount: 13.0
+- amount: 12.0
   ingredient: saft orange
-- amount: 3.0
+- amount: 2.0
   ingredient: sirup grenadine
 - amount: 2.0
   ingredient: saft limette
 - amount: 5.0
   ingredient: saft ananas
 - amount: 1.0
-  ingredient: tripple sec
+  ingredient: saft zitrone
+- amount: 3.0
+  ingredient: ruehren

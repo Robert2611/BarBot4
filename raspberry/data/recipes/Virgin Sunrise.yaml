@@ -1,13 +1,13 @@
-created: 2019-12-31 17:50:17
+created: 2019-12-31 10:59:49
 post_instruction: ''
 items:
-- amount: 4.0
-  ingredient: saft zitrone
-- amount: 10.0
+- amount: 16.0
   ingredient: saft orange
+- amount: 3.0
+  ingredient: saft zitrone
 - amount: 8.0
   ingredient: saft ananas
 - amount: 2.0
-  ingredient: sirup grenadine
-- amount: 3.0
   ingredient: ruehren
+- amount: 3.0
+  ingredient: sirup grenadine

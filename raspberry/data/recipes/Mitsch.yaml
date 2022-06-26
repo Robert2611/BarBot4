@@ -1,15 +1,17 @@
-created: 2018-11-30 16:30:03
+created: 2019-12-31 20:11:05
 post_instruction: ''
 items:
-- amount: 6.0
+- amount: 4.0
   ingredient: vodka
 - amount: 2.0
   ingredient: saft zitrone
 - amount: 1.0
   ingredient: saft limette
-- amount: 16.0
+- amount: 12.0
   ingredient: saft orange
-- amount: 2.0
+- amount: 1.0
   ingredient: tequila
-- amount: 2.0
+- amount: 1.0
+  ingredient: sirup grenadine
+- amount: 5.0
   ingredient: ruehren
