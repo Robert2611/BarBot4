@@ -44,7 +44,7 @@ jobs:
     - name: Firmware Archive
       uses: vimtor/action-zip@v1
       with:
-        files: firmware\crusher\.pio\build\atmega_usbasp\firmware.hex firmware\balance\.pio\build\atmega_usbasp\firmware.hex firmware\mixer\.pio\build\atmega_usbasp\firmware.hex firmware\straw\.pio\build\atmega_usbasp\firmware.hex firmware\tool-avrdude firmware\flash.bat
+        files: firmware/crusher/.pio/build/atmega_usbasp/firmware.hex firmware/balance/.pio/build/atmega_usbasp/firmware.hex firmware/mixer/.pio/build/atmega_usbasp/firmware.hex firmware/straw/.pio/build/atmega_usbasp/firmware.hex firmware/tool-avrdude firmware/flash.bat
         dest: firmware.zip
     - name: Upload Release
       uses: ncipollo/release-action@v1
