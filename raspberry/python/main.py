@@ -39,7 +39,6 @@ if not barbot.is_demo:
 
 # show gui and join the threads
 try:
-    x = [None] * 10**20
     app = QtWidgets.QApplication(sys.argv)
     form = barbotgui.MainWindow()
     form.show()
