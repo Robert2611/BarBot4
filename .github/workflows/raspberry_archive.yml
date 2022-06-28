@@ -56,7 +56,7 @@ jobs:
         zip firmware.zip tool-avrdude/*
         zip firmware.zip flash.bat
         zip firmware.zip mainboard.bin
-        cp firmare.zip ../firmware.zip
+        cp firmware.zip ../firmware.zip
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
