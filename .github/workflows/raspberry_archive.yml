@@ -50,6 +50,7 @@ jobs:
       uses: vimtor/action-zip@v1
       with:
         files: firmware/crusher.hex firmware/balance.hex firmware/mixer.hex firmware/straw.hex firmware/mainboard.bin firmware/tool-avrdude/ firmware/flash.bat
+        recursive: false
         dest: firmware.zip
     - name: Upload Release
       uses: ncipollo/release-action@v1
