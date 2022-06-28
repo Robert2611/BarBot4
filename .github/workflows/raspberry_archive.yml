@@ -47,11 +47,16 @@ jobs:
         platformio run -e atmega_usbasp
         cp .pio/build/atmega_usbasp/firmware.hex ../crusher.hex
     - name: Firmware Archive
-      uses: vimtor/action-zip@v1
-      with:
-        files: firmware/crusher.hex firmware/balance.hex firmware/mixer.hex firmware/straw.hex firmware/mainboard.bin firmware/tool-avrdude/ firmware/flash.bat
-        recursive: true
-        dest: firmware.zip
+      run: |
+        cd firmware
+        zip firmware.zip balance.hex
+        zip firmware.zip mixer.hex
+        zip firmware.zip straw.hex
+        zip firmware.zip crusher.hex
+        zip firmware.zip tool-avrdude/*
+        zip firmware.zip flash.bat
+        zip firmware.zip mainboard.bin
+        cp firmare.zip ../firmware.zip
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
