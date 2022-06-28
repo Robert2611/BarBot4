@@ -54,8 +54,9 @@ jobs:
         zip firmware.zip straw.hex
         zip firmware.zip crusher.hex
         zip firmware.zip tool-avrdude/*
-        zip firmware.zip flash.bat
         zip firmware.zip mainboard.bin
+        zip firmware.zip esptool/*
+        zip firmware.zip flash.bat
         cp firmware.zip ../firmware.zip
     - name: Upload Release
       uses: ncipollo/release-action@v1
