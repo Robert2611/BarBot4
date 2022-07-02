@@ -9,12 +9,13 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Raspberry Archive
-      uses: thedoctor0/zip-release@main
-      with:
-        type: 'zip'
-        path: 'raspberry'
-        filename: 'raspberry.zip'
-        exclusions: '*.git* /*node_modules/* .editorconfig'
+      run: |
+        cd raspberry
+        chmod +x touch_rotate.sh
+        chmod +x install.sh
+        chmod +x python/main.py
+        tar czf raspberry.tar.gz * --exclude '*.git*'
+        cp raspberry.tar.gz ../raspberry.tar.gz
     - name: Set up Python
       uses: actions/setup-python@v1
     - name: Install dependencies
@@ -61,5 +62,5 @@ jobs:
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: raspberry.zip, firmware.zip
+        artifacts: raspberry.tar.gz, firmware.zip
         token: ${{ secrets.GITHUB_TOKEN }}
