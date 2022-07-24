@@ -436,7 +436,7 @@ def _draft_one(item: recipes.RecipeItem):
     if _abort_mixing:
         return False
     if item.ingredient.type == ingredients.IngredientType.Stirr:
-        communication.try_do("Mix", botconfig.stirring_time)
+        communication.try_do("Mix", int(botconfig.stirring_time / 1000))
         return True
     else:
         # cl to g with density of water
