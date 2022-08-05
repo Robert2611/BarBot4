@@ -4,9 +4,9 @@
 #include "WireProtocol.h"
 
 #define SERIAL_DEBUG
-#define PIN_PWM 6
-#define PIN_LED 13
-#define PIN_COVER_SWITCH 3
+#define PIN_PWM 6 //PD6
+#define PIN_LED 4 //PD4
+#define PIN_COVER_SWITCH 1 //PD1
 
 #define CRUSHING_MAX_TIME 30000
 
@@ -68,7 +68,7 @@ void handleGetters()
 #endif
     break;
 
-  //no command byte set or unknown command
+  // no command byte set or unknown command
   case 0xFF:
   default:
 #ifdef SERIAL_DEBUG
@@ -82,20 +82,20 @@ void handleGetters()
 
 void recieved(int count)
 {
-  //continue only if command byte was set
+  // continue only if command byte was set
   if (count < 1)
     return;
-  //save the command byte
+  // save the command byte
   i2c_command = Wire.read();
-  //handle messages that are only setters
+  // handle messages that are only setters
   handleSetters(count - 1);
 }
 
 void initWire()
 {
-  //start i2c communication
+  // start i2c communication
   Wire.begin(CRUSHER_BOARD_ADDRESS);
-  //disable pullups for i2c
+  // disable pullups for i2c
   digitalWrite(SCL, LOW);
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
@@ -141,7 +141,7 @@ void loop()
   }
   if (crushing)
   {
-    //timeout
+    // timeout
     if (millis() - crushing_start_time > CRUSHING_MAX_TIME)
     {
       error = CRUSHER_ERROR_TIMEOUT;
