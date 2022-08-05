@@ -25,7 +25,7 @@ IF %M%==M GOTO mainboard
 :atmega
 SET dude_path="%batch_path%\tool-avrdude\avrdude.exe"
 SET hex_path=%batch_path%\%folder%.hex
-"%dude_path%" -c usbasp -p m328p -U hfuse:w:0xDE:m -U lfuse:w:0xFF:m -U efuse:w:0xFD:m -U flash:w:%hex_path%:a
+%dude_path% -c usbasp -p m328p -U hfuse:w:0xDE:m -U lfuse:w:0xFF:m -U efuse:w:0xFD:m -U flash:w:%hex_path%:a
 GOTO start
 
 :mainboard
