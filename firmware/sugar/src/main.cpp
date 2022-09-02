@@ -2,13 +2,16 @@
 #include "Wire.h"
 #include "Shared.h"
 #include "WireProtocol.h"
+#include "Servo.h"
 
 #define SERIAL_DEBUG
-#define PIN_PWM 6          // PD6
-#define PIN_LED 4          // PD4
-#define PIN_COVER_SWITCH 1 // PD1
+#define PIN_SERVO 9
+#define PIN_LED 13
 
-#define CRUSHING_MAX_TIME 30000
+#define SERVO_CLOSED 115
+#define SERVO_OPEN 0
+
+#define DISPENSING_MAX_TIME 30000
 
 byte i2c_command = 0xFF;
 
@@ -16,20 +19,22 @@ byte error;
 bool dispensing;
 unsigned long dispense_start_time;
 
+Servo servo;
+
 void startDispensing()
 {
   if (dispensing)
     return;
-  error = CRUSHER_ERROR_NO_ERROR;
+  error = SUGAR_ERROR_NO_ERROR;
   dispensing = true;
   dispense_start_time = millis();
-  analogWrite(PIN_PWM, 255);
+  servo.write(SERVO_OPEN);
 }
 
-void stopChrushing()
+void stopDispensing()
 {
   dispensing = false;
-  digitalWrite(PIN_PWM, LOW);
+  servo.write(SERVO_CLOSED);
 }
 
 void handleSetters(int parameters_count)
@@ -40,11 +45,11 @@ void handleSetters(int parameters_count)
 #endif
   switch (i2c_command)
   {
-  case CRUSHER_CMD_START_CRUSHING:
+  case SUGAR_CMD_START_DISPENSING:
     startDispensing();
     break;
-  case CRUSHER_CMD_STOP_CRUSHING:
-    stopChrushing();
+  case SUGAR_CMD_STOP_DISPENSING:
+    stopDispensing();
     break;
   }
 }
@@ -58,9 +63,9 @@ void handleGetters()
   switch (i2c_command)
   {
   case WIREPROTOCOL_CMD_PING:
-    Wire.write(CRUSHER_BOARD_ADDRESS);
+    Wire.write(SUGAR_BOARD_ADDRESS);
     break;
-  case CRUSHER_CMD_GET_ERROR:
+  case SUGAR_CMD_GET_ERROR:
     Wire.write(error);
 #ifdef SERIAL_DEBUG
     Serial.print("Error requested, returned: ");
@@ -94,13 +99,13 @@ void recieved(int count)
 void initWire()
 {
   // start i2c communication
-  Wire.begin(CRUSHER_BOARD_ADDRESS);
+  Wire.begin(SUGAR_BOARD_ADDRESS);
   // disable pullups for i2c
   digitalWrite(SCL, LOW);
   digitalWrite(SDA, LOW);
   Wire.onReceive(recieved);
   Wire.onRequest(handleGetters);
-  WireProtocol::blinkAddress(CRUSHER_BOARD_ADDRESS, PIN_LED);
+  WireProtocol::blinkAddress(SUGAR_BOARD_ADDRESS, PIN_LED);
 }
 
 void setup()
@@ -109,53 +114,35 @@ void setup()
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif
-  pinMode(PIN_PWM, OUTPUT);
-  pinMode(PIN_COVER_SWITCH, INPUT);
   initWire();
 #ifdef SERIAL_DEBUG
-  Serial.println("Crusher board initialised");
+  Serial.println("Sugar board initialised");
 #endif
-  digitalWrite(PIN_PWM, LOW);
+  servo.attach(PIN_SERVO);
+  servo.write(SERVO_CLOSED);
 }
 
 void loop()
 {
+#ifdef SERIAL_DEBUG
   if (Serial.available())
   {
     String input = Serial.readString();
-    String command = input.substring(0, 1);
-    command.toLowerCase();
-    String parameter;
-
-    if (input.length() > 2)
-    {
-      parameter = input.substring(2);
-    }
-
-    if (command == "p")
-    {
-      Serial.print("PWM->");
-      Serial.println(parameter.toInt());
-      analogWrite(PIN_PWM, parameter.toInt());
-    }
+    if (dispensing)
+      stopDispensing();
+    else
+      startDispensing();
   }
+#endif
   if (dispensing)
   {
     // timeout
-    if (millis() - dispense_start_time > CRUSHING_MAX_TIME)
+    if (millis() - dispense_start_time > DISPENSING_MAX_TIME)
     {
-      error = CRUSHER_ERROR_TIMEOUT;
-      stopChrushing();
+      error = SUGAR_ERROR_TIMEOUT;
+      stopDispensing();
 #ifdef SERIAL_DEBUG
       Serial.println("Error: timeout");
-#endif
-    }
-    if (!digitalRead(PIN_COVER_SWITCH))
-    {
-      error = CRUSHER_ERROR_COVER_OPEN;
-      stopChrushing();
-#ifdef SERIAL_DEBUG
-      Serial.println("Error: cover open");
 #endif
     }
   }
