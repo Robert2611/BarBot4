@@ -3,7 +3,7 @@
 #include "Shared.h"
 #include "WireProtocol.h"
 
-#define SERIAL_DEBUG
+//#define SERIAL_DEBUG
 #define PIN_PWM 6          // PD6
 #define PIN_LED 4          // PD4
 #define PIN_COVER_SWITCH 1 // PD1
@@ -105,7 +105,6 @@ void initWire()
 
 void setup()
 {
-  Serial.begin(115200);
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif
@@ -120,6 +119,7 @@ void setup()
 
 void loop()
 {
+#ifdef SERIAL_DEBUG
   if (Serial.available())
   {
     String input = Serial.readString();
@@ -139,6 +139,7 @@ void loop()
       analogWrite(PIN_PWM, parameter.toInt());
     }
   }
+#endif
   if (dispensing)
   {
     // timeout
