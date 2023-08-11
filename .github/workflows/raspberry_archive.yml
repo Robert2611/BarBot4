@@ -14,6 +14,7 @@ jobs:
         chmod +x touch_rotate.sh
         chmod +x install.sh
         chmod +x python/main.py
+        $GITHUB_REF | cut -d / -f 3 >> version.txt
         tar czf raspberry.tar.gz --exclude '*.git*' *
         cp raspberry.tar.gz ../raspberry.tar.gz
     - name: Set up Python
