@@ -6,8 +6,8 @@ url=$(curl -s "https://api.github.com/repos/Robert2611/BarBot4/releases/latest" 
 	| tr -d \" \
 )
 # delete all the content of "barbot" including this file
-rm -r ./*
+rm -r ~/barbot/*
 # download and extract new files
-curl -s -L $url | tar xvz
+curl -s -L $url | tar xvz -C ~/barbot/
 # call the install script 
-sh ./install.sh
+sh ~/barbot/install.sh
