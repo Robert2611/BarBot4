@@ -29,10 +29,9 @@ SET hex_path=%batch_path%\%folder%.hex
 GOTO start
 
 :mainboard
-SET /P port=Bitte den COM-Port angeben, an dem der ESP32 angeschlossen ist:
 SET esptool_path="%batch_path%esptool\esptool.exe"
 SET bin_path="%batch_path%mainboard.bin"
-%esptool_path% --port "%port%" --chip esp32 write_flash -fs 1MB -fm dout 0x0 "%bin_path%"
+%esptool_path% --chip esp32 --baud 460800 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 40m --flash_size detect 0x10000 "%bin_path%"
 GOTO start
 
 PAUSE
