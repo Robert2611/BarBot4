@@ -8,6 +8,7 @@
 #include "MixerBoard.h"
 #include "StrawBoard.h"
 #include "CrusherBoard.h"
+#include "SugarBoard.h"
 #include "MCP23X17.h"
 #include "esp_bt_main.h"
 #include "esp_bt_device.h"
@@ -32,6 +33,8 @@ enum BarBotStatus_t
 	CrushingIce,
 	PingAll,
 	AbortMovement,
+	MoveToSugarDispenser,
+	DispensingSugar,
 	//errors
 	Error = 32,
 	ErrorIngredientEmpty,
@@ -43,6 +46,7 @@ enum BarBotStatus_t
 	ErrorCrusherCoverOpen,
 	ErrorCrusherTimeout,
 	ErrorCommandAborted,
+	ErrorSugarDispenserTimeout,
 };
 
 extern "C"
@@ -53,7 +57,7 @@ extern "C"
 class StateMachine
 {
 public:
-	StateMachine(BalanceBoard *, MixerBoard *, StrawBoard *, CrusherBoard *, MCP23X17 *, BluetoothSerial *);
+	StateMachine(BalanceBoard *, MixerBoard *, StrawBoard *, CrusherBoard *, SugarBoard *, MCP23X17 *, BluetoothSerial *);
 	void begin();
 
 	BarBotStatus_t status;
@@ -73,6 +77,7 @@ public:
 	void start_set_balance_LED(byte type);
 	void start_dispense_straw();
 	void start_crushing(float _ice_weight);
+	void start_dispensing_sugar(float sugar_weight);
 	void start_ping_all();
 	void set_max_speed(float speed);
 	void set_max_accel(float accel);
@@ -102,6 +107,7 @@ private:
 	MixerBoard *mixer;
 	StrawBoard *straw_board;
 	CrusherBoard *crusher;
+	SugarBoard *sugar_board;
 	MCP23X17 *mcp;
 	BluetoothSerial *bt;
 

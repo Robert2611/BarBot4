@@ -1,6 +1,6 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, CrusherBoard *_crusher, MCP23X17 *_mcp, BluetoothSerial *_bt)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, CrusherBoard *_crusher, SugarBoard *_sugar_board, MCP23X17 *_mcp, BluetoothSerial *_bt)
 {
 	this->balance = _balance;
 	this->mixer = _mixer;
@@ -8,6 +8,7 @@ StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoar
 	this->crusher = _crusher;
 	this->mcp = _mcp;
 	this->bt = _bt;
+	this->sugar_board = _sugar_board;
 	startup = true;
 	status = BarBotStatus_t::Idle;
 	current_action_start_millis = 0;
@@ -66,6 +67,7 @@ void StateMachine::update()
 	case BarBotStatus_t::ErrorCrusherCoverOpen:
 	case BarBotStatus_t::ErrorCrusherTimeout:
 	case BarBotStatus_t::ErrorCommandAborted:
+	case BarBotStatus_t::ErrorSugarDispenserTimeout:
 		//nothing to do here
 		break;
 
@@ -134,6 +136,7 @@ void StateMachine::update()
 
 	case BarBotStatus_t::MoveToDraft:
 	case BarBotStatus_t::MoveToCrusher:
+	case BarBotStatus_t::MoveToSugarDispenser:
 		if (abort)
 		{
 			//decelerrate until stop
@@ -164,6 +167,13 @@ void StateMachine::update()
 						else
 							set_status(BarBotStatus_t::ErrorI2C);
 					}
+					else if (status == BarBotStatus_t::MoveToSugarDispenser)
+					{
+						if (sugar_board->StartDispensing())
+							set_status(BarBotStatus_t::DispensingSugar);
+						else
+							set_status(BarBotStatus_t::ErrorI2C);
+					}
 				}
 				else
 					set_status(BarBotStatus_t::ErrorGlasRemoved);
@@ -179,6 +189,7 @@ void StateMachine::update()
 
 	case BarBotStatus_t::Drafting:
 	case BarBotStatus_t::CrushingIce:
+	case BarBotStatus_t::DispensingSugar:
 	{
 		//new data avaiable?
 		BalanceUpdateResult_t res = balance->update();
@@ -186,6 +197,8 @@ void StateMachine::update()
 		{
 			if (status == BarBotStatus_t::CrushingIce)
 				crusher->StartCrushing();
+			else if (status == BarBotStatus_t::DispensingSugar)
+				sugar_board->StopDispensing();
 			else
 				stop_pumps();
 			set_status(BarBotStatus_t::ErrorCommandAborted);
@@ -204,6 +217,13 @@ void StateMachine::update()
 				else if (status == BarBotStatus_t::CrushingIce)
 				{
 					if (crusher->StopCrushing())
+						set_status(BarBotStatus_t::Idle);
+					else
+						set_status(BarBotStatus_t::ErrorI2C);
+				}
+				else if (status == BarBotStatus_t::DispensingSugar)
+				{
+					if (sugar_board->StopDispensing())
 						set_status(BarBotStatus_t::Idle);
 					else
 						set_status(BarBotStatus_t::ErrorI2C);
@@ -243,6 +263,24 @@ void StateMachine::update()
 					draft_timeout_last_weight = balance->getWeight();
 				}
 			}
+			//Empty error for sugar, the constants are different here again
+			else if ((status == BarBotStatus_t::DispensingSugar) && (millis() > draft_timeout_last_check_millis + SUGAR_TIMEOUT_MILLIS))
+			{
+				if (balance->getWeight() < draft_timeout_last_weight + SUGAR_TIMEOUT_WEIGHT)
+				{
+					//error
+					if (sugar_board->StopDispensing())
+						set_status(BarBotStatus_t::ErrorIngredientEmpty);
+					else
+						set_status(BarBotStatus_t::ErrorI2C);
+				}
+				else
+				{
+					//reset the timeout
+					draft_timeout_last_check_millis = millis();
+					draft_timeout_last_weight = balance->getWeight();
+				}
+			}
 		}
 		//forward i2c error
 		else if (res == Balance_CommunicationError)
@@ -267,7 +305,7 @@ void StateMachine::update()
 		//else just wait
 
 		//check if crusher is doing okay
-		if (status == BarBotStatus_t::CrushingIce && millis() > child_last_check_millis + CHILD_UPDATE_PERIOD)
+		if ((status == BarBotStatus_t::CrushingIce) && (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD))
 		{
 			byte crusher_error;
 			transmit_successfull = crusher->GetError(&crusher_error);
@@ -283,6 +321,22 @@ void StateMachine::update()
 			else if (CRUSHER_ERROR_TIMEOUT == crusher_error)
 			{
 				set_status(BarBotStatus_t::ErrorCrusherTimeout);
+			}
+			child_last_check_millis = millis();
+		}
+
+		//check if sugar dispenser is doing okay
+		if ((status == BarBotStatus_t::DispensingSugar) && (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD))
+		{
+			byte sugar_error;
+			transmit_successfull = crusher->GetError(&sugar_error);
+			if (!transmit_successfull)
+			{
+				set_status(BarBotStatus_t::ErrorI2C);
+			}
+			else if (SUGAR_ERROR_TIMEOUT == sugar_error)
+			{
+				set_status(BarBotStatus_t::ErrorSugarDispenserTimeout);
 			}
 			child_last_check_millis = millis();
 		}
@@ -514,6 +568,16 @@ void StateMachine::start_crushing(float ice_weight)
 
 	//status has to be set last to avoid multi core problems
 	set_status(BarBotStatus_t::MoveToCrusher);
+}
+
+void StateMachine::start_dispensing_sugar(float sugar_weight)
+{
+	weight_before_draft = balance->getWeight();
+	target_draft_weight = weight_before_draft + sugar_weight;
+	set_target_position(SUGAR_POSITION);
+
+	//status has to be set last to avoid multi core problems
+	set_status(BarBotStatus_t::MoveToSugarDispenser);
 }
 
 void StateMachine::start_mixing(long seconds)

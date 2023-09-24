@@ -11,7 +11,7 @@
 #define SERVO_CLOSED 115
 #define SERVO_OPEN 0
 
-#define DISPENSING_MAX_TIME 30000
+#define DISPENSING_MAX_TIME 5000
 
 byte i2c_command = 0xFF;
 
@@ -110,7 +110,6 @@ void initWire()
 
 void setup()
 {
-  Serial.begin(115200);
 #ifdef SERIAL_DEBUG
   Serial.begin(115200);
 #endif

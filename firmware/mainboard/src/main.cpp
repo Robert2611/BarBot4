@@ -11,6 +11,7 @@
 #include "StrawBoard.h"
 #include "StateMachine.h"
 #include "CrusherBoard.h"
+#include "SugarBoard.h"
 
 #define SERIAL_DEBUG
 
@@ -22,11 +23,12 @@ BalanceBoard balance;
 MixerBoard mixer;
 StrawBoard straw_board;
 CrusherBoard crusher_board;
+SugarBoard sugar_board;
 
 SPIClass hspi(HSPI);
 MCP23X17 mcp(PIN_IO_CS, &hspi);
 
-StateMachine state_m(&balance, &mixer, &straw_board, &crusher_board, &mcp, &SerialBT);
+StateMachine state_m(&balance, &mixer, &straw_board, &crusher_board, &sugar_board, &mcp, &SerialBT);
 
 Protocol protocol(&SerialBT);
 LEDController LEDContr;
@@ -136,6 +138,35 @@ void addCommands()
 				if (w > 0 && w < 400)
 				{
 					state_m.start_crushing(w);
+					return true;
+				}
+			}
+			return false;
+		},
+		[](int *error_code, long *parameter)
+		{
+			if (state_m.status > BarBotStatus_t::Error)
+			{
+				(*error_code) = state_m.status;
+				(*parameter) = state_m.get_last_draft_remaining_weight();
+				state_m.reset_error();
+				return CommandStatus_t::Error;
+			}
+			else if (state_m.status == BarBotStatus_t::Idle)
+				return CommandStatus_t::Done;
+			else
+				return CommandStatus_t::Running;
+		});
+	protocol.addDoCommand(
+		"Sugar",
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long w = atoi(param_v[0]);
+				if (w > 0 && w < 400)
+				{
+					state_m.start_dispensing_sugar(w);
 					return true;
 				}
 			}
