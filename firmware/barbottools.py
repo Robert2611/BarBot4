@@ -3,9 +3,14 @@ import re
 import os
 import sys
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+
+# Get python directory
+parent_dir = os.path.dirname(os.path.realpath(__file__))
+python_dir = os.path.join(parent_dir, "../raspberry/python/")
+# Add python directory sys.path
+sys.path.append(python_dir)
+
 from barbot import communication
-from barbot import botconfig
-from barbot import directories
 import threading
 import time
 import logging
@@ -18,7 +23,7 @@ def get_commands():
         ([^\"]*if\s*\(param_c\s==\s(?P<count>\d+))?          #parameters
         """, re.DOTALL | re.VERBOSE)
     script_dir = os.path.dirname(__file__)
-    with open(directories.join(directories.base, "firmware/mainboard/src/main.cpp"), "r") as f:
+    with open(os.path.join(script_dir, "mainboard/src/main.cpp"), "r") as f:
         content = f.read()
     commands = []
     for match in pattern.finditer(content):
@@ -36,7 +41,7 @@ def get_errors():
     script_dir = os.path.dirname(__file__)
     start_of_enum_found = False
     index = None
-    with open(directories.join(directories.base, "firmware/mainboard/include/StateMachine.h"), "r") as f:
+    with open(os.path.join(script_dir, "mainboard/include/StateMachine.h"), "r") as f:
         for line in f:
             if not start_of_enum_found:
                 if line.startswith("enum BarBotStatus_t"):
@@ -199,7 +204,7 @@ class ToolsWindow(QtWidgets.QMainWindow):
         scrollbar.setValue(scrollbar.maximum())
         if "ERROR" in line:
             m = re.search(
-                "ERROR (?P<command>.+) (?P<id>\d+) (?P<parameter>\d+)", line)
+                "ERROR (?P<command>.+) (?P<id>\d+) (?P<parameter>-?\d+)", line)
             error_id = int(m.group("id"))
             errors = get_errors()
             if error_id in errors.keys():
@@ -211,9 +216,12 @@ class ToolsWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     try:
+        print("Searching for bar_bot...")
+        mac_address = communication.find_bar_bot()
+        print(f"Connecting to '{mac_address}'")
         # create protocol thread
         protocol_thread = ProtocolThread()
-        protocol_thread.mac_address = botconfig.mac_address
+        protocol_thread.mac_address = mac_address
         protocol_thread.start()
         app = QtWidgets.QApplication(sys.argv)
         # redirect logging to gui
