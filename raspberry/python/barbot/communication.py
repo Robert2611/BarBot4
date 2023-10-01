@@ -10,6 +10,7 @@ class Boards(Enum):
     mixer = 0x02
     straw = 0x03
     crusher = 0x04
+    sugar = 0x05
 
 
 class MessageTypes(Enum):

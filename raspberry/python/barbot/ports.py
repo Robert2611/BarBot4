@@ -1,11 +1,12 @@
 import yaml
+import typing
 from . import directories
 from . import ingredients
 
 Count = 12
 _Filename = 'ports.yaml'
 _Filepath = directories.join(directories.data, _Filename)
-List = {i: None for i in range(Count)}
+List: dict[int, ingredients.Ingredient]= {i: None for i in range(Count)}
 
 
 def port_of_ingredient(ingredient: ingredients.Ingredient):
@@ -36,7 +37,7 @@ def load():
     global _Filepath, List
     try:
         with open(_Filepath, 'r') as file:
-            data = yaml.load(file, Loader=yaml.FullLoader)
+            data:dict[int, str] = yaml.load(file, Loader=yaml.FullLoader)
             List = {}
             for port, identifier in data.items():
                 if identifier is None or identifier == "":

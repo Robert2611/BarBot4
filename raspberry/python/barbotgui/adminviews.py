@@ -121,7 +121,8 @@ class Overview(IdleView):
             [communication.Boards.balance, "balance.png"],
             [communication.Boards.straw, "straw.png"],
             [communication.Boards.crusher, "ice.png"],
-            [communication.Boards.mixer, "stir.png"]
+            [communication.Boards.mixer, "stir.png"],
+            [communication.Boards.sugar, "sugar.png"]
         ]
         self._board_widgets = {}
         row = 1
@@ -213,7 +214,7 @@ class Ports(IdleView):
             label = QtWidgets.QLabel("Position %i" % (i+1))
             table.layout().addWidget(label, i, 0)
             selectedPort = ports.List[i] if i in ports.List.keys() else 0
-            cbPort = self.window.combobox_ingredients(selectedPort)
+            cbPort = self.window.combobox_ingredients(selectedPort, only_normal=True)
             self._ingredient_widgets[i] = cbPort
             table.layout().addWidget(cbPort, i, 1)
 
@@ -522,6 +523,10 @@ class Settings(IdleView):
                 "type": int, "min": 1, "max": 300},
             {"name": "Strohhalm Dispenser verbunden",
                 "setting": "straw_dispenser_connected", "type": bool},
+            {"name": "Zucker Dosierer verbunden",
+                "setting": "sugar_dispenser_connected", "type": bool},
+            {"name": "Zucker Dosierer verbunden", "setting": "sugar_per_unit",
+                "type": int, "min": 1, "max": 10},
         ]
         form_widget = QtWidgets.QWidget()
         form_widget.setLayout(QtWidgets.QGridLayout())

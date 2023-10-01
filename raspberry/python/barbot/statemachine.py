@@ -23,7 +23,6 @@ class State(Enum):
     single_ingredient = auto()
     crushing = auto()
     straw = auto()
-    stirring = auto()
 
 # error codes (must match "shared.h")
 
@@ -140,6 +139,10 @@ def run():
                         return
                 if botconfig.ice_crusher_connected and not communication.Boards.crusher in _connected_boards:
                     _set_message(UserMessages.board_not_connected_crusher)
+                    if not _wait_for_user_input():
+                        return
+                if botconfig.sugar_dispenser_connected and not communication.Boards.sugar in _connected_boards:
+                    _set_message(UserMessages.board_not_connected_sugar)
                     if not _wait_for_user_input():
                         return
                 _set_message(UserMessages.none)
@@ -439,11 +442,18 @@ def _draft_one(item: recipes.RecipeItem):
         communication.try_do("Mix", int(botconfig.stirring_time / 1000))
         return True
     else:
-        # cl to g with density of water
-        weight = int(item.amount * 10)
-        port = ports.port_of_ingredient(item.ingredient)
+        if item.ingredient.type == ingredients.IngredientType.Sugar:
+            # take sugar per unit from config
+            weight = int(item.amount * botconfig.sugar_per_unit)
+        else:
+            # cl to g with density of water
+            weight = int(item.amount * 10)
+            port = ports.port_of_ingredient(item.ingredient)
         while True:
-            result = communication.try_do("Draft", port, weight)
+            if item.ingredient.type == ingredients.IngredientType.Sugar:
+                result = communication.try_do("Sugar", weight)
+            else:
+                result = communication.try_do("Draft", port, weight)
             # user aborted
             if _abort_mixing:
                 return False

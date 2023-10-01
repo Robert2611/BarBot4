@@ -32,3 +32,4 @@ class UserMessages(Enum):
     board_not_connected_mixer = auto()
     board_not_connected_straw = auto()
     board_not_connected_crusher = auto()
+    board_not_connected_sugar = auto()

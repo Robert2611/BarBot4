@@ -94,14 +94,15 @@ class ListRecipes(IdleView):
             left_column.layout().addWidget(recipe_items_container, 1)
 
             # add items
-            item: barbot.RecipeItem
+            item: bbrecipes.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
                 if item.ingredient.type == ingredients.IngredientType.Stirr:
                     label.setText("-%s-" % (item.ingredient.name))
+                if item.ingredient.type == ingredients.IngredientType.Sugar:
+                    label.setText(f"{item.amount} TL {item.ingredient.name}")
                 else:
-                    label.setText("%i cl %s" %
-                                  (item.amount, item.ingredient.name))
+                    label.setText(f"{item.amount} cl {item.ingredient.name}")
                 recipe_items_container.layout().addWidget(label)
 
             # right column
@@ -380,7 +381,7 @@ class SingleIngredient(IdleView):
 
         # ingredient selector
         self._ingredient_widget = self.window.combobox_ingredients(
-            only_available=True, special_ingredients=False)
+            only_available=True, only_weighed=True)
         panel.layout().addWidget(self._ingredient_widget)
 
         # amount selector

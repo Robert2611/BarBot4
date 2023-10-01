@@ -356,10 +356,17 @@ class MainWindow(QtWidgets.QMainWindow):
             if i == selectedData:
                 wAmount.setCurrentIndex(i)
             i = i+1
+        list().sort()
         return wAmount
-
-    def combobox_ingredients(self, selectedData=None, only_available=False, special_ingredients=True):
-        entries = ingredients.get(only_available, special_ingredients)
+    
+    def combobox_ingredients(self, selectedData=None, only_available = False, only_normal = False, only_weighed = False):
+        """Create a combobox with options for ingredients selected by the filter parameters 
+        
+        :param only_available: If set to true, only return ingredients that are currently connected to ports
+        :param only_normal: If set to true, only return ingredients that are pumped
+        :param only_weighed: If set to true, only return ingredients that are added by weight    
+        """
+        entries = ingredients.get(only_available, only_normal, only_weighed)
         # add ingredient name
         wIngredient = QtWidgets.QComboBox()
         wIngredient.addItem("-", None)
@@ -564,6 +571,12 @@ class BusyView(View):
 
             add_button("OK", True)
 
+        elif message == barbot.UserMessages.board_not_connected_sugar:
+            text = "Zuckerdosierer konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
+            message_label.setText(text)
+
+            add_button("OK", True)          
+            
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)
         self._title_label.setVisible(False)

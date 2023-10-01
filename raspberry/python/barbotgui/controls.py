@@ -74,37 +74,37 @@ class GlasIndicator(QtWidgets.QLabel):
         ### front path ##
         path = QtGui.QPainterPath()
         # bottom left
-        path.moveTo(Qt.QPoint(center - w_start / 2,  + bottom))
+        path.moveTo(QtCore.QPointF(center - w_start / 2,  + bottom))
         # bottom right
         path.quadTo(
-            Qt.QPoint(center,  bottom + self._roundness),
-            Qt.QPoint(center + w_start / 2,  bottom)
+            QtCore.QPointF(center,  bottom + self._roundness),
+            QtCore.QPointF(center + w_start / 2,  bottom)
         )
         # top right
-        path.lineTo(Qt.QPoint(center + w_end / 2,  top))
+        path.lineTo(QtCore.QPointF(center + w_end / 2,  top))
         # top left
         path.quadTo(
-            Qt.QPoint(center,  top + self._roundness),
-            Qt.QPoint(center - w_end / 2,  top)
+            QtCore.QPointF(center,  top + self._roundness),
+            QtCore.QPointF(center - w_end / 2,  top)
         )
         # back to bottom left
-        path.lineTo(Qt.QPoint(center - w_start / 2,  bottom))
+        path.lineTo(QtCore.QPointF(center - w_start / 2,  bottom))
         painter.drawPath(path)
 
         ### upper path ###
         if draw_top:
             path = QtGui.QPainterPath()
             # top left
-            path.moveTo(Qt.QPoint(center - w_end / 2,  top))
+            path.moveTo(QtCore.QPointF(center - w_end / 2,  top))
             # upper bow to the right
             path.quadTo(
-                Qt.QPoint(center,  top - self._roundness),
-                Qt.QPoint(center + w_end / 2,  top)
+                QtCore.QPointF(center,  top - self._roundness),
+                QtCore.QPointF(center + w_end / 2,  top)
             )
             # lower bow to the left
             path.quadTo(
-                Qt.QPoint(center,  top + self._roundness),
-                Qt.QPoint(center - w_end / 2,  top)
+                QtCore.QPointF(center,  top + self._roundness),
+                QtCore.QPointF(center - w_end / 2,  top)
             )
             painter.drawPath(path)
 
@@ -129,38 +129,38 @@ class GlasIndicator(QtWidgets.QLabel):
         path = QtGui.QPainterPath()
         # bottom left
         path.moveTo(
-            Qt.QPoint((self._top_width-self._bottom_width)/2, self._top_pos + self._height))
+            QtCore.QPointF((self._top_width-self._bottom_width)/2, self._top_pos + self._height))
         # bottom right
         path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos +
+            QtCore.QPointF(self._top_width/2, self._top_pos +
                       self._height + self._roundness),
-            Qt.QPoint((self._top_width+self._bottom_width) /
+            QtCore.QPointF((self._top_width+self._bottom_width) /
                       2, self._top_pos + self._height)
         )
         # top right
-        path.lineTo(Qt.QPoint(self._top_width, self._top_pos + 0))
+        path.lineTo(QtCore.QPointF(self._top_width, self._top_pos + 0))
         # top left
         path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos + self._roundness),
-            Qt.QPoint(0,  self._top_pos)
+            QtCore.QPointF(self._top_width/2, self._top_pos + self._roundness),
+            QtCore.QPointF(0,  self._top_pos)
         )
         # back to bottom left
         path.lineTo(
-            Qt.QPoint((self._top_width-self._bottom_width)/2, self._top_pos + self._height))
+            QtCore.QPointF((self._top_width-self._bottom_width)/2, self._top_pos + self._height))
         painter.drawPath(path)
 
         ### top of the glas ###
         path = QtGui.QPainterPath()
         # move to left
-        path.moveTo(Qt.QPoint(0,  self._top_pos))
+        path.moveTo(QtCore.QPointF(0,  self._top_pos))
         # upper bow to the right
         path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos - self._roundness),
-            Qt.QPoint(self._top_width, self._top_pos)
+            QtCore.QPointF(self._top_width/2, self._top_pos - self._roundness),
+            QtCore.QPointF(self._top_width, self._top_pos)
         )
         # lower bow to the left
         path.quadTo(
-            Qt.QPoint(self._top_width/2, self._top_pos + self._roundness),
-            Qt.QPoint(0, self._top_pos)
+            QtCore.QPointF(self._top_width/2, self._top_pos + self._roundness),
+            QtCore.QPointF(0, self._top_pos)
         )
         painter.drawPath(path)

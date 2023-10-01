@@ -9,6 +9,7 @@ class IngredientType(Enum):
     Sirup = "sirup"
     Other = "other"
     Stirr = "stirr"
+    Sugar = "sugar"
 
 
 class Ingredient(object):
@@ -29,6 +30,7 @@ class Ingredient(object):
 
 
 Stir = Ingredient('ruehren', 'Rühren', IngredientType.Stirr, 0xDDE3E1D3)
+Sugar = Ingredient('sugar', 'Zucker', IngredientType.Sugar, 0x55FFFFFF)
 
 _ingredients = [
     Ingredient('rum weiss', 'Weißer Rum', IngredientType.Spirit, 0x55FFFFFF),
@@ -61,7 +63,8 @@ _ingredients = [
     Ingredient('sirup zucker', 'Zuckersirup',
                IngredientType.Sirup, 0xDDE3E1D3),
 
-    Stir
+    Stir,
+    Sugar
 ]
 
 # for faster access
@@ -73,13 +76,30 @@ def by_identifier(identifier: str):
     return _ingredientsByIdentifier[identifier]
 
 
-def get(only_available=False, special_ingredients=True) -> List[Ingredient]:
+def get(only_available = False, only_normal = False, only_weighed = False) -> List[Ingredient]:
+    """Get list of ingredients
+    
+    :param only_available: If set to true, only return ingredients that are currently connected to ports
+    :param only_normal: If set to true, only return ingredients that are pumped
+    :param only_weighed: If set to true, only return ingredients that are added by weight    
+    """
     global _ingredients
     filtered = []
     for ingredient in _ingredients:
         if only_available and not ingredient.available():
             continue
-        if not special_ingredients and ingredient.type == IngredientType.Stirr:
-            continue
+        if IngredientType.Stirr == ingredient.type:
+            if True == only_normal:
+                continue
+            if True == only_weighed:
+                continue
+        if IngredientType.Sugar == ingredient.type:
+            if True == only_normal:
+                continue
         filtered.append(ingredient)
     return filtered
+
+#alle
+#nur verfügbare
+#nur mit port
+#nur gewogene

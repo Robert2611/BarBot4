@@ -8,14 +8,14 @@
             "name": "Python: Bluetooth",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/python/main.py",
+            "program": "${workspaceFolder}/raspberry/python/main.py",
             "console": "integratedTerminal"
         },
         {
             "name": "Python: DEMO",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/python/main.py",
+            "program": "${workspaceFolder}/raspberry/python/main.py",
             "args": [
                 "-d"
             ],
