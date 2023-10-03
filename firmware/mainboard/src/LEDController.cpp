@@ -39,7 +39,7 @@ void LEDController::update(bool force)
 
 	case LEDType::LED_TYPE_BLINK:
 	{
-		if (force || temp_millis >= last_change + 1000)
+		if (force || (temp_millis >= last_change + 1000))
 		{
 			//blink green
 			if (frame == 1)
@@ -56,7 +56,7 @@ void LEDController::update(bool force)
 
 	case LEDType::LED_TYPE_RAINBOW:
 	{
-		if (force || temp_millis > frame_start_millis + 50)
+		if (force || (temp_millis > frame_start_millis + 50))
 		{
 			if (!force)
 				frame++;
@@ -76,7 +76,7 @@ void LEDController::update(bool force)
 
 	case LEDType::LED_TYPE_POSITION_WATERFALL:
 	{
-		if (force || temp_millis > frame_start_millis + 50)
+		if (force || (temp_millis > frame_start_millis + 50))
 		{
 			int period = 10;
 			if (!force)
@@ -100,7 +100,7 @@ void LEDController::update(bool force)
 
 	case LEDType::LED_TYPE_DRAFT_POSITION:
 	{
-		if (force || temp_millis > frame_start_millis + 80)
+		if (force || (temp_millis > frame_start_millis + 80))
 		{
 			int period = 20;
 			if (!force)
