@@ -36,6 +36,7 @@ class Recipe(object):
         self.is_fixed = False
 
     def save(self):
+        """Save the recipe to the drive"""
         # fixed recipes cannot be modified
         if self.is_fixed:
             return False
@@ -62,7 +63,11 @@ class Recipe(object):
             return False
 
     def equal_to(self, recipe):
-        """Determine whether this recipe has the given entries"""
+        """Determine whether this recipe has the given entries
+        
+            :param recipe: The recipe to compare this one with
+            :result: True if the two recipes are equal, False otherwise
+        """
         if recipe.name != self.name:
             return False
         if recipe.pre_instruction != self.pre_instruction:
@@ -82,18 +87,21 @@ class Recipe(object):
         return True
 
     def available(self) -> bool:
+        """A recipe is available if all its ingredients are available i.e. connected to a port"""
         for item in self.items:
             if not item.ingredient.available():
                 return False
         return True
 
     def alcoholic(self) -> bool:
+        """A recipe is alcoholic if at least one of its ingredients is alcoholic"""
         for item in self.items:
             if item.ingredient.alcoholic():
                 return True
         return False
 
     def copy(self):
+        """Create a new recipe that has the same content as the current one"""
         recipe = Recipe()
         recipe.name = self.name
         recipe.pre_instruction = self.pre_instruction
@@ -109,6 +117,11 @@ _recipes: List[Recipe] = None
 
 
 def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
+    """Load a recipe from a file
+    
+        :param folder: Parent folder of the file
+        :param filename: Name of the file to load, should be "*.yaml"
+    """
     r = Recipe()
     try:
         filepath = directories.join(folder, filename)
@@ -134,6 +147,7 @@ def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
 
 
 def load():
+    """Load all recipes in the recipes folder and the fixed_recipes folder """
     global _recipes
     _recipes = []
     # user recipes
@@ -153,6 +167,7 @@ def load():
 
 
 def filter(filter: RecipeFilter) -> List[Recipe]:
+    """Get a filtered list of recpies using the given filter"""
     global _recipes
     # lazy loading
     if _recipes is None:
@@ -171,6 +186,7 @@ def filter(filter: RecipeFilter) -> List[Recipe]:
 
 
 def remove(recipe: Recipe):
+    """The removed recipe will not be displayed anymore but the file will be backuped in the old_recipes folder."""
     global _recipes
     old_name = directories.join(directories.recipes, recipe.name+".yaml")
     index = 0
@@ -187,6 +203,7 @@ def remove(recipe: Recipe):
 
 
 def add(recipe: Recipe):
+    """Add a new recipe to the list and save it"""
     global _recipes
     recipe.save()
     _recipes.append(recipe)

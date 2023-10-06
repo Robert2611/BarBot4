@@ -1,15 +1,20 @@
 import yaml
-import typing
 from . import directories
 from . import ingredients
+from typing import Dict
 
 Count = 12
 _Filename = 'ports.yaml'
 _Filepath = directories.join(directories.data, _Filename)
-List: dict[int, ingredients.Ingredient]= {i: None for i in range(Count)}
+List: Dict[int, ingredients.Ingredient]= {i: None for i in range(Count)}
 
 
 def port_of_ingredient(ingredient: ingredients.Ingredient):
+    """Get the port where to find the given ingredient
+    
+        :param ingredient: The ingredient to look for
+        :return: The index of the port of the ingredient, None if it it was not found 
+    """
     global List
     for port, list_ingredient in List.items():
         if list_ingredient == ingredient:
@@ -18,6 +23,10 @@ def port_of_ingredient(ingredient: ingredients.Ingredient):
 
 
 def save():
+    """ Save the current port configuration
+
+        :return: True if saving was successfull, False otherwise
+    """
     global _Filepath, List
     try:
         with open(_Filepath, 'w') as outfile:
@@ -34,6 +43,10 @@ def save():
 
 
 def load():
+    """ Load the current port configuration
+
+        :return: True if loading was successfull, False otherwise
+    """
     global _Filepath, List
     try:
         with open(_Filepath, 'r') as file:
