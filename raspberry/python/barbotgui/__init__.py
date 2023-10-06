@@ -7,6 +7,7 @@ import sys
 import barbot
 from barbot import ingredients
 from barbot import recipes
+from barbot import ports
 from barbot import statemachine
 from barbot import UserMessages
 
@@ -452,8 +453,13 @@ class BusyView(View):
             buttons_container.layout().addWidget(button)
 
         if message == barbot.UserMessages.ingredient_empty:
-            message_string = "Die Zutat '%s' ist leer.\n" % statemachine.current_recipe_item().ingredient.name
-            message_string = message_string + "Bitte neue Flasche anschließen."
+            ingredient = statemachine.current_recipe_item().ingredient
+            if ingredient.type == ingredients.IngredientType.Sugar:
+                message_string = f"{ingredient.name} ist leer. Bitte nachfüllen."
+            else:
+                position = ports.port_of_ingredient(statemachine.current_recipe_item().ingredient) + 1
+                message_string = f"Die Zutat '{ingredient.name}' auf Position {position} ist leer.\n"
+                message_string += "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
 
             add_button("Cocktail abbrechen", False)

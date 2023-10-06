@@ -21,7 +21,7 @@ ice_crusher_connected = False
 ice_amount = 100
 straw_dispenser_connected = False
 sugar_dispenser_connected = False
-sugar_per_unit = 10
+sugar_per_unit = 4
 
 
 def save():

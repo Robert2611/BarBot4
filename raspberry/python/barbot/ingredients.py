@@ -23,6 +23,8 @@ class Ingredient(object):
         from barbot import ports
         if self.type == IngredientType.Stirr:
             return botconfig.stirrer_connected
+        elif self.type == IngredientType.Sugar:
+            return botconfig.sugar_dispenser_connected
         return self in ports.List.values()
 
     def alcoholic(self) -> bool:

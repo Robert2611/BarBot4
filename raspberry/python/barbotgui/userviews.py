@@ -98,8 +98,8 @@ class ListRecipes(IdleView):
             for item in recipe.items:
                 label = QtWidgets.QLabel()
                 if item.ingredient.type == ingredients.IngredientType.Stirr:
-                    label.setText("-%s-" % (item.ingredient.name))
-                if item.ingredient.type == ingredients.IngredientType.Sugar:
+                    label.setText(f"-{item.ingredient.name}-")
+                elif item.ingredient.type == ingredients.IngredientType.Sugar:
                     label.setText(f"{item.amount} TL {item.ingredient.name}")
                 else:
                     label.setText(f"{item.amount} cl {item.ingredient.name}")

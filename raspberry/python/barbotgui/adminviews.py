@@ -525,7 +525,7 @@ class Settings(IdleView):
                 "setting": "straw_dispenser_connected", "type": bool},
             {"name": "Zucker Dosierer verbunden",
                 "setting": "sugar_dispenser_connected", "type": bool},
-            {"name": "Zucker Dosierer verbunden", "setting": "sugar_per_unit",
+            {"name": "Zucker g/Tl", "setting": "sugar_per_unit",
                 "type": int, "min": 1, "max": 10},
         ]
         form_widget = QtWidgets.QWidget()
@@ -541,6 +541,8 @@ class Settings(IdleView):
                 if "max" in entry:
                     edit_widget.setMaximum(entry["max"])
                 edit_widget.setValue(getattr(botconfig, entry["setting"]))
+                edit_widget.mousePressEvent = lambda e, w=edit_widget: self.window.open_numpad(w)
+                #TODO: Numpad only opens if focus is already on the element 
             elif entry["type"] == bool:
                 edit_widget = QtWidgets.QCheckBox()
                 edit_widget.setChecked(getattr(botconfig, entry["setting"]))
