@@ -148,6 +148,89 @@ class Keyboard(QtWidgets.QWidget):
         self.layout().addWidget(row)
         return res
 
+class Numpad(QtWidgets.QWidget):
+    target: QtWidgets.QSpinBox = None
+    current_value: int = 0
+
+    def __init__(self, target: QtWidgets.QSpinBox, style=None):
+        super().__init__()
+        self.target = target
+        self.current_value = 0
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setProperty("class", "Keyboard")
+        
+        #value label
+        self._value_label = QtWidgets.QLabel()
+        self.layout().addWidget(self._value_label)
+        #TODO: Make label white, maybe show current value in gray before first entry
+        
+        #keypad
+        self.create_keypad()
+        
+        if style is not None:
+            self.setStyleSheet(style)
+        if is_raspberry():
+            self.setCursor(QtCore.Qt.BlankCursor)
+        # move to bottom of the screen
+        desktop = Qt.QApplication.desktop().availableGeometry()
+        desired = Qt.QRect(Qt.QPoint(0, 0), self.sizeHint())
+        desired.moveBottomRight(desktop.bottomRight())
+        desired.setLeft(desktop.left())
+        self.setGeometry(desired)
+
+    def create_keypad(self):
+        # numpad
+        numpad = QtWidgets.QWidget()
+        numpad.setLayout(QtWidgets.QGridLayout())
+        self.layout().setAlignment(numpad, QtCore.Qt.AlignCenter)
+        for y in range(0, 3):
+            for x in range(0, 3):
+                num = y * 3 + x + 1
+                button = QtWidgets.QPushButton(str(num))
+                button.clicked.connect(
+                    lambda checked, value=num: self.button_clicked(value))
+                numpad.layout().addWidget(button, y, x)
+        # Cancel
+        button = QtWidgets.QPushButton("Abbrechen")
+        button.clicked.connect(lambda checked: self.close())
+        numpad.layout().addWidget(button, 3, 0)
+        # zero
+        button = QtWidgets.QPushButton("0")
+        button.clicked.connect(lambda checked: self.button_clicked(0))
+        numpad.layout().addWidget(button, 3, 1)
+        # enter
+        button = QtWidgets.QPushButton("Ok")
+        button.clicked.connect(lambda checked: self.apply())
+        numpad.layout().addWidget(button, 3, 2)
+        self.layout().addWidget(numpad)
+    
+    def apply(self):
+        if self.current_value >= self.target.minimum() and self.current_value <= self.target.maximum():
+            self.target.setValue(self.current_value)
+        self.close()
+
+    def button_clicked(self, number):
+        if self.target is None:
+            return
+        self.current_value *= 10
+        self.current_value += number
+        self._value_label.setText(str(self.current_value))
+
+    def add_row(self, keys):
+        res = []
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        barbotgui.set_no_spacing(row.layout())
+        for letter in keys:
+            button = QtWidgets.QPushButton(letter)
+            button.clicked.connect(
+                lambda checked, b=button: self.button_clicked(b.text()))
+            res.append(button)
+            row.layout().addWidget(button)
+        self.layout().addWidget(row)
+        return res
+
 
 class MainWindow(QtWidgets.QMainWindow):
     recipe_filter: recipes.RecipeFilter
@@ -297,6 +380,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._keyboard is not None:
             self._keyboard.close()
         self._keyboard = Keyboard(target, self.styles)
+        self._keyboard.show()
+        
+    def open_numpad(self, target: QtWidgets.QSpinBox):
+        if self._keyboard is not None:
+            self._keyboard.close()
+        self._keyboard = Numpad(target, self.styles)
         self._keyboard.show()
 
     def set_view(self, view):
@@ -701,7 +790,8 @@ class IdleView(View):
         content_wrapper.layout().addWidget(scroller)
 
         QtWidgets.QScroller.grabGesture(
-            scroller.viewport(), QtWidgets.QScroller.LeftMouseButtonGesture
+            scroller.viewport(),
+            QtWidgets.QScroller.LeftMouseButtonGesture
         )
 
         self._content = QtWidgets.QWidget()
