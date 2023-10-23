@@ -3,6 +3,7 @@ from enum import Enum, auto
 import logging
 import bluetooth
 
+timeout = 1
 
 class Boards(Enum):
     # board addresses must match "shared.h"
@@ -62,6 +63,7 @@ def connect(mac_address: str):
     try:
         conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         conn.connect((mac_address, 1))
+        conn.settimeout(timeout)
         # wait for Arduino to initialize
         time.sleep(1)
         clear_input()
@@ -247,6 +249,10 @@ def read_message() -> ProtocolMessage:
                     else:
                         return ProtocolMessage(msg_type, tokens[1], tokens[2:])
         return ProtocolMessage(MessageTypes.COMM_ERROR, "unknown type")
+    except bluetooth.btcommon.BluetoothError as e:
+        is_connected = False
+        logging.error(f"Read failed with BluetoothError:{e.args}")
+        return ProtocolMessage(MessageTypes.COMM_ERROR, e)
     except Exception as e:
         is_connected = False
         logging.exception("Read failed")
