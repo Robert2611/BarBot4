@@ -155,15 +155,17 @@ def load():
         if not file.endswith(".yaml"):
             continue
         r = _load_recipe_from_file(directories.recipes, file)
-        r.is_fixed = False
-        _recipes.append(r)
+        if r is not None:
+            r.is_fixed = False
+            _recipes.append(r)
     # fixed recipes
     for file in os.listdir(directories.fixed_recipes):
         if not file.endswith(".yaml"):
             continue
         r = _load_recipe_from_file(directories.fixed_recipes, file)
-        r.is_fixed = True
-        _recipes.append(r)
+        if r is not None:
+            r.is_fixed = True
+            _recipes.append(r)
 
 
 def filter(filter: RecipeFilter) -> List[Recipe]:

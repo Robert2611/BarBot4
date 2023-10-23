@@ -3,7 +3,7 @@ INSTALL_FOLDER=~/barbot
 DATA_FOLDER=~/.barbot
 
 #create data folders if not exist
-mkdir -p $DATA_FOLDER/logs
+mkdir -p $DATA_FOLDER/log
 mkdir -p $DATA_FOLDER/recipes
 #copy recipes
 rsync -a $INSTALL_FOLDER/data/recipes/. $DATA_FOLDER/recipes

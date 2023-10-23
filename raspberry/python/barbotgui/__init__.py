@@ -551,8 +551,8 @@ class BusyView(View):
                 message_string += "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
 
-            add_button("Cocktail abbrechen", False)
-            add_button("Erneut versuchen", True)
+            add_button("Cocktail\nabbrechen", False)
+            add_button("Erneut\nversuchen", True)
 
         elif message == barbot.UserMessages.place_glas:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")

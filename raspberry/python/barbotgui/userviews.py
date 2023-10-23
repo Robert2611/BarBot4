@@ -437,11 +437,15 @@ class SingleIngredient(IdleView):
             amount = self._amount_widget.currentData()
             if ingredient is not None and amount > 0:
                 item = recipes.RecipeItem(ingredient, amount)
-                port = ports.port_of_ingredient(ingredient)
-                if port is None:
-                    self.window.show_message(
-                        "Diese Zutat ist nicht anschlossen")
-                    return
+                if item.ingredient.type == ingredients.IngredientType.Sugar:
+                    pass
+                else:
+                    # normal ingredient
+                    port = ports.port_of_ingredient(ingredient)
+                    if port is None:
+                        self.window.show_message(
+                            "Diese Zutat ist nicht anschlossen")
+                        return
                 item.amount = amount
                 item.ingredient = ingredient
                 statemachine.start_single_ingredient(item)
@@ -536,8 +540,7 @@ class Statistics(IdleView):
         label = QtWidgets.QLabel("Bestellungen")
         container.layout().addWidget(label)
         # cocktails vs. time chart
-        format = "%Y-%m-%d %H"
-        data = [(dt.strftime(format), count)
+        data = [(f"{dt.hour} bis {dt.hour+1} Uhr", count)
                 for dt, count in statistics["cocktails_by_time"].items()]
         chart = BarChart(data)
         container.layout().addWidget(chart)
