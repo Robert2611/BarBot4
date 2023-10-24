@@ -377,14 +377,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self._keyboard = None
 
     def open_keyboard(self, target: QtWidgets.QLineEdit):
-        if self._keyboard is not None:
-            self._keyboard.close()
+        self.close_keyboard()
         self._keyboard = Keyboard(target, self.styles)
         self._keyboard.show()
         
     def open_numpad(self, target: QtWidgets.QSpinBox):
-        if self._keyboard is not None:
-            self._keyboard.close()
+        self.close_keyboard()
         self._keyboard = Numpad(target, self.styles)
         self._keyboard.show()
 

@@ -541,7 +541,7 @@ class Settings(IdleView):
                 if "max" in entry:
                     edit_widget.setMaximum(entry["max"])
                 edit_widget.setValue(getattr(botconfig, entry["setting"]))
-                edit_widget.mousePressEvent = lambda e, w=edit_widget: self.window.open_numpad(w)
+                edit_widget.enterEvent = lambda e, w=edit_widget: self.window.open_numpad(w)
                 #TODO: Numpad only opens if focus is already on the element 
             elif entry["type"] == bool:
                 edit_widget = QtWidgets.QCheckBox()
