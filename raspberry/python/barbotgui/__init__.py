@@ -729,6 +729,10 @@ class BusyView(View):
         elif statemachine.get_state() == statemachine.State.searching:
             self._title_label.setText("Suche nach BarBots in der Nähe")
         elif statemachine.get_state() == statemachine.State.cleaning_cycle:
+            # buttons
+            button = QtWidgets.QPushButton("Abbrechen")
+            button.clicked.connect(lambda: statemachine.abort_mixing())
+            self._content_container.layout().addWidget(button)
             self._title_label.setText("Reinigung (Zyklus)")
         elif statemachine.get_state() == statemachine.State.single_ingredient:
             self._title_label.setText("Dein Nachschlag wird hinzugefügt")

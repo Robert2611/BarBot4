@@ -500,7 +500,7 @@ def _draft_one(item: recipes.RecipeItem):
 
 
 def _do_cleaning_cycle():
-    global _user_input, _pumps_to_clean
+    global _abort_mixing, _user_input, _pumps_to_clean
     _set_message(UserMessages.cleaning_adapter)
     # ask user if the cleanig adapter is there
     _user_input = None
@@ -513,6 +513,9 @@ def _do_cleaning_cycle():
         time.sleep(2)
         return
     for pump_index in _pumps_to_clean:
+        # user aborted
+        if _abort_mixing:
+            break
         communication.try_do("Clean", pump_index,
                              botconfig.cleaning_time)
 
