@@ -100,9 +100,9 @@ class ListRecipes(IdleView):
                 if item.ingredient.type == ingredients.IngredientType.Stirr:
                     label.setText(f"-{item.ingredient.name}-")
                 elif item.ingredient.type == ingredients.IngredientType.Sugar:
-                    label.setText(f"{item.amount} TL {item.ingredient.name}")
+                    label.setText(f"{item.amount:.0f} TL {item.ingredient.name}")
                 else:
-                    label.setText(f"{item.amount} cl {item.ingredient.name}")
+                    label.setText(f"{item.amount:.0f} cl {item.ingredient.name}")
                 recipe_items_container.layout().addWidget(label)
 
             # right column

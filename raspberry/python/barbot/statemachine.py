@@ -328,8 +328,8 @@ def _do_mixing():
     if not barbot.is_demo:
         communication.try_set("PlatformLED", 2)
         communication.try_set("SetLED", 4)
-    # show message and led for 2 seconds
-    time.sleep(2)
+    # show message and led for some seconds
+    time.sleep(4)
     if not barbot.is_demo:
         communication.try_set("PlatformLED", 0)
         orders.add_order(_current_recipe)
