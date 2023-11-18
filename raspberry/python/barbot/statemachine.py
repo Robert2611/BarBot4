@@ -25,8 +25,6 @@ class State(Enum):
     straw = auto()
 
 # error codes (must match "shared.h")
-
-
 class Error(Enum):
     ingredient_empty = 33
     balance_communication = 34
@@ -193,6 +191,7 @@ def set_user_input(value: bool):
 def abort_mixing():
     global _abort_mixing
     _abort_mixing = True
+    logging.warn("Mixing aborted")
     communication.send_abort()
 
 
@@ -439,16 +438,19 @@ def _draft_one(item: recipes.RecipeItem):
     if _abort_mixing:
         return False
     if item.ingredient.type == ingredients.IngredientType.Stirr:
+        logging.info("Start stirring")
         communication.try_do("Mix", int(botconfig.stirring_time / 1000))
         return True
     else:
         if item.ingredient.type == ingredients.IngredientType.Sugar:
             # take sugar per unit from config
             weight = int(item.amount * botconfig.sugar_per_unit)
+            logging.info(f"Start adding {weight} g of '{item.ingredient.name}'")
         else:
             # cl to g with density of water
             weight = int(item.amount * 10)
             port = ports.port_of_ingredient(item.ingredient)
+            logging.info(f"Start adding {weight} g of '{item.ingredient.name}' at port {port}")
         while True:
             if item.ingredient.type == ingredients.IngredientType.Sugar:
                 result = communication.try_do("Sugar", weight)

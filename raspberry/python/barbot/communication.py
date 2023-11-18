@@ -35,6 +35,7 @@ conn: bluetooth.BluetoothSocket = None
 error = None
 is_connected = False
 buffer: str = ""
+_last_message_was_status_idle = False
 
 
 def find_bar_bot():
@@ -225,7 +226,7 @@ def _read_existing():
 
 
 def read_message() -> ProtocolMessage:
-    global conn, is_connected
+    global conn, is_connected, _last_message_was_status_idle
     if conn == None:
         is_connected = False
         return ProtocolMessage(MessageTypes.COMM_ERROR, "port not open")
@@ -240,8 +241,17 @@ def read_message() -> ProtocolMessage:
         while line.count("\n") > 1:
             line = line[line.index("\n")+1:]
         line = line.replace("\n", "").replace("\r", "")
-        logging.debug("<" + line)
         tokens = line.split()
+        # Do not repeat "STATUS IDLE" over and over again
+        if tokens[0] == "STATUS" and tokens[1] == "IDLE":
+            if not _last_message_was_status_idle:
+                logging.debug("<" + line)
+                _last_message_was_status_idle = True
+        else:
+            if _last_message_was_status_idle:
+                _last_message_was_status_idle = False
+            logging.debug("<" + line)
+            
         # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
         # find message type
         if len(tokens) > 0:
