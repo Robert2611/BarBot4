@@ -75,7 +75,7 @@ def connect(mac_address: str):
     return True
 
 
-def _send_do(command, parameter1=None, parameter2=None):
+def _send_do_and_wait_blocking(command, parameter1=None, parameter2=None):
     global error
     if not clear_input():
         return False
@@ -88,15 +88,20 @@ def _send_do(command, parameter1=None, parameter2=None):
         send_command(command)
     # wait for the response
     message = read_message()
+    # if a status message is recived, just ignore it, but only once!
+    if message.type == MessageTypes.STATUS:
+        message = read_message()
     if message.command != command:
         error = "answer for wrong command"
         return False
-    if message.type == MessageTypes.NAK:
+    elif message.type == MessageTypes.NAK:
         error = "NAK received"
         return False
-    if message.type != MessageTypes.ACK:
+    elif message.type != MessageTypes.ACK:
         error = "wrong answer"
         return False
+    
+    # ACK was received for the command, so wait until it finished
     while True:
         message = read_message()
         if message.command != command:
@@ -179,7 +184,7 @@ def try_set(command, parameters=None):
 
 def try_do(command, parameter1=None, parameter2=None):
     for _ in range(3):
-        res = _send_do(command, parameter1, parameter2)
+        res = _send_do_and_wait_blocking(command, parameter1, parameter2)
         if res:
             return res
     return False
