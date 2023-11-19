@@ -1,18 +1,25 @@
 
 import yaml
-from datetime import datetime
+from datetime import datetime, timedelta
 from . import directories
 from . import ingredients
 from . import recipes
-
 import os
 from typing import List
+
+PARTY_MAX_DURATION = timedelta(days=1)
+PARTY_MIN_ORDER_COUNT = 5
+STATISTICS_MAX_DISTANCE = timedelta(weeks=52)
+class Party:
+    def __init__(self, start: datetime):
+        self.orders = []
+        self.start = start
+
 _prefix = "orders "
 _extension = ".yaml"
 _timeformat = "%Y-%m-%d %H-%M-%S"
 _filename = datetime.now().strftime(_prefix + _timeformat + _extension)
 _filepath = directories.join(directories.orders, _filename)
-_dates = {}
 
 
 def add_order(recipe: recipes.Recipe):
@@ -30,12 +37,11 @@ def add_order(recipe: recipes.Recipe):
         # append as part of list
         yaml.dump([data], file)
 
-
-def list_dates() -> List[datetime]:
-    global _prefix, _dates
-    _dates = {}
-    result = []
-    for file in os.listdir(directories.orders):
+def get_parties() -> List[Party]:
+    global _prefix
+    all_parties:List[Party] = []
+    current_party = None
+    for file in sorted(os.listdir(directories.orders)):
         if not file.endswith(_extension):
             continue
         if not file.startswith(_prefix):
@@ -44,11 +50,27 @@ def list_dates() -> List[datetime]:
         # ignore empty files
         if os.path.getsize(full_path) == 0:
             continue
-        # use str instead of datetime as dict key to avoid hashing problems
         str_datetime = file[len(_prefix):-len(_extension)]
-        _dates[str_datetime] = full_path
-        created = datetime.strptime(str_datetime, _timeformat)
-        result.append(created)
+        file_datetime = datetime.strptime(str_datetime, _timeformat)
+        # ignore dates that are too long ago
+        if datetime.now() - file_datetime > STATISTICS_MAX_DISTANCE:
+            continue
+        with open(full_path, "r") as file:
+            orders_data = yaml.safe_load(file)
+        # start a new party
+        if current_party == None or file_datetime - current_party.start > PARTY_MAX_DURATION:
+            # add the previous one if there is one
+            if current_party is not None:
+                all_parties.append(current_party)
+            # create a new party
+            current_party = Party(start=file_datetime)
+        # add all orders from the file
+        for order in orders_data:
+            current_party.orders.append(order)
+    # also add the last party
+    if current_party is not None:
+        all_parties.append(current_party)
+    result = [p for p in all_parties if len(p.orders) >= PARTY_MIN_ORDER_COUNT]
     return result
 
 
@@ -59,15 +81,12 @@ def _increase_entry(item: dict, key, increment=1):
         item[key] = increment
 
 
-def get_statistics(date: datetime):
-    global _dates
+def get_statistics(party: Party):
     statistics = {}
-    with open(_dates[date.strftime(_timeformat)], "r") as file:
-        orders_data = yaml.safe_load(file)
     ingredients_amount = {}
     cocktail_count = {}
     cocktails_by_time = {}
-    for order in orders_data:
+    for order in party.orders:
         _increase_entry(cocktail_count, order["recipe"])
         hour = datetime(
             order["date"].year,
@@ -84,6 +103,6 @@ def get_statistics(date: datetime):
     statistics["ingredients_amount"] = ingredients_amount
     statistics["cocktail_count"] = cocktail_count
     statistics["cocktails_by_time"] = cocktails_by_time
-    statistics["total_cocktails"] = len(orders_data)
+    statistics["total_cocktails"] = len(party.orders)
 
     return statistics

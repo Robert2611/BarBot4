@@ -482,18 +482,20 @@ class Statistics(IdleView):
         row = QtWidgets.QWidget()
         row.setLayout(QtWidgets.QHBoxLayout())
         self._content.layout().addWidget(row)
-
+        # - label
         label = QtWidgets.QLabel("Datum")
         row.layout().addWidget(label)
-
-        self.parties = orders.list_dates()
+        # - dropdown
+        self.parties = orders.get_parties()
         dates_widget = QtWidgets.QComboBox()
-        for datetime in self.parties:
-            dates_widget.addItem(datetime.strftime(
-                "%Y-%m-%d %H:%M:%S"), datetime)
+        for party in self.parties:
+            dates_widget.addItem(party.start.strftime("%Y-%m-%d"), party)
         dates_widget.currentIndexChanged.connect(
             lambda newDate: self._update(dates_widget.currentData()))
         row.layout().addWidget(dates_widget)
+        
+        # dummy
+        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
         self._content_wrapper = QtWidgets.QWidget()
         self._content_wrapper.setLayout(QtWidgets.QGridLayout())
@@ -503,13 +505,12 @@ class Statistics(IdleView):
         # initialize with date of last party
         self._update(self.parties[0] if self.parties else None)
 
-    def _update(self, date: datetime):
-        if not date:
+    def _update(self, party: orders.Party):
+        if party is None:
             return
-        # self.total_count = self.parties[0]["ordercount"]
         from barbotgui.controls import BarChart
 
-        statistics = orders.get_statistics(date)
+        statistics = orders.get_statistics(party)
 
         # create container
         container = QtWidgets.QWidget()
