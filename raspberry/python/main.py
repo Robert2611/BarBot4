@@ -4,6 +4,7 @@ import logging
 
 from barbot import statemachine
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import QTimer
 import barbot
 import barbotgui
 import sys
@@ -12,6 +13,7 @@ import threading
 import psutil
 from datetime import datetime
 from barbot import directories
+import signal
 
 # cofigure logging
 exception_file_path = directories.join(
@@ -41,18 +43,30 @@ if not barbot.is_demo:
     bar_bot_thread = threading.Thread(target=statemachine.run)
     bar_bot_thread.start()
 
+# Close the gui on interrupt signal
+def sigint_handler(*args):
+    logging.info("SIGINT received!")
+    if app is not None:
+        app.quit()
+signal.signal(signal.SIGINT, sigint_handler)
+
+barbot.orders.get_parties()
+
 # show gui and join the threads
 try:
     app = QtWidgets.QApplication(sys.argv)
     form = barbotgui.MainWindow()
     form.show()
+    # Let the interpreter run periodically to handle signals.
+    timer = QTimer()
+    timer.start(500)
+    timer.timeout.connect(lambda: None)
+    # start the qt app
     app.exec_()
     # tell the statemachine to stop
     statemachine.abort = True
     if not barbot.is_demo:
         bar_bot_thread.join()
-except KeyboardInterrupt:
-    raise
 except Exception as e:
     logging.error(traceback.format_exc())
     with open(exception_file_path, 'a') as f:
