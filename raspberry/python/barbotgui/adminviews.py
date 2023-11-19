@@ -6,6 +6,7 @@ from barbot import statemachine
 from barbot import communication
 from barbot import ports
 from barbot import recipes
+from barbot import directories
 
 
 class AdminLogin(IdleView):
@@ -159,7 +160,12 @@ class Overview(IdleView):
         wrapper.layout().addWidget(QtWidgets.QWidget(), row, 0)
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+        
+        # title
+        version_label = QtWidgets.QLabel(f"Version: {directories.version}")
+        self._content.layout().addWidget(version_label)
 
+        # Timer for updating the current weight display
         self._update_timer = QtCore.QTimer(self)
         self._update_timer.timeout.connect(
             lambda: statemachine.get_weight(self.set_weight_label))
