@@ -26,9 +26,13 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s\t%(message)s'
 )
+
+# log to file and stdout
+if "-t" in sys.argv[1:]:
+    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    
 logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
-
 
 barbot.is_demo = "-d" in sys.argv[1:]
 
