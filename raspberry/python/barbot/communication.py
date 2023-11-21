@@ -2,8 +2,11 @@ import time
 from enum import Enum, auto
 import logging
 import bluetooth
+from typing import List
+import time
 
-timeout = 1
+CONNECTION_TIMEOUT = 1
+MAX_RETRIES = 3
 
 class Boards(Enum):
     # board addresses must match "shared.h"
@@ -37,7 +40,6 @@ is_connected = False
 buffer: str = ""
 _last_message_was_status_idle = False
 
-
 def find_bar_bot():
     try:
         nearby_devices = bluetooth.discover_devices(lookup_names=True)
@@ -48,15 +50,6 @@ def find_bar_bot():
     except:
         return None
 
-
-def clear_input() -> bool:
-    global is_connected
-    # clear the input
-    read_message()
-    # if an error accured, return false
-    return is_connected
-
-
 def connect(mac_address: str):
     global conn, is_connected
     if conn is not None:
@@ -64,10 +57,10 @@ def connect(mac_address: str):
     try:
         conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         conn.connect((mac_address, 1))
-        conn.settimeout(timeout)
+        conn.settimeout(CONNECTION_TIMEOUT)
         # wait for Arduino to initialize
         time.sleep(1)
-        clear_input()
+        read_line()
         is_connected = True
         logging.info("Connection successfull")
     except Exception as e:
@@ -75,92 +68,116 @@ def connect(mac_address: str):
         return False
     return True
 
-
-def _send_do_and_wait_blocking(command, parameter1=None, parameter2=None):
-    global error
-    if not clear_input():
-        return False
-    # send the command
-    if parameter1 is not None and parameter2 is not None:
-        send_command(command, [parameter1, parameter2])
-    elif parameter1 is not None:
-        send_command(command, [parameter1])
-    else:
-        send_command(command)
-    # wait for the response
+def read_non_status_message() -> ProtocolMessage:
     message = read_message()
     # if a status message is recived, just ignore it, but only once!
+    # it might have been in the buffer already
     if message.type == MessageTypes.STATUS:
         message = read_message()
-    if message.command != command:
-        error = "answer for wrong command"
-        return False
-    elif message.type == MessageTypes.NAK:
-        error = "NAK received"
-        return False
-    elif message.type != MessageTypes.ACK:
-        error = "wrong answer"
-        return False
+    return message
+
+def try_do(command, *parameters):
+    """
+    Send a DO command to the controller and wait for it to finish
     
-    # ACK was received for the command, so wait until it finished
-    while True:
-        message = read_message()
+    :param command: Command name
+    :param parameters: Parameter for the controller command
+    :returns:
+        - success (bool) tells whether the command finished successfully
+        - return_params (List[str]) are return parameters from controller
+    """
+    global error
+    for _ in range(MAX_RETRIES):
+        # send the command
+        if not send_command(command, *parameters):
+            continue
+        # wait for the response
+        message = read_non_status_message()
         if message.command != command:
             error = "answer for wrong command"
-            return False
-        if message.type == MessageTypes.STATUS:
-            # it is still running, all good
             continue
-        elif message.type == MessageTypes.DONE:
-            return True
-        elif message.type == MessageTypes.ERROR:
-            # return the error parameters
-            return message.parameters
-        else:
+        elif message.type == MessageTypes.NAK:
+            error = "NAK received"
+            continue
+        elif message.type != MessageTypes.ACK:
             error = "wrong answer"
-            return False
+            continue
+        
+        # ACK was received for the command, so wait until it finished
+        while True:
+            message = read_message()
+            if message.command != command:
+                error = "answer for wrong command"
+                break
+            if message.type == MessageTypes.STATUS:
+                # it is still running, all good
+                continue
+            elif message.type == MessageTypes.DONE:
+                return (True, None)
+            elif message.type == MessageTypes.ERROR:
+                # return the error parameters
+                return (False, message.parameters)
+            else:
+                error = "wrong answer"
+                break
+    return (False, None)
 
-
-def _send_set(command, parameter=None):
+def try_set(command, *parameters:str) -> bool:
+    """
+    Send a SET command to the controller
+    
+    :param command: Command name
+    :param parameters: Parameter for the controller command
+    :returns: Whether the command executed successfully
+    """
     global error
-    if not clear_input():
-        return False
-    # send the command
-    send_command(command, [parameter])
-    # wait for the response
-    message = read_message()
-    if message.command != command:
-        error = "answer for wrong command"
-        return False
-    if message.type == MessageTypes.NAK:
-        error = "NAK received"
-        return False
-    if message.type != MessageTypes.ACK:
-        error = "wrong answer"
-        return False
-    return True
-
-
-def _send_get(command, parameters=None):
-    global error
-    if not clear_input():
-        return None
-    # send the command
-    send_command(command, parameters)
-    # wait for the response
-    message = read_message()
-    if message.command != command:
-        error = "answer for wrong command"
-        return None
-    if message.type == MessageTypes.ACK:
-        if message.parameters is not None:
-            return message.parameters[0]
+    for _ in range(MAX_RETRIES):
+        # send the command
+        if not send_command(command, *parameters):
+            continue
+        # wait for the response
+        message = read_non_status_message()
+        if message.command != command:
+            error = "answer for wrong command"
+            continue
+        if message.type == MessageTypes.NAK:
+            error = "NAK received"
+            continue
+        if message.type != MessageTypes.ACK:
+            error = "wrong answer"
+            continue
         else:
-            error = "No result sent"
-            return None
-    if message.type == MessageTypes.NAK:
-        error = "NAK received"
-        return None
+            return True
+    return False
+
+
+def try_get(command, *parameters:str) -> str:
+    """
+    Send a 'GET' command to the controller
+    
+    :param command: Command name
+    :param parameters: Parameter for the controller command
+    :returns: Result of the GET command on success, None on any error
+    """
+    global error
+    for _ in range(MAX_RETRIES):
+        # send the command
+        if not send_command(command, *parameters):
+            continue
+        # wait for the response
+        message = read_non_status_message()
+        if message.command != command:
+            error = "answer for wrong command"
+            continue
+        if message.type == MessageTypes.ACK:
+            if message.parameters is not None:
+                return message.parameters[0]
+            else:
+                error = "No result sent"
+                continue
+        if message.type == MessageTypes.NAK:
+            error = "NAK received"
+            continue
     return None
 
 
@@ -168,36 +185,12 @@ def send_abort():
     send_command("ABORT")
 
 
-def try_get(command, parameters=None):
-    for _ in range(3):
-        res = _send_get(command, parameters)
-        if res is not None:
-            return res
-    return None
-
-
-def try_set(command, parameters=None):
-    for _ in range(3):
-        if _send_set(command, parameters):
-            return True
-    return False
-
-
-def try_do(command, parameter1=None, parameter2=None):
-    for _ in range(3):
-        res = _send_do_and_wait_blocking(command, parameter1, parameter2)
-        if res:
-            return res
-    return False
-
-
-def send_command(command, parameters=None):
+def send_command(command, *parameters:str):
     global conn, is_connected
     if is_connected:
         cmd = command
-        if parameters is not None:
-            for parameter in parameters:
-                cmd = cmd + " " + str(parameter)
+        for parameter in parameters:
+            cmd = cmd + " " + str(parameter)
         cmd = cmd + "\r"
         logging.debug(">" + cmd)
         try:
@@ -214,15 +207,20 @@ def close():
         conn.close()
 
 
-def _read_existing():
-    global conn
+def read_line():
+    global conn, is_connected
+    if conn == None:
+        is_connected = False
+        return None
     data = b''
     # make sure to read everything there is
     while True:
-        data = conn.recv(1024)
-        if len(data) < 1024:
+        char = conn.recv(1)
+        data += char
+        if char == b'\n':
             break
-    return data.decode('utf-8')
+    decoded_data = data.decode('utf-8')
+    return decoded_data
 
 
 def read_message() -> ProtocolMessage:
@@ -231,15 +229,7 @@ def read_message() -> ProtocolMessage:
         is_connected = False
         return ProtocolMessage(MessageTypes.COMM_ERROR, "port not open")
     try:
-        line = ""
-        # make sure we have a full line
-        while True:
-            line += _read_existing()
-            if "\n" in line:
-                break
-        # if there is more then one message, only take the last one
-        while line.count("\n") > 1:
-            line = line[line.index("\n")+1:]
+        line = read_line()
         line = line.replace("\n", "").replace("\r", "")
         tokens = line.split()
         # Do not repeat "STATUS IDLE" over and over again

@@ -148,10 +148,8 @@ def run():
                 communication.try_set("SetSpeed", botconfig.max_speed)
                 communication.try_set("SetAccel", botconfig.max_accel)
                 communication.try_set("SetPumpPower", botconfig.pump_power)
-                communication.try_set("SetBalanceCalibration", int(
-                    botconfig.balance_calibration))
-                communication.try_set("SetBalanceOffset",
-                                      int(botconfig.balance_offset))
+                communication.try_set("SetBalanceCalibration", int(botconfig.balance_calibration))
+                communication.try_set("SetBalanceOffset",int(botconfig.balance_offset))
                 set_state(State.idle)
         elif _state == State.mixing:
             _do_mixing()
@@ -170,6 +168,7 @@ def run():
             _do_straw()
             go_to_idle()
         else:
+            # only idle state should end here
             if not barbot.is_demo:
                 communication.read_message()
                 if not communication.is_connected:
@@ -356,20 +355,20 @@ def _do_crushing():
     # try adding ice until it works or user aborts
     ice_to_add = botconfig.ice_amount
     while True:
-        result = communication.try_do("Crush", ice_to_add)
+        success, return_parameters = communication.try_do("Crush", ice_to_add)
         # user aborted
         if _abort_mixing:
             return False
-        if result == True:
+        if success == True:
             # crushing successfull
             return True
-        elif type(result) is list and len(result) >= 2:
-            error_code = int(result[0])
+        elif type(return_parameters) is list and len(return_parameters) >= 2:
+            error_code = int(return_parameters[0])
             logging.error("Error while crushing ice: '%s'" % error_code)
             error = Error(error_code)
             if error == Error.ingredient_empty:
                 # ice is empty, save how much is left
-                ice_to_add = int(result[1])
+                ice_to_add = int(return_parameters[1])
                 _set_message(UserMessages.ice_empty)
                 _user_input = None
                 # wait for user input
@@ -428,7 +427,7 @@ def _do_crushing():
         else:
             # unhandled return value
             logging.error(
-                "Unhandled result while drafting: '%s'" % result)
+                "Unhandled result while drafting: '%s'" % return_parameters)
             return False
 
 
@@ -453,23 +452,23 @@ def _draft_one(item: recipes.RecipeItem):
             logging.info(f"Start adding {weight} g of '{item.ingredient.name}' at port {port}")
         while True:
             if item.ingredient.type == ingredients.IngredientType.Sugar:
-                result = communication.try_do("Sugar", weight)
+                success, return_parameters = communication.try_do("Sugar", weight)
             else:
-                result = communication.try_do("Draft", port, weight)
+                success, return_parameters = communication.try_do("Draft", port, weight)
             # user aborted
             if _abort_mixing:
                 return False
-            if result == True:
+            if success == True:
                 # drafting successfull
                 return True
-            elif type(result) is list and len(result) >= 2:
-                error_code = int(result[0])
+            elif type(return_parameters) is list and len(return_parameters) >= 2:
+                error_code = int(return_parameters[0])
                 logging.error("Error while drafting: '%s'" % error_code)
                 error = Error(error_code)
                 if error == Error.ingredient_empty:
                     # ingredient is empty
                     # safe how much is left to draft
-                    weight = int(result[1])
+                    weight = int(return_parameters[1])
                     _set_message(UserMessages.ingredient_empty)
                     _user_input = None
                     # wait for user input
@@ -497,7 +496,7 @@ def _draft_one(item: recipes.RecipeItem):
             else:
                 # unhandled return value
                 logging.error(
-                    "Unhandled result while drafting: '%s'" % result)
+                    "Unhandled result while drafting: '%s'" % return_parameters)
                 return False
 
 
