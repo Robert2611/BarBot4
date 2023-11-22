@@ -218,7 +218,6 @@ def close():
     if conn is not None:
         conn.close()
 
-
 def read_line():
     global conn, is_connected
     if conn == None:
@@ -227,12 +226,20 @@ def read_line():
     data = b''
     # make sure to read everything there is
     while True:
-        char = conn.recv(1)
-        data += char
-        if char == b'\n':
+        received = conn.recv(1024)
+        data += received
+        if len(received) == 1024:
+            logging.warn(f"read_line: More than 1024 bytes read!")
+            #read existing bytes
+            continue
+        if data[-1:] == b'\n':
             break
     decoded_data = data.decode('utf-8')
-    return decoded_data
+    # only take the last part of the message
+    lines = decoded_data.split('\n')
+    if len(lines) > 2:
+        logging.warn(f"read_line: More than one line in buffer!")
+    return lines[-2]
 
 
 def read_message() -> ProtocolMessage:
