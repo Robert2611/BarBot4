@@ -73,6 +73,7 @@ def read_non_status_message() -> ProtocolMessage:
     # if a status message is recived, just ignore it, but only once!
     # it might have been in the buffer already
     if message.type == MessageTypes.STATUS:
+        logging.info("Status message discarded")
         message = read_message()
     return message
 
@@ -95,12 +96,15 @@ def try_do(command, *parameters):
         message = read_non_status_message()
         if message.command != command:
             error = "answer for wrong command"
+            logging.warn(f"try_do: {error}")
             continue
         elif message.type == MessageTypes.NAK:
             error = "NAK received"
+            logging.warn(f"try_do: {error}")
             continue
         elif message.type != MessageTypes.ACK:
             error = "wrong answer"
+            logging.warn(f"try_do: {error}")
             continue
         
         # ACK was received for the command, so wait until it finished
@@ -108,6 +112,7 @@ def try_do(command, *parameters):
             message = read_message()
             if message.command != command:
                 error = "answer for wrong command"
+                logging.warn(f"try_do: {error}")
                 break
             if message.type == MessageTypes.STATUS:
                 # it is still running, all good
@@ -119,6 +124,7 @@ def try_do(command, *parameters):
                 return (False, message.parameters)
             else:
                 error = "wrong answer"
+                logging.warn(f"try_do: {error}")
                 break
     return (False, None)
 
@@ -139,12 +145,15 @@ def try_set(command, *parameters:str) -> bool:
         message = read_non_status_message()
         if message.command != command:
             error = "answer for wrong command"
+            logging.warn(f"try_set: {error}")
             continue
         if message.type == MessageTypes.NAK:
             error = "NAK received"
+            logging.warn(f"try_set: {error}")
             continue
         if message.type != MessageTypes.ACK:
             error = "wrong answer"
+            logging.warn(f"try_set: {error}")
             continue
         else:
             return True
@@ -168,15 +177,18 @@ def try_get(command, *parameters:str) -> str:
         message = read_non_status_message()
         if message.command != command:
             error = "answer for wrong command"
+            logging.warn(f"try_get: {error}")
             continue
         if message.type == MessageTypes.ACK:
             if message.parameters is not None:
                 return message.parameters[0]
             else:
                 error = "No result sent"
+                logging.warn(f"try_get: {error}")
                 continue
         if message.type == MessageTypes.NAK:
             error = "NAK received"
+            logging.warn(f"try_get: {error}")
             continue
     return None
 
