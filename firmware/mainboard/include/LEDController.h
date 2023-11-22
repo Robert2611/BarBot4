@@ -22,8 +22,8 @@ public:
     void begin();
     void update(bool force = false);
     void setType(int type);
-    void setPlatformPosition(float position_in_mm);
-    void setDraftPosition(float position_in_mm);
+    void setCurrentPosition(float position_in_mm);
+    void setTargetPosition(float position_in_mm);
 
 private:
     NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> *stripe;

@@ -1,7 +1,7 @@
 #include "LEDController.h"
 LEDController::LEDController()
 {
-	stripe = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(PIXEL_COUNT, PIN_NEOPIXEL);
+	stripe = new NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod>(LED_STRIPE_PIXELS, PIN_NEOPIXEL);
 }
 
 void LEDController::begin()
@@ -60,13 +60,13 @@ void LEDController::update(bool force)
 		{
 			if (!force)
 				frame++;
-			if (frame >= PIXEL_COUNT)
+			if (frame >= LED_STRIPE_PIXELS)
 				frame = 0;
 			frame_start_millis = temp_millis;
-			for (int i = 0; i < PIXEL_COUNT; i++)
+			for (int i = 0; i < LED_STRIPE_PIXELS; i++)
 			{
-				int pos = (i + frame) % PIXEL_COUNT;
-				HsbColor color = {(float)pos / (PIXEL_COUNT - 1), 1.0, 0.8};
+				int pos = (i + frame) % LED_STRIPE_PIXELS;
+				HsbColor color = {(float)pos / (LED_STRIPE_PIXELS - 1), 1.0, 0.8};
 				stripe->SetPixelColor(i, color);
 			}
 			stripe->Show();
@@ -84,7 +84,7 @@ void LEDController::update(bool force)
 			if (frame >= period)
 				frame = 0;
 			frame_start_millis = temp_millis;
-			for (int i = 0; i < PIXEL_COUNT; i++)
+			for (int i = 0; i < LED_STRIPE_PIXELS; i++)
 			{
 				int dist = (abs(i - platform_position) + frame) % period;
 				if (dist > (period - 1) / 2)
@@ -108,7 +108,7 @@ void LEDController::update(bool force)
 			if (frame >= period)
 				frame = 0;
 			frame_start_millis = temp_millis;
-			for (int i = 0; i < PIXEL_COUNT; i++)
+			for (int i = 0; i < LED_STRIPE_PIXELS; i++)
 			{
 				int dist = (abs(i - draft_position) + frame) % period;
 				if (dist > (period - 1) / 2)
@@ -134,12 +134,18 @@ void LEDController::setType(int new_type)
 	update(true);
 }
 
-void LEDController::setPlatformPosition(float position_in_mm)
+void LEDController::setCurrentPosition(float position_in_mm)
 {
-	platform_position = position_in_mm / 1000 * PIXEL_COUNT;
+	//position is measured from very left, but the LED stripe starts at the first pump
+	position_in_mm -= FIRST_PUMP_POSITION;
+	// Make sure the position in pixels is in the right area
+	platform_position = (int) constrain(position_in_mm * LED_STRIPE_PIXELS / LED_STRIPE_LENGTH_MM, 0, LED_STRIPE_PIXELS - 1) ;
 }
 
-void LEDController::setDraftPosition(float position_in_mm)
+void LEDController::setTargetPosition(float position_in_mm)
 {
-	draft_position = position_in_mm / 1000 * PIXEL_COUNT;
+	//position is measured from very left, but the LED stripe starts at the first pump
+	position_in_mm -= FIRST_PUMP_POSITION;
+	// Make sure the position in pixels is in the right area
+	draft_position = (int) constrain(position_in_mm * LED_STRIPE_PIXELS / LED_STRIPE_LENGTH_MM, 0, LED_STRIPE_PIXELS - 1) ;
 }

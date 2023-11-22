@@ -519,6 +519,11 @@ float StateMachine::position_in_mm()
 	return (float)stepper->currentPosition() / (PLATFORM_MOTOR_MICROSTEPS * PLATFORM_MOTOR_FULLSTEPS_PER_MM);
 }
 
+float StateMachine::target_position_in_mm()
+{
+	return (float)stepper->targetPosition() / (PLATFORM_MOTOR_MICROSTEPS * PLATFORM_MOTOR_FULLSTEPS_PER_MM);
+}
+
 float StateMachine::get_last_draft_remaining_weight()
 {
 	return target_draft_weight - balance->getWeight();
@@ -712,14 +717,6 @@ void StateMachine::stop_pumps()
 	mcp->writeRegister(MCP23X17_GPIOB, 0);
 }
 ///endregion: pump ///
-
-int StateMachine::get_drafting_pump_index()
-{
-	if (status == MoveToDraft || status == Drafting)
-		return pump_index;
-	else
-		return -1;
-}
 
 void StateMachine::request_abort()
 {

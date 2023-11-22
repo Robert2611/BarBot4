@@ -57,8 +57,8 @@ void DoLEDandBluetoothTask(void *parameters)
 		}
 
 		//update LED controller
-		LEDContr.setPlatformPosition(state_m.position_in_mm() + HOME_DISTANCE);
-		LEDContr.setDraftPosition(HOME_DISTANCE + FIRST_PUMP_POSITION + PUMP_DISTANCE * state_m.get_drafting_pump_index());
+		LEDContr.setCurrentPosition(state_m.position_in_mm());
+		LEDContr.setTargetPosition(state_m.target_position_in_mm());
 		LEDContr.update();
 
 		//make sure system tasks have time too

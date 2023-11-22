@@ -86,7 +86,7 @@ public:
 	float get_last_draft_remaining_weight();
 	uint16_t get_ping_result();
 	bool is_started();
-	int get_drafting_pump_index();
+	float target_position_in_mm();
 	void request_abort();
 
 private:
@@ -94,7 +94,6 @@ private:
 	void start_pump(int pump_index, uint32_t power_pwm);
 	void stop_pumps();
 	void set_status(BarBotStatus_t new_status);
-	float get_current_ingredient_position_in_mm();
 	void set_target_position(long pos_in_mm);
 	long mm_to_steps(float mm);
 	void init_mcp();
