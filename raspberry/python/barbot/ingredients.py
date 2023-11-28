@@ -2,6 +2,11 @@ from enum import Enum
 from typing import List
 from . import botconfig
 
+# density relative to that of water
+DENSITY_WATER = 1
+DENSITY_JUICE = DENSITY_WATER
+DENSITY_SIRUP = DENSITY_WATER
+DENSITY_SPIRIT = DENSITY_WATER
 
 class IngredientType(Enum):
     Spirit = "spirit"
@@ -13,11 +18,21 @@ class IngredientType(Enum):
 
 
 class Ingredient(object):
-    def __init__(self, Identifier: str, Name: str, Type: IngredientType, Color: int):
+    def __init__(self, Identifier: str, Name: str, Type: IngredientType, Color: int, Density: float = None):
         self.identifier = Identifier
         self.name = Name
         self.type = Type
         self.color = Color
+        if Density is None:
+            if self.type == IngredientType.Juice:
+                self.density = DENSITY_JUICE
+            elif self.type == IngredientType.Sirup:
+                self.density = DENSITY_SIRUP
+            elif self.type == IngredientType.Spirit:
+                self.density = DENSITY_SPIRIT
+            else:
+                # no info, so just assume water
+                self.density = DENSITY_WATER
 
     def available(self):
         from barbot import ports
@@ -31,39 +46,31 @@ class Ingredient(object):
         return self.type == IngredientType.Spirit
 
 
-Stir = Ingredient('ruehren', 'Rühren', IngredientType.Stirr, 0xDDE3E1D3)
-Sugar = Ingredient('sugar', 'Zucker', IngredientType.Sugar, 0x55FFFFFF)
+Stir = Ingredient('ruehren',        'Rühren',               IngredientType.Stirr,   0xDDE3E1D3   )
+Sugar = Ingredient('sugar',         'Zucker',               IngredientType.Sugar,   0x55FFFFFF   )
 
 _ingredients = [
-    Ingredient('rum weiss', 'Weißer Rum', IngredientType.Spirit, 0x55FFFFFF),
-    Ingredient('rum braun', 'Brauner Rum', IngredientType.Spirit, 0x99D16615),
-    Ingredient('vodka', 'Vodka', IngredientType.Spirit, 0x55FFFFFF),
-    Ingredient('tequila', 'Tequila', IngredientType.Spirit, 0x55FFFFFF),
-    Ingredient('gin', 'Gin', IngredientType.Spirit, 0x55FFFFFF),
-    Ingredient('saft zitrone', 'Zitronensaft',
-               IngredientType.Juice, 0xAAF7EE99),
-    Ingredient('saft limette', 'Limettensaft',
-               IngredientType.Juice, 0xFF9FBF36),
-    Ingredient('saft orange', 'Orangensaft', IngredientType.Juice, 0xDDFACB23),
-    Ingredient('saft ananas', 'Annanassaft', IngredientType.Juice, 0xFFFAEF23),
-    Ingredient('tripple sec', 'Tripple Sec / Curacao',
-               IngredientType.Spirit, 0x44FACB23),
-    Ingredient('sirup kokos', 'Kokos Sirup', IngredientType.Sirup, 0xDDE3E1D3),
-    Ingredient('sirup curacao', 'Blue Curacao Sirup',
-               IngredientType.Sirup, 0xFF2D57E0),
-    Ingredient('sirup grenadine', 'Grenadine Sirup',
-               IngredientType.Sirup, 0xDD911111),
-    Ingredient('saft cranberry', 'Cranberrysaft',
-               IngredientType.Juice, 0x55F07373),
-    Ingredient('milch', 'Milch', IngredientType.Other, 0xFFF7F7F7),
-    Ingredient('kokosmilch', 'Kokosmilch', IngredientType.Other, 0xFFF7F7F7),
-    Ingredient('sahne', 'Sahne', IngredientType.Other, 0xFFF7F7F7),
-    Ingredient('sirup vanille', 'Vanille Sirup',
-               IngredientType.Other, 0x99D2A615),
-    Ingredient('saft maracuja', 'Maracujasaft',
-               IngredientType.Juice, 0xAA0CC73),
-    Ingredient('sirup zucker', 'Zuckersirup',
-               IngredientType.Sirup, 0xDDE3E1D3),
+    Ingredient('rum weiss',         'Weißer Rum',           IngredientType.Spirit,  0x55FFFFFF    ),   
+    Ingredient('rum braun',         'Brauner Rum',          IngredientType.Spirit,  0x99D16615    ),
+    Ingredient('vodka',             'Vodka',                IngredientType.Spirit,  0x55FFFFFF    ),
+    Ingredient('tequila',           'Tequila',              IngredientType.Spirit,  0x55FFFFFF    ),
+    Ingredient('gin',               'Gin',                  IngredientType.Spirit,  0x55FFFFFF    ),
+    Ingredient('saft zitrone',      'Zitronensaft',         IngredientType.Juice,   0xAAF7EE99    ),
+    Ingredient('saft limette',      'Limettensaft',         IngredientType.Juice,   0xFF9FBF36    ),
+    Ingredient('saft orange',       'Orangensaft',          IngredientType.Juice,   0xDDFACB23    ),
+    Ingredient('saft ananas',       'Annanassaft',          IngredientType.Juice,   0xFFFAEF23    ),
+    Ingredient('tripple sec',       'Tripple Sec / Curacao',IngredientType.Spirit,  0x44FACB23    ),
+    Ingredient('sirup kokos',       'Kokos Sirup',          IngredientType.Sirup,   0xDDE3E1D3    ),
+    Ingredient('sirup curacao',     'Blue Curacao Sirup',   IngredientType.Sirup,   0xFF2D57E0    ),
+    Ingredient('sirup grenadine',   'Grenadine Sirup',      IngredientType.Sirup,   0xDD911111    ),
+    Ingredient('saft cranberry',    'Cranberrysaft',        IngredientType.Juice,   0x55F07373    ),
+    Ingredient('milch',             'Milch',                IngredientType.Other,   0xFFF7F7F7    ),
+    Ingredient('kokosmilch',        'Kokosmilch',           IngredientType.Other,   0xFFF7F7F7    ),
+    Ingredient('sahne',             'Sahne',                IngredientType.Other,   0xFFF7F7F7    ),
+    Ingredient('sirup vanille',     'Vanille Sirup',        IngredientType.Other,   0x99D2A615    ),
+    Ingredient('saft maracuja',     'Maracujasaft',         IngredientType.Juice,   0xAA0CC73     ),
+    Ingredient('sirup zucker',      'Zuckersirup',          IngredientType.Sirup,   0xDDE3E1D3    ),
+    Ingredient('sirup maracuja',    'Maracujasirup',        IngredientType.Juice,   0xDD0CC73     ),
 
     Stir,
     Sugar

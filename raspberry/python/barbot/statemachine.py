@@ -446,8 +446,8 @@ def _draft_one(item: recipes.RecipeItem):
             weight = int(item.amount * botconfig.sugar_per_unit)
             logging.info(f"Start adding {weight} g of '{item.ingredient.name}'")
         else:
-            # cl to g with density of water
-            weight = int(item.amount * 10)
+            # cl to g
+            weight = int(item.amount * item.ingredient.density * 10)
             port = ports.port_of_ingredient(item.ingredient)
             logging.info(f"Start adding {weight} g of '{item.ingredient.name}' at port {port}")
         while True:
