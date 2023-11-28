@@ -20,7 +20,7 @@ fi
 mkdir -p $DATA_FOLDER/log
 mkdir -p $DATA_FOLDER/recipes
 #copy recipes
-rsync --ignore-existing $INSTALL_FOLDER/data/recipes/. $DATA_FOLDER/recipes
+rsync --ignore-existing $INSTALL_FOLDER/data/recipes/* $DATA_FOLDER/recipes
 
 #make main program executable
 sudo chmod +x "$INSTALL_FOLDER/python/main.py"
