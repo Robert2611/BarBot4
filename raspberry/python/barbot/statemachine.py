@@ -454,6 +454,11 @@ def _draft_one(item: recipes.RecipeItem):
             if item.ingredient.type == ingredients.IngredientType.Sugar:
                 success, return_parameters = communication.try_do("Sugar", weight)
             else:
+                # TODO: Handle non successfull SET
+                if item.ingredient.type == ingredients.IngredientType.Sirup:
+                    communication.try_set("SetPumpPower", botconfig.pump_power_sirup)
+                else:
+                    communication.try_set("SetPumpPower", botconfig.pump_power)
                 success, return_parameters = communication.try_do("Draft", port, weight)
             # user aborted
             if _abort_mixing:
@@ -482,8 +487,7 @@ def _draft_one(item: recipes.RecipeItem):
 
                 elif error == Error.glas_removed:
                     logging.info("Glas was removed while drafting")
-                    _set_message(
-                        UserMessages.glas_removed_while_drafting)
+                    _set_message(UserMessages.glas_removed_while_drafting)
                     _wait_for_user_input()
                     return False
 
@@ -495,8 +499,7 @@ def _draft_one(item: recipes.RecipeItem):
 
             else:
                 # unhandled return value
-                logging.error(
-                    "Unhandled result while drafting: '%s'" % return_parameters)
+                logging.error("Unhandled result while drafting: '%s'" % return_parameters)
                 return False
 
 
@@ -600,6 +603,9 @@ def start_straw():
 
 
 def set_async(command, parameter):
+    """ Send a SET command from another thread.
+    It will be executed in the next main loop of the state machine. 
+    """
     global _set_async, _state, _weight_timeout, _set_async_parameter
     if _state != State.idle:
         return False
@@ -620,6 +626,9 @@ def get_state():
 
 
 def get_weight(callback):
+    """Get the weight when the state machine is idle again.
+    The callback is executed after execution.
+    """
     global _weight, _idle_tasks
 
     def get_and_callback():
@@ -633,6 +642,8 @@ def get_weight(callback):
 
 
 def _get_boards_connected():
+    """Synchronously get the connected boards and save them to '_connected_boards'
+    """
     global _connected_boards
     input = communication.try_get("GetConnectedBoards")
     boards = int(input) if input != None else 0
@@ -641,6 +652,9 @@ def _get_boards_connected():
 
 
 def get_boards_connected(callback):
+    """Get the connected boards when the state machine is idle again.
+    The callback is executed after execution.
+    """
     global _connected_boards
 
     def get_and_callback():

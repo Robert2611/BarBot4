@@ -12,6 +12,7 @@ max_accel = 300
 max_cocktail_size = 30
 admin_password = "0000"
 pump_power = 100
+pump_power_sirup = 255
 balance_offset = -119.1
 balance_calibration = -1040
 cleaning_time = 3000
