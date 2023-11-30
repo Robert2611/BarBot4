@@ -9,6 +9,9 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/raspberry/python/main.py",
+            "args": [
+                "-t"
+            ],
             "console": "integratedTerminal"
         },
         {
@@ -17,7 +20,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/raspberry/python/main.py",
             "args": [
-                "-d"
+                "-d",
+                "-t"
             ],
             "console": "integratedTerminal"
         },
