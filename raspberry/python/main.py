@@ -32,19 +32,20 @@ logging.basicConfig(
 # log to file and stdout
 if "-t" in sys.argv[1:]:
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
-    
+
 logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
 
-barbot.is_demo = "-d" in sys.argv[1:]
+is_demo = "-d" in sys.argv[1:]
+bot = statemachine.BarBot(demo_mode=is_demo)
 
 # create statemachine
-if not barbot.is_demo:
-    bar_bot_thread = threading.Thread(target=statemachine.run)
+if not is_demo:
+    bar_bot_thread = threading.Thread(target=bot.run)
     bar_bot_thread.start()
 
-# Close the gui on interrupt signal
-def sigint_handler(*args):
+def sigint_handler(*_):
+    """Close the gui on interrupt signal"""
     logging.info("SIGINT received!")
     if app is not None:
         app.quit()
@@ -65,7 +66,7 @@ try:
     app.exec_()
     # tell the statemachine to stop
     statemachine.abort = True
-    if not barbot.is_demo:
+    if not is_demo:
         bar_bot_thread.join()
 except Exception as e:
     logging.error(traceback.format_exc())

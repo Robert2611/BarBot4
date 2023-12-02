@@ -6,7 +6,7 @@ import barbotgui
 from barbotgui import IdleView, MainWindow
 import barbot
 from barbot import recipes as bbrecipes
-from barbot import botconfig
+from raspberry.python.barbot import config
 from barbot import recipes
 from barbot import orders
 from barbot import ports
@@ -97,9 +97,9 @@ class ListRecipes(IdleView):
             item: bbrecipes.RecipeItem
             for item in recipe.items:
                 label = QtWidgets.QLabel()
-                if item.ingredient.type == ingredients.IngredientType.Stirr:
+                if item.ingredient.type == ingredients.IngredientType.STIRR:
                     label.setText(f"-{item.ingredient.name}-")
-                elif item.ingredient.type == ingredients.IngredientType.Sugar:
+                elif item.ingredient.type == ingredients.IngredientType.SUGAR:
                     label.setText(f"{item.amount:.0f} TL {item.ingredient.name}")
                 else:
                     label.setText(f"{item.amount:.0f} cl {item.ingredient.name}")
@@ -112,8 +112,8 @@ class ListRecipes(IdleView):
 
             fillings = []
             for item in recipe.items:
-                if item.ingredient.type != ingredients.IngredientType.Stirr:
-                    relative = item.amount / botconfig.max_cocktail_size
+                if item.ingredient.type != ingredients.IngredientType.STIRR:
+                    relative = item.amount / config.max_cocktail_size
                     filling = GlasFilling(item.ingredient.color, relative)
                     fillings.append(filling)
             indicator = GlasIndicator(fillings)
@@ -233,7 +233,7 @@ class RecipeNewOrEdit(IdleView):
             amount_widget = self.window.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(
                 lambda: self._update_table())
-            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == ingredients.IngredientType.Stirr):
+            if(i >= len(self._recipe.items) or self._recipe.items[i].ingredient.type == ingredients.IngredientType.STIRR):
                 amount_widget.setVisible(False)
             ingredients_container.layout().addWidget(amount_widget, i, 1)
 
@@ -266,7 +266,7 @@ class RecipeNewOrEdit(IdleView):
             # ignore the stirring when accumulating size
             if ingredient is None:
                 continue
-            if ingredient.type == ingredients.IngredientType.Stirr:
+            if ingredient.type == ingredients.IngredientType.STIRR:
                 continue
             if amount < 0:
                 continue
@@ -280,7 +280,7 @@ class RecipeNewOrEdit(IdleView):
     def _update_table(self):
         # cocktail size
         size = self._get_cocktail_size()
-        max_size = botconfig.max_cocktail_size
+        max_size = config.max_cocktail_size
         label = self._filling_label
         label.setText("%i von %i cl" % (size, max_size))
         if size > max_size:
@@ -291,7 +291,7 @@ class RecipeNewOrEdit(IdleView):
         # visibility
         for ingredient_widget, amount_widget in self._ingredient_widgets:
             ingredient = ingredient_widget.currentData()
-            should_be_visible = ingredient is not None and ingredient.type != ingredients.IngredientType.Stirr
+            should_be_visible = ingredient is not None and ingredient.type != ingredients.IngredientType.STIRR
             if(amount_widget.isVisible() != should_be_visible):
                 amount_widget.setVisible(should_be_visible)
 
@@ -308,7 +308,7 @@ class RecipeNewOrEdit(IdleView):
                     "Ein Cocktail mit diesem Namen existiert bereits")
                 return
         size = self._get_cocktail_size()
-        if size > botconfig.max_cocktail_size:
+        if size > config.max_cocktail_size:
             self.window.show_message("Dein Cocktail ist zu groß.")
             return
         if size == 0:
@@ -323,10 +323,10 @@ class RecipeNewOrEdit(IdleView):
             amount = int(amount_widget.currentData())
             if ingredient is None:
                 continue
-            if amount == 0 and ingredient.type != ingredients.IngredientType.Stirr:
+            if amount == 0 and ingredient.type != ingredients.IngredientType.STIRR:
                 continue
 
-            if ingredient.type == ingredients.IngredientType.Stirr:
+            if ingredient.type == ingredients.IngredientType.STIRR:
                 item = recipes.RecipeItem(ingredient, 2000)
             else:
                 item = recipes.RecipeItem(ingredient, amount)
@@ -394,7 +394,7 @@ class SingleIngredient(IdleView):
             lambda: self._start(self.ActionType.ingredient))
         panel.layout().addWidget(start_button)
 
-        if botconfig.straw_dispenser_connected:
+        if config.straw_dispenser_connected:
             # straw button
             icon = barbotgui.qt_icon_from_file_name("straw.png")
             straw_button = QtWidgets.QPushButton(icon, "")
@@ -404,7 +404,7 @@ class SingleIngredient(IdleView):
             self._content.layout().addWidget(straw_button)
             self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
 
-        if botconfig.stirrer_connected:
+        if config.stirrer_connected:
             # stir button
             icon = barbotgui.qt_icon_from_file_name("stir.png")
             stir_button = QtWidgets.QPushButton(icon, "")
@@ -414,7 +414,7 @@ class SingleIngredient(IdleView):
             self._content.layout().addWidget(stir_button)
             self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignCenter)
 
-        if botconfig.ice_crusher_connected:
+        if config.ice_crusher_connected:
             # ice button
             icon = barbotgui.qt_icon_from_file_name("ice.png")
             ice_button = QtWidgets.QPushButton(icon, "")
@@ -437,7 +437,7 @@ class SingleIngredient(IdleView):
             amount = self._amount_widget.currentData()
             if ingredient is not None and amount > 0:
                 item = recipes.RecipeItem(ingredient, amount)
-                if item.ingredient.type == ingredients.IngredientType.Sugar:
+                if item.ingredient.type == ingredients.IngredientType.SUGAR:
                     pass
                 else:
                     # normal ingredient
@@ -453,14 +453,14 @@ class SingleIngredient(IdleView):
             else:
                 self.window.show_message(
                     "Bitte eine Zutat und\neine Menge auswählen")
-        elif action_type == self.ActionType.stir and botconfig.stirrer_connected:
+        elif action_type == self.ActionType.stir and config.stirrer_connected:
             item = recipes.RecipeItem(ingredients.Stir, 0)
             statemachine.start_single_ingredient(item)
             self.window.show_message("Cocktail wird gerührt")
-        elif action_type == self.ActionType.ice and botconfig.ice_crusher_connected:
+        elif action_type == self.ActionType.ice and config.ice_crusher_connected:
             statemachine.start_crushing()
             self.window.show_message("Eis wird hinzugefügt")
-        elif action_type == self.ActionType.straw and botconfig.straw_dispenser_connected:
+        elif action_type == self.ActionType.straw and config.straw_dispenser_connected:
             statemachine.start_straw()
             self.window.show_message("Strohhalm wird hinzugefügt")
 
@@ -533,7 +533,7 @@ class Statistics(IdleView):
         # ingrediends
         data = [(ingr.name, amount / 100.0)
                 for ingr, amount in statistics["ingredients_amount"].items()
-                if ingr.type != ingredients.IngredientType.Stirr]
+                if ingr.type != ingredients.IngredientType.STIRR]
         chart = BarChart(data)
         container.layout().addWidget(chart)
 
@@ -582,7 +582,7 @@ class OrderRecipe(IdleView):
         centered.layout().addWidget(container)
 
         # ask for ice if module is connected
-        if botconfig.ice_crusher_connected:
+        if config.ice_crusher_connected:
             icon = barbotgui.qt_icon_from_file_name("ice.png")
             ice_button = QtWidgets.QPushButton(icon, "")
             ice_button.setCheckable(True)
@@ -594,7 +594,7 @@ class OrderRecipe(IdleView):
             self._cb_ice = None
 
         # ask for straw if module is connected
-        if botconfig.straw_dispenser_connected:
+        if config.straw_dispenser_connected:
             icon = barbotgui.qt_icon_from_file_name("straw.png")
             straw_button = QtWidgets.QPushButton(icon, "")
             straw_button.setCheckable(True)

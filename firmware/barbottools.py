@@ -23,7 +23,7 @@ def get_commands():
         ([^\"]*if\s*\(param_c\s==\s(?P<count>\d+))?          #parameters
         """, re.DOTALL | re.VERBOSE)
     script_dir = os.path.dirname(__file__)
-    with open(os.path.join(script_dir, "mainboard/src/main.cpp"), "r") as f:
+    with open(os.path.join(script_dir, "mainboard/src/main.cpp"), "r", encoding="utf-8") as f:
         content = f.read()
     commands = []
     for match in pattern.finditer(content):
@@ -41,7 +41,7 @@ def get_errors():
     script_dir = os.path.dirname(__file__)
     start_of_enum_found = False
     index = None
-    with open(os.path.join(script_dir, "mainboard/include/StateMachine.h"), "r") as f:
+    with open(os.path.join(script_dir, "mainboard/include/StateMachine.h"), "r", encoding="utf-8") as f:
         for line in f:
             if not start_of_enum_found:
                 if line.startswith("enum BarBotStatus_t"):
