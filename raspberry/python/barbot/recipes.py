@@ -7,7 +7,8 @@ from enum import Enum, auto
 from datetime import datetime, timedelta
 import yaml
 from . import ingredients
-from .config import recipes_directory, fixed_recipes_directory, old_recipes_directory, orders_directory
+from .config import recipes_directory, fixed_recipes_directory
+from .config import old_recipes_directory, orders_directory
 
 PARTY_MAX_DURATION = timedelta(days=1)
 PARTY_MIN_ORDER_COUNT = 5
@@ -217,7 +218,7 @@ def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
         return r
     except OSError as ex:
         logging.warning("Error in recipe load: %s", ex)
-        return None    
+        return None
 class OrderItem(NamedTuple):
     """Items of an order, it is like a recipe item but the ingredient is a string"""
     amount: int

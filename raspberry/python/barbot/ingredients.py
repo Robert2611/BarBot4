@@ -1,3 +1,4 @@
+"""Ingredients"""
 from enum import Enum
 from dataclasses import dataclass
 from typing import NamedTuple
@@ -58,7 +59,7 @@ Stir = Ingredient('ruehren',        'Rühren',               IngredientType.STIR
 Sugar = Ingredient('sugar',         'Zucker',               IngredientType.SUGAR,   0x55FFFFFF   )
 
 _ingredients = [
-    Ingredient('rum weiss',         'Weißer Rum',           IngredientType.SPIRIT,  0x55FFFFFF    ),   
+    Ingredient('rum weiss',         'Weißer Rum',           IngredientType.SPIRIT,  0x55FFFFFF    ),
     Ingredient('rum braun',         'Brauner Rum',          IngredientType.SPIRIT,  0x99D16615    ),
     Ingredient('vodka',             'Vodka',                IngredientType.SPIRIT,  0x55FFFFFF    ),
     Ingredient('tequila',           'Tequila',              IngredientType.SPIRIT,  0x55FFFFFF    ),

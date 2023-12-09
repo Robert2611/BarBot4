@@ -9,7 +9,7 @@ from barbot import ingredients
 from barbot import recipes
 from barbot import ports
 from barbot import statemachine
-from barbot import UserMessages
+from barbot import UserMessageType
 
 
 def is_raspberry() -> bool:
@@ -237,7 +237,7 @@ class MainWindow(QtWidgets.QMainWindow):
     _current_view = None
     _barbot_state_trigger = QtCore.pyqtSignal(statemachine.BarBotState)
     _mixing_progress_trigger = QtCore.pyqtSignal(int)
-    _message_trigger = QtCore.pyqtSignal(barbot.UserMessages)
+    _message_trigger = QtCore.pyqtSignal(barbot.UserMessageType)
     _show_message_trigger = QtCore.pyqtSignal(str)
     _last_idle_view = None
     _keyboard: Keyboard = None
@@ -506,13 +506,13 @@ class BusyView(View):
 
     def update_message(self, message):
         if message is None:
-            message = UserMessages.NONE
+            message = UserMessageType.NONE
         # delete old message
         if self._message is not None:
             self._message.setParent(None)
 
         # if message is none show the content again
-        if message == UserMessages.NONE:
+        if message == UserMessageType.NONE:
             self._message_container.setVisible(False)
             self._content_container.setVisible(True)
             self._title_label.setVisible(True)
@@ -535,7 +535,7 @@ class BusyView(View):
             button.clicked.connect(callback)
             buttons_container.layout().addWidget(button)
 
-        if message == barbot.UserMessages.INGREDIENT_EMPTY:
+        if message == barbot.UserMessageType.INGREDIENT_EMPTY:
             ingredient = statemachine.current_recipe_item().ingredient
             if ingredient.type == ingredients.IngredientType.SUGAR:
                 message_string = f"{ingredient.name} ist leer. Bitte nachfüllen."
@@ -548,10 +548,10 @@ class BusyView(View):
             add_button("Cocktail\nabbrechen", False)
             add_button("Erneut\nversuchen", True)
 
-        elif message == barbot.UserMessages.PLACE_GLAS:
+        elif message == barbot.UserMessageType.PLACE_GLAS:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
 
-        elif message == barbot.UserMessages.MIXING_DONE_REMOVE_GLAS:
+        elif message == barbot.UserMessageType.MIXING_DONE_REMOVE_GLAS:
             if statemachine.was_aborted():
                 message_label.setText("Cocktail abgebrochen!")
             else:
@@ -567,27 +567,27 @@ class BusyView(View):
                         "Du kannst ihn von der Platform nehmen."
                     message_label.setText(text)
 
-        elif message == barbot.UserMessages.ASK_FOR_STRAW:
+        elif message == barbot.UserMessageType.ASK_FOR_STRAW:
             message_label.setText(
                 "Möchtest du einen Strohhalm haben?")
 
             add_button("Ja", True)
             add_button("Nein", False)
 
-        elif message == barbot.UserMessages.ASK_FOR_ICE:
+        elif message == barbot.UserMessageType.ASK_FOR_ICE:
             message_label.setText(
                 "Möchtest du Eis in deinem Cocktail haben?")
 
             add_button("Ja", True)
             add_button("Nein", False)
 
-        elif message == barbot.UserMessages.STRAWS_EMPTY:
+        elif message == barbot.UserMessageType.STRAWS_EMPTY:
             message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
 
             add_button("Egal", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessages.CLEANING_ADAPTER:
+        elif message == barbot.UserMessageType.CLEANING_ADAPTER:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text += "Ist der Adapter angeschlossen?"
             message_label.setText(text)
@@ -595,72 +595,72 @@ class BusyView(View):
             add_button("Ja", True)
             add_button("Abbrechen", False)
 
-        elif message == barbot.UserMessages.I2C_ERROR:
+        elif message == barbot.UserMessageType.I2C_ERROR:
             text = "Ein Kommunikationsfehler ist aufegtreten.\n"
             text += "Bitte überprüfe, ob alle Module richtig angeschlossen sind und versuche es erneut"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.UNKNOWN_ERROR:
+        elif message == barbot.UserMessageType.UNKNOWN_ERROR:
             text = "Ein unbekannter Fehler ist aufgetreten.\n"
             text += "Weitere Informationen findest du im Log"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.GLAS_REMOVED_WHILE_DRAFTING:
+        elif message == barbot.UserMessageType.GLAS_REMOVED_WHILE_DRAFTING:
             text = "Das Glas wurde während des Mischens entfernt!\n"
             text += "Drücke auf OK, um zum Start zurück zu fahren"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.ICE_EMPTY:
+        elif message == barbot.UserMessageType.ICE_EMPTY:
             message_label.setText("Eis konnte nicht hinzugefügt werden.")
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessages.CRUSHER_COVER_OPEN:
+        elif message == barbot.UserMessageType.CRUSHER_COVER_OPEN:
             text = "Bitte den Deckel des Eiscrushers schließen!"
             message_label.setText(text)
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessages.CRUSHER_TIMEOUT:
+        elif message == barbot.UserMessageType.CRUSHER_TIMEOUT:
             text = "Eis crushen hat zu lange gedauert, bitte überprüfe Crusher und Akku"
             message_label.setText(text)
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessages.BOARD_NOT_CONNECTED_BALANCE:
+        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_BALANCE:
             text = "Waage konnte nicht gefunden werden. Bitte Verbindung überprüfen."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.BOARD_NOT_CONNECTED_CRUSHER:
+        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_CRUSHER:
             text = "Eis Crusher konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.BOARD_NOT_CONNECTED_MIXER:
+        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_MIXER:
             text = "Mixer konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.BOARD_NOT_CONNECTED_STRAW:
+        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_STRAW:
             text = "Strohhalm dispenser konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessages.BOARD_NOT_CONNECTED_SUGAR:
+        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_SUGAR:
             text = "Zuckerdosierer konnte nicht gefunden werden. Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 

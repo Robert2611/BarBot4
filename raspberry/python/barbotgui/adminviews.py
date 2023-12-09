@@ -1,7 +1,7 @@
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
 from barbotgui import IdleView
-from barbot import botconfig
+from raspberry.python.barbot import config
 from barbot import statemachine
 from barbot import communication
 from barbot import ports
@@ -73,7 +73,7 @@ class AdminLogin(IdleView):
         self._update()
 
     def check_password(self):
-        if self._entered_password == botconfig.admin_password:
+        if self._entered_password == config.admin_password:
             self.window.set_view(Overview(self.window))
         self.clear_password()
 
@@ -119,11 +119,11 @@ class Overview(IdleView):
                 row += 1
 
         self.boards = [
-            [communication.Boards.balance, "balance.png"],
-            [communication.Boards.straw, "straw.png"],
-            [communication.Boards.crusher, "ice.png"],
-            [communication.Boards.mixer, "stir.png"],
-            [communication.Boards.sugar, "sugar.png"]
+            [communication.BoardType.BALANCE, "balance.png"],
+            [communication.BoardType.STRAW, "straw.png"],
+            [communication.BoardType.CRUSHER, "ice.png"],
+            [communication.BoardType.MIXER, "stir.png"],
+            [communication.BoardType.SUGAR, "sugar.png"]
         ]
         self._board_widgets = {}
         row = 1
@@ -150,7 +150,7 @@ class Overview(IdleView):
 
             self._board_widgets[board] = [button_board_icon, button]
 
-            if board == communication.Boards.balance:
+            if board == communication.BoardType.BALANCE:
                 # weight label
                 self._weight_label = QtWidgets.QLabel()
                 wrapper.layout().addWidget(self._weight_label, row, 2, 1, 3)
@@ -388,15 +388,15 @@ class BalanceCalibration(IdleView):
 
     def _tare(self, tare_weight):
         self.tare_weight = tare_weight
-        self.new_offset = botconfig.balance_offset + \
-            self.tare_weight * botconfig.balance_calibration
+        self.new_offset = config.balance_offset + \
+            self.tare_weight * config.balance_calibration
         if self._tare_and_calibrate:
             # continue with calibration
             self._show_dialog_enter_weight()
         else:
             # tare only: set offset, keep calibration
             statemachine.set_balance_calibration(
-                self.new_offset, botconfig.balance_calibration)
+                self.new_offset, config.balance_calibration)
             self.window.show_message("Kalibrierung wurde gespeichert")
             self._show_calibration_buttons()
 
@@ -404,7 +404,7 @@ class BalanceCalibration(IdleView):
         if self._entered_weight > 0:
             def set_calibration_and_save(weight):
                 cal = (weight-self.tare_weight) * \
-                    botconfig.balance_calibration/self._entered_weight
+                    config.balance_calibration/self._entered_weight
                 statemachine.set_balance_calibration(self.new_offset, cal)
                 self.window.show_message("Kalibrierung gespeichert")
             statemachine.get_weight(set_calibration_and_save)
@@ -536,15 +536,15 @@ class Settings(IdleView):
                     edit_widget.setMinimum(entry["min"])
                 if "max" in entry:
                     edit_widget.setMaximum(entry["max"])
-                edit_widget.setValue(getattr(botconfig, entry["setting"]))
+                edit_widget.setValue(getattr(config, entry["setting"]))
                 edit_widget.enterEvent = lambda e, w=edit_widget: self.window.open_numpad(w)
                 #TODO: Numpad only opens if focus is already on the element 
             elif entry["type"] == bool:
                 edit_widget = QtWidgets.QCheckBox()
-                edit_widget.setChecked(getattr(botconfig, entry["setting"]))
+                edit_widget.setChecked(getattr(config, entry["setting"]))
             else:
                 edit_widget = QtWidgets.QLineEdit()
-                edit_widget.setText(getattr(botconfig, entry["setting"]))
+                edit_widget.setText(getattr(config, entry["setting"]))
             entry["widget"] = edit_widget
             form_widget.layout().addWidget(label, row, 0)
             form_widget.layout().addWidget(edit_widget, row, 1)
@@ -557,13 +557,13 @@ class Settings(IdleView):
     def _save(self):
         for entry in self.entries:
             if entry["type"] == int:
-                setattr(botconfig, entry["setting"], entry["widget"].value())
+                setattr(config, entry["setting"], entry["widget"].value())
             elif entry["type"] == bool:
-                setattr(botconfig, entry["setting"],
+                setattr(config, entry["setting"],
                         entry["widget"].isChecked())
             else:
-                setattr(botconfig, entry["setting"], entry["widget"].text())
-        botconfig.save()
+                setattr(config, entry["setting"], entry["widget"].text())
+        config.save()
         statemachine.reconnect()
         self.window.show_message(
             "Einstellungen wurden gespeichert, barbot wird neu gestartet")
