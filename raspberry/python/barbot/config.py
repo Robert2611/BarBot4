@@ -81,6 +81,13 @@ class PortConfiguration:
         if not self.load():
             self.save()
 
+    def ingredient_at_port(self, port:int):
+        """Get the ingredient that is connected to a given port.
+        :param port: The port"""
+        if port not in self._list:
+            return None
+        return self._list[port]
+
     def port_of_ingredient(self, ingredient: Ingredient):
         """Get the port where to find the given ingredient
         :param ingredient: The ingredient to look for

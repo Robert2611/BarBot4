@@ -9,6 +9,7 @@ import yaml
 from . import ingredients
 from .config import recipes_directory, fixed_recipes_directory
 from .config import old_recipes_directory, orders_directory
+from .config import BarBotConfig
 
 PARTY_MAX_DURATION = timedelta(days=1)
 PARTY_MIN_ORDER_COUNT = 5
@@ -96,11 +97,12 @@ class Recipe:
                 return False
         return True
 
-    @property
-    def available(self) -> bool:
-        """A recipe is available if all its ingredients are available i.e. connected to a port"""
+    def is_available(self, config: BarBotConfig) -> bool:
+        """A recipe is available if all its ingredients are available i.e. connected to a port.
+        :param config: The barbot config to use for cheking if the recipe is available
+        """
         for item in self.items:
-            if not item.ingredient.available():
+            if not item.ingredient.is_available(config):
                 return False
         return True
 

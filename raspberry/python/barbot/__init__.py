@@ -121,12 +121,17 @@ class BarBot():
         assert unknown_state is None, f"State function not found: {unknown_state.name}"
 
     @property
-    def config(self):
+    def parties(self) -> PartyCollection:
+        """Get the parties collection"""
+        return self._parties
+    
+    @property
+    def config(self) -> BarBotConfig:
         """Get the config of the barbot"""
         return self._config
 
     @property
-    def was_aborted(self):
+    def was_aborted(self) -> bool:
         """Whether the mixing was aborted"""
         return self._abort_mixing
 

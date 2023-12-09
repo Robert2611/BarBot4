@@ -1,19 +1,18 @@
+"""Views to be shown for admins"""
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-import barbotgui
-from barbotgui import IdleView
-from raspberry.python.barbot import config
-from barbot import statemachine
-from barbot import communication
-from barbot import ports
-from barbot import recipes
-from barbot import directories
+from barbotgui import IdleView, MainWindow
+from barbot.communication import BoardType
+from barbot.config import version as barbot_version
+from barbot.recipes import Recipe
+from barbotgui import qt_icon_from_file_name
+from barbot.config import PORT_COUNT
 
 
 class AdminLogin(IdleView):
-    _entered_password = ""
-
-    def __init__(self, window: barbotgui.MainWindow):
+    """Login screen for the admin menu"""
+    def __init__(self, window: MainWindow):
         super().__init__(window)
+        self._entered_password = ""
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
@@ -73,7 +72,7 @@ class AdminLogin(IdleView):
         self._update()
 
     def check_password(self):
-        if self._entered_password == config.admin_password:
+        if self._entered_password == self.window.barbot_.config.admin_password:
             self.window.set_view(Overview(self.window))
         self.clear_password()
 
@@ -81,7 +80,7 @@ class AdminLogin(IdleView):
 class Overview(IdleView):
     _is_deleted = False
 
-    def __init__(self, window: barbotgui.MainWindow):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
@@ -109,8 +108,8 @@ class Overview(IdleView):
         row = 0
         for text, _class in admin_navigation_items:
             button = QtWidgets.QPushButton(text)
-            def btn_click(checked, c=_class): return self.window.set_view(
-                c(self.window))
+            def btn_click(_, c=_class):
+                return self.window.set_view(c(self.window))
             button.clicked.connect(btn_click)
             self.admin_navigation.layout().addWidget(button, row, column)
             column += 1
@@ -119,11 +118,11 @@ class Overview(IdleView):
                 row += 1
 
         self.boards = [
-            [communication.BoardType.BALANCE, "balance.png"],
-            [communication.BoardType.STRAW, "straw.png"],
-            [communication.BoardType.CRUSHER, "ice.png"],
-            [communication.BoardType.MIXER, "stir.png"],
-            [communication.BoardType.SUGAR, "sugar.png"]
+            [BoardType.BALANCE, "balance.png"],
+            [BoardType.STRAW, "straw.png"],
+            [BoardType.CRUSHER, "ice.png"],
+            [BoardType.MIXER, "stir.png"],
+            [BoardType.SUGAR, "sugar.png"]
         ]
         self._board_widgets = {}
         row = 1
@@ -133,16 +132,15 @@ class Overview(IdleView):
         wrapper.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(wrapper)
         for board, icon in self.boards:
-            connected = board in statemachine._connected_boards
+            connected = board in self.window.barbot_._connected_boards
             # board icon
-            icon = barbotgui.qt_icon_from_file_name(icon)
+            icon = qt_icon_from_file_name(icon)
             button_board_icon = QtWidgets.QPushButton(icon, "")
             button_board_icon.setProperty("class", "IconPresenter")
             button_board_icon.setEnabled(connected)
             wrapper.layout().addWidget(button_board_icon, row, 0, 1, 1)
             # connected / disconnected icon
-            icon = barbotgui.qt_icon_from_file_name(
-                "plug-on.png" if connected else "plug-off.png")
+            icon = qt_icon_from_file_name("plug-on.png" if connected else "plug-off.png")
             button = QtWidgets.QPushButton(icon, "")
             button.setProperty("class", "IconPresenter")
             button.setEnabled(connected)
@@ -150,7 +148,7 @@ class Overview(IdleView):
 
             self._board_widgets[board] = [button_board_icon, button]
 
-            if board == communication.BoardType.BALANCE:
+            if board == BoardType.BALANCE:
                 # weight label
                 self._weight_label = QtWidgets.QLabel()
                 wrapper.layout().addWidget(self._weight_label, row, 2, 1, 3)
@@ -160,22 +158,22 @@ class Overview(IdleView):
         wrapper.layout().addWidget(QtWidgets.QWidget(), row, 0)
         # dummy
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
-        
+
         # title
-        version_label = QtWidgets.QLabel(f"Version: {directories.version}")
+        version_label = QtWidgets.QLabel(f"Version: {barbot_version}")
         self._content.layout().addWidget(version_label)
 
         # Timer for updating the current weight display
         self._update_timer = QtCore.QTimer(self)
         self._update_timer.timeout.connect(
-            lambda: statemachine.get_weight(self.set_weight_label))
+            lambda: self.window.barbot_.get_weight(self.set_weight_label))
         self._update_timer.start(500)
 
-        statemachine.get_weight(self.set_weight_label)
+        self.window.barbot_.get_weight(self.set_weight_label)
 
     def set_weight_label(self, weight):
         weight = weight if weight is not None else "-"
-        text = "Gewicht: {} g".format(weight)
+        text = f"Gewicht: {weight} g"
         try:
             # this would cause a problem if the label was allready deleted
             self._weight_label.setText(text)
@@ -184,7 +182,7 @@ class Overview(IdleView):
 
     def set_boards_enabled(self, connected_boards):
         try:
-            for board, icon in self.boards:
+            for board, _ in self.boards:
                 connected = board in connected_boards
                 for widget in self._board_widgets[board]:
                     # this would cause a problem if the label was allready deleted
@@ -194,7 +192,7 @@ class Overview(IdleView):
 
 
 class Ports(IdleView):
-    def __init__(self, window: barbotgui.MainWindow):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -216,17 +214,17 @@ class Ports(IdleView):
         self._content.layout().addWidget(table)
         # fill table
         self._ingredient_widgets = dict()
-        for i in range(12):
-            label = QtWidgets.QLabel("Position %i" % (i+1))
+        for i in range(PORT_COUNT):
+            label = QtWidgets.QLabel(f"Position {(i+1)}")
             table.layout().addWidget(label, i, 0)
-            selectedPort = ports.List[i] if i in ports.List.keys() else 0
-            cbPort = self.window.combobox_ingredients(selectedPort, only_normal=True)
-            self._ingredient_widgets[i] = cbPort
-            table.layout().addWidget(cbPort, i, 1)
+            ingredient = self.window.barbot_.config.ports.ingredient_at_port(i)
+            cb_port = self.window.combobox_ingredients(ingredient, only_normal=True)
+            self._ingredient_widgets[i] = cb_port
+            table.layout().addWidget(cb_port, i, 1)
 
         # save button
         button = QtWidgets.QPushButton("Speichern")
-        button.clicked.connect(lambda: self._save())
+        button.clicked.connect(self._save)
         self._content.layout().addWidget(button)
         self._content.layout().setAlignment(button, QtCore.Qt.AlignCenter)
 
@@ -239,10 +237,15 @@ class Ports(IdleView):
             new_ports[port] = cb.currentData()
         # check for duplicates
         not_none_entries = [
-            ing for ing in new_ports.values() if ing is not None]
+            ing
+            for ing in new_ports.values()
+            if ing is not None
+        ]
         if len(not_none_entries) != len(set(not_none_entries)):
             self.window.show_message(
-                "Jede Zutat darf nur einer\nPosition zugewiesen werden!")
+                "Jede Zutat darf nur einer\n" +\
+                "Position zugewiesen werden!"
+            )
             return
         # update the ports list and save it
         ports.List.update(new_ports)
@@ -254,7 +257,7 @@ class BalanceCalibration(IdleView):
     _tare_and_calibrate = False
     _entered_weight = 0
 
-    def __init__(self, window: barbotgui.MainWindow, portId=-1):
+    def __init__(self, window: MainWindow, portId=-1):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -304,7 +307,7 @@ class BalanceCalibration(IdleView):
         center_box.layout().addWidget(row)
 
         ok_button = QtWidgets.QPushButton("OK")
-        ok_button.clicked.connect(lambda: statemachine.get_weight(self._tare))
+        ok_button.clicked.connect(lambda: self.window.barbot_.get_weight(self._tare))
         row.layout().addWidget(ok_button)
 
         cancel_button = QtWidgets.QPushButton("Abbrechen")
@@ -388,15 +391,15 @@ class BalanceCalibration(IdleView):
 
     def _tare(self, tare_weight):
         self.tare_weight = tare_weight
-        self.new_offset = config.balance_offset + \
-            self.tare_weight * config.balance_calibration
+        self.new_offset = self.window.barbot_.config.balance_offset + \
+            self.tare_weight * self.window.barbot_.config.balance_calibration
         if self._tare_and_calibrate:
             # continue with calibration
             self._show_dialog_enter_weight()
         else:
             # tare only: set offset, keep calibration
-            statemachine.set_balance_calibration(
-                self.new_offset, config.balance_calibration)
+            self.window.barbot_.set_balance_calibration(
+                self.new_offset, self.window.barbot_.config.balance_calibration)
             self.window.show_message("Kalibrierung wurde gespeichert")
             self._show_calibration_buttons()
 
@@ -404,10 +407,10 @@ class BalanceCalibration(IdleView):
         if self._entered_weight > 0:
             def set_calibration_and_save(weight):
                 cal = (weight-self.tare_weight) * \
-                    config.balance_calibration/self._entered_weight
-                statemachine.set_balance_calibration(self.new_offset, cal)
+                    self.window.barbot_.config.balance_calibration/self._entered_weight
+                self.window.barbot_.set_balance_calibration(self.new_offset, cal)
                 self.window.show_message("Kalibrierung gespeichert")
-            statemachine.get_weight(set_calibration_and_save)
+            self.window.barbot_.get_weight(set_calibration_and_save)
         else:
             self.window.show_message("Bitte ein Gewicht eingeben")
         self._show_calibration_buttons()
@@ -435,7 +438,7 @@ class BalanceCalibration(IdleView):
 
 
 class Cleaning(IdleView):
-    def __init__(self, window: barbotgui.MainWindow):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -481,18 +484,18 @@ class Cleaning(IdleView):
 
     def _clean_left(self):
         data = range(0, 6)
-        statemachine.start_cleaning_cycle(data)
+        self.window.barbot_.start_cleaning_cycle(data)
 
     def _clean_right(self):
         data = range(6, 12)
-        statemachine.start_cleaning_cycle(data)
+        self.window.barbot_.start_cleaning_cycle(data)
 
     def _clean_single(self, port):
-        statemachine.start_cleaning(port)
+        self.window.barbot_.start_cleaning(port)
 
 
 class Settings(IdleView):
-    def __init__(self, window: barbotgui.MainWindow):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -563,14 +566,14 @@ class Settings(IdleView):
                         entry["widget"].isChecked())
             else:
                 setattr(config, entry["setting"], entry["widget"].text())
-        config.save()
-        statemachine.reconnect()
+        self.window.barbot_.config.save()
+        self.window.barbot_.reconnect()
         self.window.show_message(
             "Einstellungen wurden gespeichert, barbot wird neu gestartet")
 
 
 class System(IdleView):
-    def __init__(self, window: barbotgui.MainWindow):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -593,7 +596,7 @@ class System(IdleView):
 class RemoveRecipe(IdleView):
     _list = None
 
-    def __init__(self, window: barbotgui.MainWindow):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -648,7 +651,7 @@ class RemoveRecipe(IdleView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-        for recipe in recipes.filter(self.window.recipe_filter):
+        for recipe in self.window.recipes.get_filtered(self.window.recipe_filter):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())
@@ -666,7 +669,7 @@ class RemoveRecipe(IdleView):
                 lambda checked, r=recipe: self._show_confirmation(r))
             recipe_box.layout().addWidget(remove_button, 0)
 
-    def _show_confirmation(self, recipe: recipes.Recipe):
+    def _show_confirmation(self, recipe: Recipe):
         self._recipe = recipe
         self._list.setVisible(False)
         self._confirmation_dialog.setVisible(True)
@@ -676,6 +679,6 @@ class RemoveRecipe(IdleView):
         self._list.setVisible(True)
 
     def _remove(self):
-        recipes.remove(self._recipe)
+        self.window.recipes.remove(self._recipe)
         self._hide_confirmation()
         self.add_list()
