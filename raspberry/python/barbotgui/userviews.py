@@ -2,7 +2,7 @@
 from enum import Enum, auto
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
-from barbotgui import IdleView, MainWindow
+from barbotgui import View, MainWindow, set_no_spacing, qt_icon_from_file_name
 from barbotgui.controls import GlasFilling, GlasIndicator, BarChart
 from barbot.recipes import RecipeItem, Recipe
 from barbot.ingredients import IngredientType
@@ -10,7 +10,59 @@ from barbot.ingredients import Stir as StirIngredient
 from barbot.recipes import Party
 
 
-class ListRecipes(IdleView):
+class UserView(View):
+    def __init__(self, window: MainWindow):
+        super().__init__(window)
+        self.navigation_items = [
+            ["Liste", ListRecipes],
+            ["Neu", RecipeNewOrEdit],
+            ["Nachschlag", SingleIngredient],
+            ["Statistik", Statistics],
+        ]
+        self.setLayout(QtWidgets.QVBoxLayout())
+        set_no_spacing(self.layout())
+
+        self.header = QtWidgets.QWidget()
+        self.layout().addWidget(self.header)
+
+        # navigation
+        self.navigation = QtWidgets.QWidget()
+        self.layout().addWidget(self.navigation)
+        self.navigation.setLayout(QtWidgets.QHBoxLayout())
+
+        for text, _class in self.navigation_items:
+            button = QtWidgets.QPushButton(text)
+            def btn_click(_, c=_class):
+                return self.window.set_view(c(self.window))
+            button.clicked.connect(btn_click)
+            self.navigation.layout().addWidget(button, 1)
+
+        # content
+        content_wrapper = QtWidgets.QWidget()
+        self.layout().addWidget(content_wrapper, 1)
+        content_wrapper.setLayout(QtWidgets.QGridLayout())
+        set_no_spacing(content_wrapper.layout())
+
+        # fixed content
+        self._fixed_content = QtWidgets.QWidget()
+        content_wrapper.layout().addWidget(self._fixed_content)
+
+        scroller = QtWidgets.QScrollArea()
+        scroller.setProperty("class", "ContentScroller")
+        scroller.setWidgetResizable(True)
+        scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        content_wrapper.layout().addWidget(scroller)
+
+        QtWidgets.QScroller.grabGesture(
+            scroller.viewport(),
+            QtWidgets.QScroller.LeftMouseButtonGesture
+        )
+
+        self._content = QtWidgets.QWidget()
+        self._content.setProperty("class", "IdleContent")
+        scroller.setWidget(self._content)
+
+class ListRecipes(UserView):
     def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -40,7 +92,7 @@ class ListRecipes(IdleView):
         self._listbox.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._listbox)
 
-        barbotgui.set_no_spacing(self._listbox.layout())
+        set_no_spacing(self._listbox.layout())
 
         self._update_list()
 
@@ -71,7 +123,7 @@ class ListRecipes(IdleView):
 
             # edit button
             if not recipe.is_fixed:
-                icon = barbotgui.qt_icon_from_file_name("edit.png")
+                icon = qt_icon_from_file_name("edit.png")
                 edit_button = QtWidgets.QPushButton(icon, "")
                 edit_button.setProperty("class", "BtnEdit")
                 edit_button.clicked.connect(
@@ -123,7 +175,7 @@ class ListRecipes(IdleView):
 
             # order button
             if recipe.available():
-                icon = barbotgui.qt_icon_from_file_name("order.png")
+                icon = qt_icon_from_file_name("order.png")
                 order_button = QtWidgets.QPushButton(icon, "")
                 order_button.setProperty("class", "BtnOrder")
                 order_button.clicked.connect(
@@ -147,7 +199,7 @@ class ListRecipes(IdleView):
         self.window.set_view(OrderRecipe(self.window, recipe))
 
 
-class RecipeNewOrEdit(IdleView):
+class RecipeNewOrEdit(UserView):
     def __init__(self, window: MainWindow, recipe: Recipe = None):
         super().__init__(window)
 
@@ -345,7 +397,7 @@ class RecipeNewOrEdit(IdleView):
         self.window.show_message(message)
 
 
-class SingleIngredient(IdleView):
+class SingleIngredient(UserView):
     """View for adding single ingredients"""
     class ActionType(Enum):
         """The type of ingredient that should be added"""
@@ -397,7 +449,7 @@ class SingleIngredient(IdleView):
 
         if self.window.barbot_.config.straw_dispenser_connected:
             # straw button
-            icon = barbotgui.qt_icon_from_file_name("straw.png")
+            icon = qt_icon_from_file_name("straw.png")
             straw_button = QtWidgets.QPushButton(icon, "")
             straw_button.setProperty("class", "IconButton")
             straw_button.clicked.connect(
@@ -408,7 +460,7 @@ class SingleIngredient(IdleView):
 
         if self.window.barbot_.config.stirrer_connected:
             # stir button
-            icon = barbotgui.qt_icon_from_file_name("stir.png")
+            icon = qt_icon_from_file_name("stir.png")
             stir_button = QtWidgets.QPushButton(icon, "")
             stir_button.setProperty("class", "IconButton")
             stir_button.clicked.connect(
@@ -419,7 +471,7 @@ class SingleIngredient(IdleView):
 
         if self.window.barbot_.config.ice_crusher_connected:
             # ice button
-            icon = barbotgui.qt_icon_from_file_name("ice.png")
+            icon = qt_icon_from_file_name("ice.png")
             ice_button = QtWidgets.QPushButton(icon, "")
             ice_button.setProperty("class", "IconButton")
             ice_button.clicked.connect(
@@ -471,7 +523,7 @@ class SingleIngredient(IdleView):
             self.window.show_message("Strohhalm wird hinzugefügt")
 
 
-class Statistics(IdleView):
+class Statistics(UserView):
     """View that shows statistics of a party"""
     def __init__(self, window: MainWindow):
         super().__init__(window)
@@ -563,7 +615,7 @@ class Statistics(IdleView):
         self._content_wrapper.layout().addWidget(container)
 
 
-class OrderRecipe(IdleView):
+class OrderRecipe(UserView):
     def __init__(self, window: MainWindow, recipe: Recipe):
         super().__init__(window)
         self.recipe = recipe

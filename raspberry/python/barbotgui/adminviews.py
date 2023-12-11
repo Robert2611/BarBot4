@@ -1,14 +1,13 @@
 """Views to be shown for admins"""
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-from barbotgui import IdleView, MainWindow
 from barbot.communication import BoardType
 from barbot.config import version as barbot_version
 from barbot.recipes import Recipe
-from barbotgui import qt_icon_from_file_name
 from barbot.config import PORT_COUNT
+from barbotgui import MainWindow, qt_icon_from_file_name
+from barbotgui.userviews import UserView
 
-
-class AdminLogin(IdleView):
+class AdminLogin(UserView):
     """Login screen for the admin menu"""
     def __init__(self, window: MainWindow):
         super().__init__(window)
@@ -77,7 +76,7 @@ class AdminLogin(IdleView):
         self.clear_password()
 
 
-class Overview(IdleView):
+class Overview(UserView):
     _is_deleted = False
 
     def __init__(self, window: MainWindow):
@@ -191,7 +190,7 @@ class Overview(IdleView):
             pass
 
 
-class Ports(IdleView):
+class Ports(UserView):
     def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -248,17 +247,20 @@ class Ports(IdleView):
             )
             return
         # update the ports list and save it
-        ports.List.update(new_ports)
-        ports.save()
+        self.window.barbot_.config.ports.update(new_ports)
+        self.window.barbot_.config.ports.save()
         self.window.show_message("Positionen wurden gespeichert.")
 
 
-class BalanceCalibration(IdleView):
-    _tare_and_calibrate = False
-    _entered_weight = 0
+class BalanceCalibration(UserView):
 
-    def __init__(self, window: MainWindow, portId=-1):
+    def __init__(self, window: MainWindow):
         super().__init__(window)
+        self._tare_and_calibrate = False
+        self._entered_weight = 0        
+        self.tare_weight = 0
+        self.new_offset = 0
+        
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
@@ -270,7 +272,8 @@ class BalanceCalibration(IdleView):
 
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
-        def btn_click(): return self.window.set_view(Overview(self.window))
+        def btn_click():
+            return self.window.set_view(Overview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
@@ -311,7 +314,7 @@ class BalanceCalibration(IdleView):
         row.layout().addWidget(ok_button)
 
         cancel_button = QtWidgets.QPushButton("Abbrechen")
-        cancel_button.clicked.connect(lambda: self._show_calibration_buttons())
+        cancel_button.clicked.connect(self._show_calibration_buttons)
         row.layout().addWidget(cancel_button)
 
     def _add_dialog_enter_weight(self):
@@ -437,7 +440,7 @@ class BalanceCalibration(IdleView):
         self._dialog_enter_weight.setVisible(True)
 
 
-class Cleaning(IdleView):
+class Cleaning(UserView):
     def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -452,18 +455,19 @@ class Cleaning(IdleView):
 
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
-        def btn_click(): return self.window.set_view(Overview(self.window))
+        def btn_click():
+            return self.window.set_view(Overview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
         # clean left
         button = QtWidgets.QPushButton("Reinigen linke Hälfte")
-        button.clicked.connect(lambda: self._clean_left())
+        button.clicked.connect(self._clean_left)
         self._content.layout().addWidget(button)
 
         # clean right
         button = QtWidgets.QPushButton("Reinigen rechte Hälfte")
-        button.clicked.connect(lambda: self._clean_right())
+        button.clicked.connect(self._clean_right)
         self._content.layout().addWidget(button)
 
         # grid
@@ -494,7 +498,7 @@ class Cleaning(IdleView):
         self.window.barbot_.start_cleaning(port)
 
 
-class Settings(IdleView):
+class Settings(UserView):
     def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -507,7 +511,8 @@ class Settings(IdleView):
 
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
-        def btn_click(): return self.window.set_view(Overview(self.window))
+        def btn_click():
+            return self.window.set_view(Overview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
@@ -531,6 +536,7 @@ class Settings(IdleView):
         form_widget.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(form_widget)
         row = 0
+        config = self.window.barbot_.config
         for entry in self.entries:
             label = QtWidgets.QLabel(entry["name"])
             if entry["type"] == int:
@@ -554,10 +560,11 @@ class Settings(IdleView):
             row += 1
 
         save_button = QtWidgets.QPushButton("Speichern")
-        save_button.clicked.connect(lambda: self._save())
+        save_button.clicked.connect(self._save)
         self._content.layout().addWidget(save_button)
 
     def _save(self):
+        config = self.window.barbot_.config
         for entry in self.entries:
             if entry["type"] == int:
                 setattr(config, entry["setting"], entry["widget"].value())
@@ -572,7 +579,7 @@ class Settings(IdleView):
             "Einstellungen wurden gespeichert, barbot wird neu gestartet")
 
 
-class System(IdleView):
+class System(UserView):
     def __init__(self, window: MainWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -585,7 +592,8 @@ class System(IdleView):
 
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
-        def btn_click(): return self.window.set_view(Overview(self.window))
+        def btn_click():
+            return self.window.set_view(Overview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
@@ -593,11 +601,12 @@ class System(IdleView):
         self.window.add_system_view(self._content)
 
 
-class RemoveRecipe(IdleView):
+class RemoveRecipe(UserView):
     _list = None
 
     def __init__(self, window: MainWindow):
         super().__init__(window)
+        self._recipe:Recipe = None
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
@@ -609,7 +618,8 @@ class RemoveRecipe(IdleView):
 
         # back button
         back_button = QtWidgets.QPushButton("Übersicht")
-        def btn_click(): return self.window.set_view(Overview(self.window))
+        def btn_click():
+            return self.window.set_view(Overview(self.window))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
@@ -637,11 +647,11 @@ class RemoveRecipe(IdleView):
         center_box.layout().addWidget(row)
 
         ok_button = QtWidgets.QPushButton("Löschen")
-        ok_button.clicked.connect(lambda: self._remove())
+        ok_button.clicked.connect(self._remove)
         row.layout().addWidget(ok_button)
 
         cancel_button = QtWidgets.QPushButton("Abbrechen")
-        cancel_button.clicked.connect(lambda: self._hide_confirmation())
+        cancel_button.clicked.connect(self._hide_confirmation)
         row.layout().addWidget(cancel_button)
 
     def add_list(self):
@@ -663,10 +673,10 @@ class RemoveRecipe(IdleView):
             recipe_box.layout().addWidget(recipe_title, 1)
 
             # remove button
-            icon = barbotgui.qt_icon_from_file_name("remove.png")
+            icon = qt_icon_from_file_name("remove.png")
             remove_button = QtWidgets.QPushButton(icon, "")
             remove_button.clicked.connect(
-                lambda checked, r=recipe: self._show_confirmation(r))
+                lambda _, r=recipe: self._show_confirmation(r))
             recipe_box.layout().addWidget(remove_button, 0)
 
     def _show_confirmation(self, recipe: Recipe):

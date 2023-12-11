@@ -4,15 +4,11 @@ import logging
 import platform
 import sys
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-import barbot
+from barbot import BarBot, UserMessageType, BarBotState, run_command
 from barbot.ingredients import Ingredient, IngredientType
 from barbot.ingredients import get_list as get_ingredient_list
-from barbot import recipes
-from barbot import BarBot, BarBotConfig, BarBotState, UserMessageType
-from barbotgui.userviews import ListRecipes
-from barbotgui.adminviews import AdminLogin
-from barbot.recipes import RecipeCollection
-from barbotgui.userviews import ListRecipes, RecipeNewOrEdit, SingleIngredient, Statistics
+from barbot.recipes import RecipeCollection, RecipeFilter
+from barbotgui.controls import Keyboard, Numpad, set_no_spacing
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17
 
@@ -28,12 +24,6 @@ def is_raspberry() -> bool:
         return False
     return "raspberry" in name
 
-def set_no_spacing(layout):
-    """Set the spacing to zero for a given QtLayout
-    :param layout: The layout"""
-    layout.setSpacing(0)
-    layout.setContentsMargins(0, 0, 0, 0)
-
 
 def css_path() -> str:
     """Get the absolute path to the css folder"""
@@ -48,234 +38,26 @@ def qt_icon_from_file_name(file_name) -> Qt.QIcon:
     path = os.path.join(script_dir, "asset", file_name)
     return Qt.QIcon(path)
 
-
-class Keyboard(QtWidgets.QWidget):
-    """A keyboard used for touch input"""
-    _is_widgets_created = False
-    _is_shift = False
-    target: QtWidgets.QLineEdit = None
-
-    def __init__(self, target: QtWidgets.QLineEdit, style=None):
-        super().__init__()
-        self.target = target
-        self.setLayout(QtWidgets.QVBoxLayout())
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.update_keys()
-        self.setProperty("class", "Keyboard")
-        if style is not None:
-            self.setStyleSheet(style)
-        if is_raspberry():
-            self.setCursor(QtCore.Qt.BlankCursor)
-        # move to bottom of the screen
-        desktop = Qt.QApplication.desktop().availableGeometry()
-        desired = Qt.QRect(Qt.QPoint(0, 0), self.sizeHint())
-        desired.moveBottomRight(desktop.bottomRight())
-        desired.setLeft(desktop.left())
-        self.setGeometry(desired)
-
-    def update_keys(self):
-        """Update or, at first call, create the keyboard keys"""
-            # first row
-        keys = [
-            ["1", "!"], ["2", "\""], ["3", "§"], ["4", "$"], ["5", "%"],
-            ["6", "&"], ["7", "/"], ["8", "("], ["9", ")"], ["0", "ß"]
-        ]
-        if not self._is_widgets_created:
-            self.first_row = self.add_row([data[0] for data in keys])
-        for index, data in enumerate(keys):
-            self.first_row[index].setText(
-                data[1] if self._is_shift else data[0])
-
-            # second row
-        keys = ["q", "w", "e", "r", "t", "z", "u", "i", "o", "p"]
-        if not self._is_widgets_created:
-            self.second_row = self.add_row(keys)
-        for index, letter in enumerate(keys):
-            self.second_row[index].setText(
-                str.upper(letter) if self._is_shift else letter)
-
-            # third row
-        keys = ["a", "s", "d", "f", "g", "h", "j", "k", "l", "ö"]
-        if not self._is_widgets_created:
-            self.third_row = self.add_row(keys)
-        for index, letter in enumerate(keys):
-            self.third_row[index].setText(
-                str.upper(letter) if self._is_shift else letter)
-
-        # fourth row
-        keys = ["y", "x", "c", "v", "b", "n", "m", "ä", "ü"]
-        if not self._is_widgets_created:
-            self.fourth_row = self.add_row(keys)
-        for index, letter in enumerate(keys):
-            self.fourth_row[index].setText(
-                str.upper(letter) if self._is_shift else letter)
-
-        # last row
-        if not self._is_widgets_created:
-            row = QtWidgets.QWidget()
-            row.setLayout(QtWidgets.QHBoxLayout())
-            set_no_spacing(row.layout())
-            # shift
-            button = QtWidgets.QPushButton("▲")
-            button.clicked.connect(lambda: self.button_clicked("shift"))
-            row.layout().addWidget(button)
-            # space
-            button = QtWidgets.QPushButton(" ")
-            button.clicked.connect(lambda: self.button_clicked(" "))
-            row.layout().addWidget(button)
-            # delete
-            button = QtWidgets.QPushButton("←")
-            button.clicked.connect(lambda: self.button_clicked("delete"))
-            row.layout().addWidget(button)
-            self.layout().addWidget(row)
-        self._is_widgets_created = True
-
-    def button_clicked(self, content):
-        """Handle a button click"""
-        if self.target is None:
-            return
-        if content == "shift":
-            self._is_shift = not self._is_shift
-            self.update_keys()
-        else:
-            if content == "delete":
-                self.target.setText(self.target.text()[:-1])
-            else:
-                self.target.setText(self.target.text() + content)
-            # reset shift state
-            if self._is_shift:
-                self._is_shift = False
-                self.update_keys()
-
-    def add_row(self, keys: list[str]) -> list[QtWidgets.QPushButton]:
-        """Add a row defined by a list of characters to the layout
-        :param keys: List of key characters to be added
-        :retunrs: List of buttons that were added
-        """
-        res = []
-        row = QtWidgets.QWidget()
-        row.setLayout(QtWidgets.QHBoxLayout())
-        set_no_spacing(row.layout())
-        for letter in keys:
-            button = QtWidgets.QPushButton(letter)
-            button.clicked.connect(
-                lambda checked, b=button: self.button_clicked(b.text()))
-            res.append(button)
-            row.layout().addWidget(button)
-        self.layout().addWidget(row)
-        return res
-
-class Numpad(QtWidgets.QWidget):
-    """More simple version of a keyboard with only numbers"""
-    target: QtWidgets.QSpinBox = None
-    current_value: int = 0
-
-    def __init__(self, target: QtWidgets.QSpinBox, style=None):
-        super().__init__()
-        self.target = target
-        self.current_value = 0
-        self.setLayout(QtWidgets.QVBoxLayout())
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setProperty("class", "Keyboard")
-
-        #value label
-        self._value_label = QtWidgets.QLabel()
-        self.layout().addWidget(self._value_label)
-        #TODO: Make label white, maybe show current value in gray before first entry
-
-        #keypad
-        self.create_keypad()
-
-        if style is not None:
-            self.setStyleSheet(style)
-        if is_raspberry():
-            self.setCursor(QtCore.Qt.BlankCursor)
-        # move to bottom of the screen
-        desktop = Qt.QApplication.desktop().availableGeometry()
-        desired = Qt.QRect(Qt.QPoint(0, 0), self.sizeHint())
-        desired.moveBottomRight(desktop.bottomRight())
-        desired.setLeft(desktop.left())
-        self.setGeometry(desired)
-
-    def create_keypad(self):
-        """Create the buttons for the keypad"""
-        # numpad
-        numpad = QtWidgets.QWidget()
-        numpad.setLayout(QtWidgets.QGridLayout())
-        self.layout().setAlignment(numpad, QtCore.Qt.AlignCenter)
-        for y in range(0, 3):
-            for x in range(0, 3):
-                num = y * 3 + x + 1
-                button = QtWidgets.QPushButton(str(num))
-                button.clicked.connect(
-                    lambda checked, value=num: self.button_clicked(value))
-                numpad.layout().addWidget(button, y, x)
-        # Cancel
-        button = QtWidgets.QPushButton("Abbrechen")
-        button.clicked.connect(lambda checked: self.close())
-        numpad.layout().addWidget(button, 3, 0)
-        # zero
-        button = QtWidgets.QPushButton("0")
-        button.clicked.connect(lambda checked: self.button_clicked(0))
-        numpad.layout().addWidget(button, 3, 1)
-        # enter
-        button = QtWidgets.QPushButton("Ok")
-        button.clicked.connect(lambda checked: self.apply())
-        numpad.layout().addWidget(button, 3, 2)
-        self.layout().addWidget(numpad)
-
-    def apply(self):
-        """Apply the new value to the target"""
-        if self.target.minimum() <= self.current_value <= self.target.maximum():
-            self.target.setValue(self.current_value)
-        self.close()
-
-    def button_clicked(self, number):
-        """A number button was clicked, handle it"""
-        if self.target is None:
-            return
-        self.current_value *= 10
-        self.current_value += number
-        self._value_label.setText(str(self.current_value))
-
-    def add_row(self, keys:list[str]) -> list[QtWidgets.QPushButton]:
-        """Add a row defined by a list of characters to the layout
-        :param keys: List of key characters to be added
-        :retunrs: List of buttons that were added
-        """
-        res = []
-        row = QtWidgets.QWidget()
-        row.setLayout(QtWidgets.QHBoxLayout())
-
-        set_no_spacing(row.layout())
-        for letter in keys:
-            button = QtWidgets.QPushButton(letter)
-            button.clicked.connect(
-                lambda checked, b=button: self.button_clicked(b.text()))
-            res.append(button)
-            row.layout().addWidget(button)
-        self.layout().addWidget(row)
-        return res
-
-
 class MainWindow(QtWidgets.QMainWindow):
     """Main window for the barbot"""
     def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
         super().__init__()
         self._barbot = barbot_
-        self.recipe_filter: recipes.RecipeFilter
-        self._current_view = None
-        self._barbot_state_trigger = QtCore.pyqtBoundSignal(barbot.BarBotState)
+        self._current_view : View = None
+        self._barbot_state_trigger = QtCore.pyqtBoundSignal(BarBotState)
         self._mixing_progress_trigger = QtCore.pyqtBoundSignal(int)
-        self._message_trigger = QtCore.pyqtBoundSignal(barbot.UserMessageType)
+        self._message_trigger = QtCore.pyqtBoundSignal(UserMessageType)
         self._show_message_trigger = QtCore.pyqtBoundSignal(str)
-        self._last_idle_view = None
+        self._last_idle_view : View = None
         self._keyboard: Keyboard = None
         self._timer: QtCore.QTimer
-        self._admin_button_active = False
-        self.recipe_filter = recipes.RecipeFilter()
-        self.recipe_filter.Descending = True
+        self._admin_button_active : bool = False
+        self.recipe_filter = RecipeFilter(Descending = True)
         self._recipes = recipes
+        from barbotgui.adminviews import AdminLogin
+        self.admin_login = lambda: AdminLogin(self)
+        from barbotgui.userviews import ListRecipes
+        self.default_view = lambda: ListRecipes(self)
 
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
@@ -375,12 +157,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # shutdown
         button = QtWidgets.QPushButton("Herunterfahren")
-        button.clicked.connect(lambda: barbot.run_command("sudo shutdown now"))
+        button.clicked.connect(lambda: run_command("sudo shutdown now"))
         container.layout().addWidget(button)
 
         # reboot
         button = QtWidgets.QPushButton("Neu Starten")
-        button.clicked.connect(lambda: barbot.run_command("sudo reboot"))
+        button.clicked.connect(lambda: run_command("sudo reboot"))
         container.layout().addWidget(button)
 
         # dummy
@@ -392,7 +174,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """Callback to restart the barbot and gui"""
         QtWidgets.QApplication.instance().quit()
         filepath = os.path.join(sys.path[0], "main.py")
-        barbot.run_command(filepath)
+        run_command(filepath)
 
     def header_clicked(self, _):
         """Handle the header click"""
@@ -405,7 +187,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self._timer.singleShot(1000, self._reset_admin_button)
             return
         if not self._barbot.is_busy:
-            self.set_view(AdminLogin(self))
+            self.set_view(self.admin_login())
         else:
             self.set_view(self.get_systems_view())
 
@@ -439,8 +221,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # remove existing item from window
         if self._current_view is not None:
             # switch from idle to busy?
-            if isinstance(self._current_view, IdleView)\
-                    and not isinstance(view, IdleView):
+            if self._current_view.is_idle_view and not view.is_idle_view:
                 # just remove it from the visuals
                 self._current_view.setParent(None)
             else:
@@ -448,7 +229,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._current_view.deleteLater()
         self._current_view = view
         # save the last used idle view
-        if isinstance(view, IdleView):
+        if view.is_idle_view:
             self._last_idle_view = view
         self._content_wrapper.layout().addWidget(self._current_view)
 
@@ -457,7 +238,7 @@ class MainWindow(QtWidgets.QMainWindow):
         Else load the last idle view. If none was set, load the recipe list """
         if not self._barbot.is_busy():
             if self._last_idle_view is None or force_reload:
-                self.set_view(ListRecipes(self))
+                self.set_view(self.default_view())
             if self._last_idle_view != self._current_view:
                 self.set_view(self._last_idle_view)
         else:
@@ -519,19 +300,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
 class View(QtWidgets.QWidget):
     """Content that can be shown in the center of the main window"""
-    window: MainWindow
 
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: MainWindow, is_idle_view:bool = True):
         super().__init__(window)
-        self.window = window
+        self._window = window
+        self._is_idle_view = is_idle_view
 
+    @property
+    def is_idle_view(self):
+        """Get whether the view is an idle view"""
+        return self._is_idle_view
+
+    @property
+    def window(self):
+        """Get the window the view is used for"""
+        return self._window
 
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
-    _message = None
-
     def __init__(self, window: MainWindow):
         super().__init__(window)
+
+        self._message = None
 
         self.setLayout(QtWidgets.QGridLayout())
         set_no_spacing(self.layout())
@@ -592,7 +382,7 @@ class BusyView(View):
             button.clicked.connect(callback)
             buttons_container.layout().addWidget(button)
 
-        if message == barbot.UserMessageType.INGREDIENT_EMPTY:
+        if message == UserMessageType.INGREDIENT_EMPTY:
             ingredient = self._mainboard.current_recipe_item().ingredient
             if ingredient.type == IngredientType.SUGAR:
                 message_string = f"{ingredient.name} ist leer. Bitte nachfüllen."
@@ -608,10 +398,10 @@ class BusyView(View):
             add_button("Cocktail\nabbrechen", False)
             add_button("Erneut\nversuchen", True)
 
-        elif message == barbot.UserMessageType.PLACE_GLAS:
+        elif message == UserMessageType.PLACE_GLAS:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
 
-        elif message == barbot.UserMessageType.MIXING_DONE_REMOVE_GLAS:
+        elif message == UserMessageType.MIXING_DONE_REMOVE_GLAS:
             if self._mainboard.was_aborted():
                 message_label.setText("Cocktail abgebrochen!")
             else:
@@ -627,27 +417,27 @@ class BusyView(View):
                         "Du kannst ihn von der Platform nehmen."
                     message_label.setText(text)
 
-        elif message == barbot.UserMessageType.ASK_FOR_STRAW:
+        elif message == UserMessageType.ASK_FOR_STRAW:
             message_label.setText(
                 "Möchtest du einen Strohhalm haben?")
 
             add_button("Ja", True)
             add_button("Nein", False)
 
-        elif message == barbot.UserMessageType.ASK_FOR_ICE:
+        elif message == UserMessageType.ASK_FOR_ICE:
             message_label.setText(
                 "Möchtest du Eis in deinem Cocktail haben?")
 
             add_button("Ja", True)
             add_button("Nein", False)
 
-        elif message == barbot.UserMessageType.STRAWS_EMPTY:
+        elif message == UserMessageType.STRAWS_EMPTY:
             message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
 
             add_button("Egal", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessageType.CLEANING_ADAPTER:
+        elif message == UserMessageType.CLEANING_ADAPTER:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text += "Ist der Adapter angeschlossen?"
             message_label.setText(text)
@@ -655,7 +445,7 @@ class BusyView(View):
             add_button("Ja", True)
             add_button("Abbrechen", False)
 
-        elif message == barbot.UserMessageType.I2C_ERROR:
+        elif message == UserMessageType.I2C_ERROR:
             text = "Ein Kommunikationsfehler ist aufegtreten.\n"
             text += "Bitte überprüfe, ob alle Module richtig angeschlossen sind \
                 und versuche es erneut"
@@ -663,68 +453,68 @@ class BusyView(View):
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.UNKNOWN_ERROR:
+        elif message == UserMessageType.UNKNOWN_ERROR:
             text = "Ein unbekannter Fehler ist aufgetreten.\n"
             text += "Weitere Informationen findest du im Log"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.GLAS_REMOVED_WHILE_DRAFTING:
+        elif message == UserMessageType.GLAS_REMOVED_WHILE_DRAFTING:
             text = "Das Glas wurde während des Mischens entfernt!\n"
             text += "Drücke auf OK, um zum Start zurück zu fahren"
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.ICE_EMPTY:
+        elif message == UserMessageType.ICE_EMPTY:
             message_label.setText("Eis konnte nicht hinzugefügt werden.")
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessageType.CRUSHER_COVER_OPEN:
+        elif message == UserMessageType.CRUSHER_COVER_OPEN:
             text = "Bitte den Deckel des Eiscrushers schließen!"
             message_label.setText(text)
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessageType.CRUSHER_TIMEOUT:
+        elif message == UserMessageType.CRUSHER_TIMEOUT:
             text = "Eis crushen hat zu lange gedauert, bitte überprüfe Crusher und Akku"
             message_label.setText(text)
 
             add_button("Eis weg lassen", False)
             add_button("Erneut versuchen", True)
 
-        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_BALANCE:
+        elif message == UserMessageType.BOARD_NOT_CONNECTED_BALANCE:
             text = "Waage konnte nicht gefunden werden. Bitte Verbindung überprüfen."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_CRUSHER:
+        elif message == UserMessageType.BOARD_NOT_CONNECTED_CRUSHER:
             text = "Eis Crusher konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_MIXER:
+        elif message == UserMessageType.BOARD_NOT_CONNECTED_MIXER:
             text = "Mixer konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_STRAW:
+        elif message == UserMessageType.BOARD_NOT_CONNECTED_STRAW:
             text = "Strohhalm dispenser konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
             add_button("OK", True)
 
-        elif message == barbot.UserMessageType.BOARD_NOT_CONNECTED_SUGAR:
+        elif message == UserMessageType.BOARD_NOT_CONNECTED_SUGAR:
             text = "Zuckerdosierer konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
@@ -749,7 +539,7 @@ class BusyView(View):
 
     def _init_by_status(self):
         # content
-        if self._mainboard.get_state() == self._mainboard.BarBotState.MIXING:
+        if self._mainboard.get_state() == BarBotState.MIXING:
 
             # ingredients
             recipe_items_list = QtWidgets.QWidget()
@@ -783,78 +573,25 @@ class BusyView(View):
 
             self._title_label.setText(f"'{self._mainboard.current_recipe().name}'\nwird gemischt.")
 
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.CLEANING:
+        elif self._mainboard.get_state() == BarBotState.CLEANING:
             self._title_label.setText("Reinigung")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.CONNECTING:
+        elif self._mainboard.get_state() == BarBotState.CONNECTING:
             self._title_label.setText("Stelle Verbindung her")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.SEARCHING:
+        elif self._mainboard.get_state() == BarBotState.SEARCHING:
             self._title_label.setText("Suche nach BarBots in der Nähe")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.CLEANING_CYCLE:
+        elif self._mainboard.get_state() == BarBotState.CLEANING_CYCLE:
             # buttons
             button = QtWidgets.QPushButton("Abbrechen")
             button.clicked.connect(self._mainboard.abort_mixing)
             self._content_container.layout().addWidget(button)
             self._title_label.setText("Reinigung (Zyklus)")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.SINGLE_INGREDIENT:
+        elif self._mainboard.get_state() == BarBotState.SINGLE_INGREDIENT:
             self._title_label.setText("Dein Nachschlag wird hinzugefügt")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.STARTUP:
+        elif self._mainboard.get_state() == BarBotState.STARTUP:
             self._title_label.setText("Starte BarBot, bitte warten")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.CRUSHING:
+        elif self._mainboard.get_state() == BarBotState.CRUSHING:
             self._title_label.setText("Eis wird hinzugefügt")
-        elif self._mainboard.get_state() == self._mainboard.BarBotState.STRAW:
+        elif self._mainboard.get_state() == BarBotState.STRAW:
             self._title_label.setText("Strohhalm wird hinzugefügt")
         else:
             self._title_label.setText(f"Unknown status: {self._mainboard.get_state()}")
-
-
-class IdleView(View):
-    def __init__(self, window: MainWindow):
-        super().__init__(window)
-        self.navigation_items = [
-            ["Liste", ListRecipes],
-            ["Neu", RecipeNewOrEdit],
-            ["Nachschlag", SingleIngredient],
-            ["Statistik", Statistics],
-        ]
-        self.setLayout(QtWidgets.QVBoxLayout())
-        set_no_spacing(self.layout())
-
-        self.header = QtWidgets.QWidget()
-        self.layout().addWidget(self.header)
-
-        # navigation
-        self.navigation = QtWidgets.QWidget()
-        self.layout().addWidget(self.navigation)
-        self.navigation.setLayout(QtWidgets.QHBoxLayout())
-
-        for text, _class in self.navigation_items:
-            button = QtWidgets.QPushButton(text)
-            def btn_click(_, c=_class):
-                return self.window.set_view(c(self.window))
-            button.clicked.connect(btn_click)
-            self.navigation.layout().addWidget(button, 1)
-
-        # content
-        content_wrapper = QtWidgets.QWidget()
-        self.layout().addWidget(content_wrapper, 1)
-        content_wrapper.setLayout(QtWidgets.QGridLayout())
-        set_no_spacing(content_wrapper.layout())
-
-        # fixed content
-        self._fixed_content = QtWidgets.QWidget()
-        content_wrapper.layout().addWidget(self._fixed_content)
-
-        scroller = QtWidgets.QScrollArea()
-        scroller.setProperty("class", "ContentScroller")
-        scroller.setWidgetResizable(True)
-        scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        content_wrapper.layout().addWidget(scroller)
-
-        QtWidgets.QScroller.grabGesture(
-            scroller.viewport(),
-            QtWidgets.QScroller.LeftMouseButtonGesture
-        )
-
-        self._content = QtWidgets.QWidget()
-        self._content.setProperty("class", "IdleContent")
-        scroller.setWidget(self._content)
