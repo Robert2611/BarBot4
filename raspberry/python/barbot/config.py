@@ -2,7 +2,7 @@
 import os
 import sys
 import yaml
-from .ingredients import Ingredient
+from .ingredients import Ingredient, IngredientType
 from .ingredients import by_identifier as ingredient_by_identifier
 
 data_directory = os.path.expanduser('~/.barbot/')
@@ -46,6 +46,15 @@ class BarBotConfig:
         if not self.load():
             self.save()
 
+    def is_ingredient_available(self, ingredient_:Ingredient):
+        """Check if an ingredient is available at the barbot.
+        :param ingredient_: The ingredient to check"""
+        if ingredient_.type == IngredientType.STIRR:
+            return self.stirrer_connected
+        if ingredient_.type == IngredientType.SUGAR:
+            return self.sugar_dispenser_connected
+        return ingredient_ in self.ports.available_ingredients
+
     def save(self):
         """Save the current config values to the hard drive"""
         values = { field : getattr(self, field) for field in self._fields }
@@ -80,6 +89,10 @@ class PortConfiguration:
         # if loading failed save the default value to file
         if not self.load():
             self.save()
+
+    def update(self, new_ports:dict[int, Ingredient]):
+        """Update the port list with a new port to  ingredient list"""
+        self._list.update(new_ports)
 
     def ingredient_at_port(self, port:int):
         """Get the ingredient that is connected to a given port.

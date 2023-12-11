@@ -2,7 +2,6 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import NamedTuple
-from .config import BarBotConfig
 
 
 # density relative to that of water
@@ -21,21 +20,12 @@ class IngredientType(Enum):
     SUGAR = "sugar"
 
 @dataclass
-class Ingredient(NamedTuple):
+class Ingredient():
     """Ingredient that can be added to a recipe"""
     identifier:str
     name: str
     type: IngredientType
     color: int
-
-    def is_available(self, config: BarBotConfig):
-        """Check if this ingredient is available at the barbot.
-        :param config: Barbot config, used to check if special ingredients are available"""
-        if self.type == IngredientType.STIRR:
-            return config.stirrer_connected
-        if self.type == IngredientType.SUGAR:
-            return config.sugar_dispenser_connected
-        return self in config.ports.available_ingredients
 
     def alcoholic(self) -> bool:
         """Returns whether the ingredient contains alcohol"""

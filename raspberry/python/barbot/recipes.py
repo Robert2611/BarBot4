@@ -2,7 +2,7 @@
 import os
 import logging
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import NamedTuple, List
 from enum import Enum, auto
 from datetime import datetime, timedelta
 import yaml
@@ -41,7 +41,7 @@ class RecipeItem(NamedTuple):
 class Recipe:
     """Definition of a recipe containing recipe items"""
     def __init__(self):
-        self.items: list[RecipeItem] = []
+        self.items: List[RecipeItem] = []
         self.name = "Neues Rezept"
         self.created = datetime.now()
         self.pre_instruction = ""
@@ -102,7 +102,7 @@ class Recipe:
         :param config: The barbot config to use for cheking if the recipe is available
         """
         for item in self.items:
-            if not item.ingredient.is_available(config):
+            if not config.is_ingredient_available(item.ingredient):
                 return False
         return True
 
@@ -129,7 +129,7 @@ class Recipe:
 class RecipeCollection():
     """Collection holding all recipes"""
     def __init__(self):
-        self._recipes: list[Recipe] = []
+        self._recipes: List[Recipe] = []
 
     def load(self):
         """Load all recipes in the recipes folder and the fixed_recipes folder """
@@ -151,7 +151,7 @@ class RecipeCollection():
                 r.is_fixed = True
                 self._recipes.append(r)
 
-    def get_filtered(self, recipe_filter: RecipeFilter) -> list[Recipe]:
+    def get_filtered(self, recipe_filter: RecipeFilter) -> List[Recipe]:
         """Get a filtered list of recpies using the given filter"""
         # lazy loading
         if self._recipes is None:
@@ -229,7 +229,7 @@ class Order(NamedTuple):
     """Order of a recipe containing the recipe name and a copy of the recipe items"""
     recipe: str
     date: datetime = datetime.now()
-    items: list[OrderItem] = []
+    items: List[OrderItem] = []
 
 class PartyStatistics(NamedTuple):
     """Statistics for a party"""
@@ -237,11 +237,12 @@ class PartyStatistics(NamedTuple):
     cocktail_count: dict[str, int]
     cocktails_by_time: dict[str, int]
     total_cocktails: int
-@dataclass
-class Party(NamedTuple):
+
+class Party():
     """Class that aggregates orders by parties"""
-    orders:list[Order] = []
-    start:datetime = datetime.now()
+    def __init__(self):
+        self.orders:List[Order] = []
+        self.start:datetime = datetime.now()
 
     def add_order(self, recipe: Recipe):
         """Add a new order to the list and save it"""
@@ -285,14 +286,15 @@ class Party(NamedTuple):
         )
 
 
-class PartyCollection(list[Party]):
+class PartyCollection(List[Party]):
     """Collection holding all parties that themselves hold the orders"""
     def __init__(self):
         all_parties = self._get_parties()
         for party in all_parties:
             if len(party.orders) >= PARTY_MIN_ORDER_COUNT:
                 self.append(party)
-        if datetime.now() - self[-1].start <= PARTY_MAX_DURATION:
+        self._current_party = None
+        if len(self) > 0 and datetime.now() - self[-1].start <= PARTY_MAX_DURATION:
             self._current_party = self[-1]
         else:
             self._current_party = Party()
@@ -304,7 +306,7 @@ class PartyCollection(list[Party]):
 
     @staticmethod
     def _get_parties():
-        all_parties:list[Party] = []
+        all_parties:List[Party] = []
         current_party = None
         for file in sorted(os.listdir(orders_directory)):
             if not file.endswith(ORDERS_FILENAME_EXTENSION):

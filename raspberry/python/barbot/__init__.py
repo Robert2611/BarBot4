@@ -3,13 +3,12 @@
 import subprocess
 import logging
 import time
-from typing import Callable, NamedTuple
+from typing import Callable
 from enum import Enum, auto
-from . import ingredients
-from . import communication
+from .ingredients import IngredientType
 from .recipes import PartyCollection,Recipe,RecipeItem
 from .config import BarBotConfig
-from .communication import Mainboard, CommunicationResult
+from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes
 from .communication import ErrorType as CommError
 
 def run_command(cmd_str):
@@ -67,7 +66,7 @@ class _IdleTaskType(Enum):
 
 class _IdleTask():
     """Defines a task to be executed on barbot idle"""
-    def __init__(self,task_type : _IdleTaskType, callback: Callable[[CommunicationResult]],
+    def __init__(self,task_type : _IdleTaskType, callback: Callable[[CommunicationResult], None],
                  command: str, *parameters:str):
         self._task_type = task_type
         self._callback = callback
@@ -94,7 +93,7 @@ class BarBot():
         self._weight_timeout = 1
         self._weight = None
         self._pumps_to_clean = []
-        self._connected_boards = [] if not self._demo_mode else [communication.BoardType.BALANCE]
+        self._connected_boards = [] if not self._demo_mode else [BoardType.BALANCE]
         self._message: UserMessageType = None
         self._progress = 0
         self._add_straw = False
@@ -107,10 +106,10 @@ class BarBot():
         self._parties = PartyCollection()
         self._mainboard = Mainboard()
         # callbacks
-        self.on_mixing_finished: Callable[[Recipe]] = lambda current_recipe: None
-        self.on_mixing_progress_changed: Callable[[int]] = lambda progress: None
-        self.on_state_changed: Callable[[BarBotState]] = lambda state: None
-        self.on_message_changed: Callable[[UserMessageType]] = lambda message: None
+        self.on_mixing_finished: Callable[[Recipe], None] = lambda current_recipe: None
+        self.on_mixing_progress_changed: Callable[[int], None] = lambda progress: None
+        self.on_state_changed: Callable[[BarBotState], None] = lambda state: None
+        self.on_message_changed: Callable[[UserMessageType], None] = lambda message: None
 
         # make sure all state functions are defined
         unknown_state = None
@@ -124,7 +123,7 @@ class BarBot():
     def parties(self) -> PartyCollection:
         """Get the parties collection"""
         return self._parties
-    
+
     @property
     def config(self) -> BarBotConfig:
         """Get the config of the barbot"""
@@ -250,29 +249,29 @@ class BarBot():
             self._set_state(BarBotState.CONNECTING)
             return
         # wait for a status message
-        if self._mainboard.read_message().type != communication.ResponseTypes.STATUS:
+        if self._mainboard.read_message().type != ResponseTypes.STATUS:
             return
         # check all boards that should be connected and warn if they are not
         self._get_boards_connected()
-        if communication.BoardType.BALANCE not in self._connected_boards:
+        if BoardType.BALANCE not in self._connected_boards:
             self._set_message(UserMessageType.BOARD_NOT_CONNECTED_BALANCE)
         if self._config.stirrer_connected \
-            and communication.BoardType.MIXER not in self._connected_boards:
+            and BoardType.MIXER not in self._connected_boards:
             self._set_message(UserMessageType.BOARD_NOT_CONNECTED_MIXER)
             if not self._wait_for_user_input():
                 return
         if self._config.straw_dispenser_connected \
-            and communication.BoardType.STRAW not in self._connected_boards:
+            and BoardType.STRAW not in self._connected_boards:
             self._set_message(UserMessageType.BOARD_NOT_CONNECTED_STRAW)
             if not self._wait_for_user_input():
                 return
         if self._config.ice_crusher_connected \
-            and communication.BoardType.CRUSHER not in self._connected_boards:
+            and BoardType.CRUSHER not in self._connected_boards:
             self._set_message(UserMessageType.BOARD_NOT_CONNECTED_CRUSHER)
             if not self._wait_for_user_input():
                 return
         if self._config.sugar_dispenser_connected \
-            and communication.BoardType.SUGAR not in self._connected_boards:
+            and BoardType.SUGAR not in self._connected_boards:
             self._set_message(UserMessageType.BOARD_NOT_CONNECTED_SUGAR)
             if not self._wait_for_user_input():
                 return
@@ -375,11 +374,11 @@ class BarBot():
         # user aborted
         if self._abort_mixing:
             return False
-        if item.ingredient.type == ingredients.IngredientType.STIRR:
+        if item.ingredient.type == IngredientType.STIRR:
             logging.info("Start stirring")
             self._mainboard.do("Mix", int(self._config.stirring_time / 1000))
             return True
-        if item.ingredient.type == ingredients.IngredientType.SUGAR:
+        if item.ingredient.type == IngredientType.SUGAR:
             # take sugar per unit from config
             weight = int(item.amount * self._config.sugar_per_unit)
             logging.info("Start adding %i g of '%s'", weight, item.ingredient.name)
@@ -390,11 +389,11 @@ class BarBot():
             logging.info("Start adding %i g of '%s' at port %i",\
                 weight, item.ingredient.name, port)
         while True:
-            if item.ingredient.type == ingredients.IngredientType.SUGAR:
+            if item.ingredient.type == IngredientType.SUGAR:
                 result = self._mainboard.do("Sugar", weight)
             else:
                 # TODO: Handle non successfull SET
-                if item.ingredient.type == ingredients.IngredientType.SIRUP:
+                if item.ingredient.type == IngredientType.SIRUP:
                     self._mainboard.set("SetPumpPower", self._config.pump_power_sirup)
                 else:
                     self._mainboard.set("SetPumpPower", self._config.pump_power)
@@ -717,11 +716,11 @@ class BarBot():
         result = self._mainboard.get("GetConnectedBoards")
         self._connected_boards = self._parse_connected_boards(result)
 
-    def _parse_connected_boards(self, bit_values) -> list[communication.BoardType]:
+    def _parse_connected_boards(self, bit_values) -> list[BoardType]:
         """Parse bit values of the connected boards to list of enum"""
         boards = int(bit_values) if bit_values is not None else 0
         #convert bit field to list of enum values
-        return [b for b in communication.BoardType if boards & 1 << b.value]
+        return [b for b in BoardType if boards & 1 << b.value]
 
     def get_boards_connected(self, callback):
         """Get the connected boards when the state machine is idle again.

@@ -51,12 +51,13 @@ class ResponseTypes(Enum):
     COMM_ERROR = auto()
     TIMEOUT = auto()
 
-
-@dataclass
 class CommunicationResult():
     """Result of a command sent to the mainboard"""
-    error: ErrorType = ErrorType.NONE
-    return_parameters: list[str] = []
+    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: list[str] = []):
+        self.error: ErrorType = error
+        self.return_parameters: list[str] = return_parameters
+        
+        
     @property
     def was_successfull(self):
         """Get whether an error code was set"""
