@@ -40,14 +40,16 @@ def qt_icon_from_file_name(file_name) -> Qt.QIcon:
 
 class MainWindow(QtWidgets.QMainWindow):
     """Main window for the barbot"""
+    # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    _barbot_state_trigger = QtCore.pyqtSignal(BarBotState)
+    _mixing_progress_trigger = QtCore.pyqtSignal(int)
+    _message_trigger = QtCore.pyqtSignal(UserMessageType)
+    _show_message_trigger = QtCore.pyqtSignal(str)
+    
     def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
         super().__init__()
         self._barbot = barbot_
         self._current_view : View = None
-        self._barbot_state_trigger = QtCore.pyqtBoundSignal(BarBotState)
-        self._mixing_progress_trigger = QtCore.pyqtBoundSignal(int)
-        self._message_trigger = QtCore.pyqtBoundSignal(UserMessageType)
-        self._show_message_trigger = QtCore.pyqtBoundSignal(str)
         self._last_idle_view : View = None
         self._keyboard: Keyboard = None
         self._timer: QtCore.QTimer
@@ -132,10 +134,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """forward progress if the current view is a busyview"""
         if self._current_view is not None and isinstance(self._current_view, BusyView):
             self._current_view.update_message(message)
-
-    def get_system_view(self) -> QtWidgets.QWidget:
+            
+    def set_system_view(self, container: QtWidgets.QWidget):
         """Get the systems view widget."""
-        container = QtWidgets.QWidget()
         if container.layout() is None:
             container.setLayout(QtWidgets.QVBoxLayout())
 
@@ -148,8 +149,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # close software
         button = QtWidgets.QPushButton("Schließen")
-        button.clicked.connect(
-            lambda: QtWidgets.QApplication.instance().quit())
+        button.clicked.connect(QtWidgets.QApplication.instance().quit)
         container.layout().addWidget(button)
 
         label = QtWidgets.QLabel("PI")
@@ -167,9 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # dummy
         container.layout().addWidget(QtWidgets.QWidget(), 1)
-
-        return container
-
+    
     def restart_barbot(self):
         """Callback to restart the barbot and gui"""
         QtWidgets.QApplication.instance().quit()
@@ -184,12 +182,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self._timer = QtCore.QTimer(self)
             def _reset_admin_button():
                 self._admin_button_active = False
-            self._timer.singleShot(1000, self._reset_admin_button)
+            self._timer.singleShot(1000, _reset_admin_button)
             return
         if not self._barbot.is_busy:
             self.set_view(self.admin_login())
         else:
-            self.set_view(self.get_systems_view())
+            self.set_view(SystemBusyView(self))
 
     def close_keyboard(self):
         """Close the keyboard if it is visible"""
@@ -236,7 +234,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def update_view(self, force_reload=False):
         """Set the view to the busy view if the barbot is busy.
         Else load the last idle view. If none was set, load the recipe list """
-        if not self._barbot.is_busy():
+        if not self._barbot.is_busy:
             if self._last_idle_view is None or force_reload:
                 self.set_view(self.default_view())
             if self._last_idle_view != self._current_view:
@@ -316,6 +314,22 @@ class View(QtWidgets.QWidget):
         """Get the window the view is used for"""
         return self._window
 
+class SystemBusyView(View):
+    def __init__(self, window: MainWindow):
+        super().__init__(window, is_idle_view=False)
+        
+        self.setLayout(QtWidgets.QVBoxLayout())
+        set_no_spacing(self.layout())
+        
+        self.header = QtWidgets.QWidget()
+        self.layout().addWidget(self.header)
+        
+        self._content = QtWidgets.QWidget()
+        self.layout().addWidget(self._content)
+                     
+        # add actual content
+        self.window.set_system_view(self._content)
+        
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
     def __init__(self, window: MainWindow):
@@ -539,7 +553,7 @@ class BusyView(View):
 
     def _init_by_status(self):
         # content
-        if self._mainboard.get_state() == BarBotState.MIXING:
+        if self.window.barbot_.state == BarBotState.MIXING:
 
             # ingredients
             recipe_items_list = QtWidgets.QWidget()
@@ -573,25 +587,25 @@ class BusyView(View):
 
             self._title_label.setText(f"'{self._mainboard.current_recipe().name}'\nwird gemischt.")
 
-        elif self._mainboard.get_state() == BarBotState.CLEANING:
+        elif self.window.barbot_.state == BarBotState.CLEANING:
             self._title_label.setText("Reinigung")
-        elif self._mainboard.get_state() == BarBotState.CONNECTING:
+        elif self.window.barbot_.state == BarBotState.CONNECTING:
             self._title_label.setText("Stelle Verbindung her")
-        elif self._mainboard.get_state() == BarBotState.SEARCHING:
+        elif self.window.barbot_.state == BarBotState.SEARCHING:
             self._title_label.setText("Suche nach BarBots in der Nähe")
-        elif self._mainboard.get_state() == BarBotState.CLEANING_CYCLE:
+        elif self.window.barbot_.state == BarBotState.CLEANING_CYCLE:
             # buttons
             button = QtWidgets.QPushButton("Abbrechen")
             button.clicked.connect(self._mainboard.abort_mixing)
             self._content_container.layout().addWidget(button)
             self._title_label.setText("Reinigung (Zyklus)")
-        elif self._mainboard.get_state() == BarBotState.SINGLE_INGREDIENT:
+        elif self.window.barbot_.state == BarBotState.SINGLE_INGREDIENT:
             self._title_label.setText("Dein Nachschlag wird hinzugefügt")
-        elif self._mainboard.get_state() == BarBotState.STARTUP:
+        elif self.window.barbot_.state == BarBotState.STARTUP:
             self._title_label.setText("Starte BarBot, bitte warten")
-        elif self._mainboard.get_state() == BarBotState.CRUSHING:
+        elif self.window.barbot_.state == BarBotState.CRUSHING:
             self._title_label.setText("Eis wird hinzugefügt")
-        elif self._mainboard.get_state() == BarBotState.STRAW:
+        elif self.window.barbot_.state == BarBotState.STRAW:
             self._title_label.setText("Strohhalm wird hinzugefügt")
         else:
-            self._title_label.setText(f"Unknown status: {self._mainboard.get_state()}")
+            self._title_label.setText(f"Unknown status: {self.window.barbot_.state}")

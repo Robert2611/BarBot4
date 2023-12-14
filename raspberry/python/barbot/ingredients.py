@@ -1,7 +1,7 @@
 """Ingredients"""
 from enum import Enum
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import List
 
 
 # density relative to that of water
@@ -87,7 +87,7 @@ def by_identifier(identifier: str):
     return _ingredientsByIdentifier[identifier]
 
 
-def get_list(only_available = False, only_normal = False, only_weighed = False) -> list[Ingredient]:
+def get_list(only_available = False, only_normal = False, only_weighed = False) -> List[Ingredient]:
     """Get list of ingredients
     :param only_available: If set to true,
     only return ingredients that are currently connected to ports

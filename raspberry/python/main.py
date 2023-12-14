@@ -43,11 +43,14 @@ logging.info("--------------------------")
 is_demo = "-d" in sys.argv[1:]
 bot = BarBot(is_demo)
 recipe_collection = RecipeCollection()
+recipe_collection.load()
 
 # create statemachine
 if not is_demo:
     bar_bot_thread = threading.Thread(target=bot.run)
     bar_bot_thread.start()
+
+app = None
 
 def sigint_handler(*_):
     """Close the gui on interrupt signal"""
@@ -68,7 +71,7 @@ try:
     # start the qt app
     app.exec_()
     # tell the statemachine to stop
-    bot.abort_mixing()
+    bot.abort()
     if not is_demo:
         bar_bot_thread.join()
 except Exception as e:

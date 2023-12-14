@@ -1,7 +1,7 @@
 """This module handles the communication between the barbot and the mainboard"""
 import time
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import NamedTuple, List
 from enum import Enum, auto
 import logging
 import bluetooth
@@ -53,7 +53,7 @@ class ResponseTypes(Enum):
 
 class CommunicationResult():
     """Result of a command sent to the mainboard"""
-    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: list[str] = []):
+    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: List[str] = []):
         self.error: ErrorType = error
         self.return_parameters: list[str] = return_parameters
         
@@ -63,12 +63,11 @@ class CommunicationResult():
         """Get whether an error code was set"""
         return self.error == ErrorType.NONE
 
-@dataclass
 class RawResponse(NamedTuple):
     """A raw message received from the mainboard"""
     message_type: ResponseTypes
     command: str
-    parameters: list[str] = []
+    parameters: List[str] = []
 
 class Mainboard:
     """Class representing the mainboard of the barbot, it is used to handle the communication"""

@@ -598,7 +598,7 @@ class System(UserView):
         self._fixed_content.layout().addWidget(back_button)
 
         # add actual content
-        self.window.add_system_view(self._content)
+        self.window.get_system_view(self._content)
 
 
 class RemoveRecipe(UserView):
@@ -661,7 +661,7 @@ class RemoveRecipe(UserView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-        for recipe in self.window.recipes.get_filtered(self.window.recipe_filter):
+        for recipe in self.window.recipes.get_filtered(self.window.recipe_filter, self.window.barbot_.config):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())

@@ -267,7 +267,7 @@ class Keyboard(QtWidgets.QWidget):
                 self._is_shift = False
                 self.update_keys()
 
-    def add_row(self, keys: list[str]) -> list[QtWidgets.QPushButton]:
+    def add_row(self, keys: List[str]) -> List[QtWidgets.QPushButton]:
         """Add a row defined by a list of characters to the layout
         :param keys: List of key characters to be added
         :retunrs: List of buttons that were added
@@ -357,7 +357,7 @@ class Numpad(QtWidgets.QWidget):
         self.current_value += number
         self._value_label.setText(str(self.current_value))
 
-    def add_row(self, keys:list[str]) -> list[QtWidgets.QPushButton]:
+    def add_row(self, keys: List[str]) -> List[QtWidgets.QPushButton]:
         """Add a row defined by a list of characters to the layout
         :param keys: List of key characters to be added
         :retunrs: List of buttons that were added

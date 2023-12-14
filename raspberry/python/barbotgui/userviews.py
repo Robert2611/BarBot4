@@ -97,7 +97,7 @@ class ListRecipes(UserView):
         self._update_list()
 
     def _update_list(self):
-        recipes = self.window.recipes.get_filtered(self.window.recipe_filter)
+        recipes = self.window.recipes.get_filtered(self.window.recipe_filter, self.window.barbot_.config)
         # clear the list
         while self._listbox.layout().count():
             item = self._listbox.layout().takeAt(0)
@@ -174,7 +174,7 @@ class ListRecipes(UserView):
                 right_column.layout().addWidget(instruction)
 
             # order button
-            if recipe.available():
+            if recipe.is_available(self.window.barbot_.config):
                 icon = qt_icon_from_file_name("order.png")
                 order_button = QtWidgets.QPushButton(icon, "")
                 order_button.setProperty("class", "BtnOrder")
@@ -325,7 +325,7 @@ class RecipeNewOrEdit(UserView):
     def _update_table(self):
         # cocktail size
         size = self._get_cocktail_size()
-        max_size = self.window.barbot_.configmax_cocktail_size
+        max_size = self.window.barbot_.config.max_cocktail_size
         label = self._filling_label
         label.setText("%i von %i cl" % (size, max_size))
         if size > max_size:
@@ -351,7 +351,7 @@ class RecipeNewOrEdit(UserView):
             names = [
                 recipe.name
                 for recipe
-                in self.window.recipes.get_filtered(None)
+                in self.window.recipes.get_filtered(None, self.window.barbot_.config)
             ]
             if self._recipe.name in names:
                 self.window.show_message("Ein Cocktail mit diesem Namen existiert bereits")

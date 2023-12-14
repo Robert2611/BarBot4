@@ -2,7 +2,7 @@
 import os
 import logging
 from dataclasses import dataclass
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Dict
 from enum import Enum, auto
 from datetime import datetime, timedelta
 import yaml
@@ -32,7 +32,6 @@ class RecipeFilter(NamedTuple):
     AvailableOnly: bool = True
     Descending: bool = False
 
-@dataclass
 class RecipeItem(NamedTuple):
     """Single line in a recipe containing an ingredient and amount"""
     ingredient: ingredients.Ingredient
@@ -107,7 +106,7 @@ class Recipe:
         return True
 
     @property
-    def alcoholic(self) -> bool:
+    def is_alcoholic(self) -> bool:
         """A recipe is alcoholic if at least one of its ingredients is alcoholic"""
         for item in self.items:
             if item.ingredient.alcoholic():
@@ -151,7 +150,7 @@ class RecipeCollection():
                 r.is_fixed = True
                 self._recipes.append(r)
 
-    def get_filtered(self, recipe_filter: RecipeFilter) -> List[Recipe]:
+    def get_filtered(self, recipe_filter: RecipeFilter, config : BarBotConfig) -> List[Recipe]:
         """Get a filtered list of recpies using the given filter"""
         # lazy loading
         if self._recipes is None:
@@ -159,9 +158,9 @@ class RecipeCollection():
         filtered = []
         for recipe in self._recipes:
             if recipe_filter is not None:
-                if recipe.alcoholic() != recipe_filter.Alcoholic:
+                if recipe.is_alcoholic != recipe_filter.Alcoholic:
                     continue
-                if recipe_filter.AvailableOnly and not recipe.available():
+                if recipe_filter.AvailableOnly and not recipe.is_available(config):
                     continue
             filtered.append(recipe)
         desc = recipe_filter.Descending if recipe_filter is not None else False
@@ -233,16 +232,16 @@ class Order(NamedTuple):
 
 class PartyStatistics(NamedTuple):
     """Statistics for a party"""
-    ingredients_amount: dict[str, float]
-    cocktail_count: dict[str, int]
-    cocktails_by_time: dict[str, int]
+    ingredients_amount: Dict[str, float]
+    cocktail_count: Dict[str, int]
+    cocktails_by_time: Dict[str, int]
     total_cocktails: int
 
 class Party():
     """Class that aggregates orders by parties"""
-    def __init__(self):
+    def __init__(self, start = datetime.now()):
         self.orders:List[Order] = []
-        self.start:datetime = datetime.now()
+        self.start:datetime = start
 
     def add_order(self, recipe: Recipe):
         """Add a new order to the list and save it"""
@@ -325,7 +324,7 @@ class PartyCollection(List[Party]):
             with open(full_path, "r", encoding="utf-8") as file:
                 orders_data = yaml.safe_load(file)
             # start a new party
-            if current_party is not None \
+            if current_party is None \
             or file_datetime - current_party.start > PARTY_MAX_DURATION:
                 # add the previous one if there is one
                 if current_party is not None:

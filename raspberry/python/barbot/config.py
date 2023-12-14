@@ -2,6 +2,7 @@
 import os
 import sys
 import yaml
+from typing import Dict, List
 from .ingredients import Ingredient, IngredientType
 from .ingredients import by_identifier as ingredient_by_identifier
 
@@ -53,7 +54,7 @@ class BarBotConfig:
             return self.stirrer_connected
         if ingredient_.type == IngredientType.SUGAR:
             return self.sugar_dispenser_connected
-        return ingredient_ in self.ports.available_ingredients
+        return ingredient_ in self.ports.connected_ingredients
 
     def save(self):
         """Save the current config values to the hard drive"""
@@ -90,7 +91,7 @@ class PortConfiguration:
         if not self.load():
             self.save()
 
-    def update(self, new_ports:dict[int, Ingredient]):
+    def update(self, new_ports:Dict[int, Ingredient]):
         """Update the port list with a new port to  ingredient list"""
         self._list.update(new_ports)
 
@@ -110,7 +111,6 @@ class PortConfiguration:
             if list_ingredient == ingredient:
                 return port
         return None
-
 
     def save(self):
         """ Save the current port configuration
@@ -147,12 +147,14 @@ class PortConfiguration:
             return False
 
     @property
-    def available_ingredients(self) -> set[Ingredient]:
+    def connected_ingredients(self) -> List[Ingredient]:
         """Get a list of all connected ingredients"""
-        return set(self._list.values())
+        return [ i for i in self._list.values() if i is not None ]
 
 def _get_version():
     """Get version from 'version.txt'"""
+    if not os.path.exists(__version_file):
+        return None
     try:
         with open(__version_file, "r", encoding="utf-8") as f:
             result = f.read()

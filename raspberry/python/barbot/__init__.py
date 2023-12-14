@@ -3,7 +3,7 @@
 import subprocess
 import logging
 import time
-from typing import Callable
+from typing import Callable, List
 from enum import Enum, auto
 from .ingredients import IngredientType
 from .recipes import PartyCollection,Recipe,RecipeItem
@@ -204,8 +204,8 @@ class BarBot():
             # call self._do function
             func = getattr(self, self._get_state_function_name(self._state))
             func()
-            if self._set_state not in \
-                [BarBotState.STARTUP, BarBotState.IDLE, BarBotState.CONNECTING]:
+            if self._state not in \
+                [BarBotState.STARTUP, BarBotState.IDLE, BarBotState.CONNECTING, BarBotState.SEARCHING]:
                 self._go_to_idle()
 
         if not self._demo_mode:
@@ -294,6 +294,11 @@ class BarBot():
         logging.warning("Mixing aborted")
         # abort can be sent synchronously
         self._mainboard.send_abort()
+
+    def abort(self):
+        """Abort the barbot state machine"""
+        self._abort_mixing = True
+        self._abort = True 
 
     def _set_state(self, state):
         self._state = state
@@ -688,7 +693,7 @@ class BarBot():
         self._pumps_to_clean = [port]
         self._set_state(BarBotState.CLEANING_CYCLE)
 
-    def start_cleaning_cycle(self, pumps_to_clean:list[int]):
+    def start_cleaning_cycle(self, pumps_to_clean:List[int]):
         """Start a cleaning cycle.
         :param pumps_to_clean: List of ports to clean successively"""
         self._abort_mixing = False
@@ -716,7 +721,7 @@ class BarBot():
         result = self._mainboard.get("GetConnectedBoards")
         self._connected_boards = self._parse_connected_boards(result)
 
-    def _parse_connected_boards(self, bit_values) -> list[BoardType]:
+    def _parse_connected_boards(self, bit_values) -> List[BoardType]:
         """Parse bit values of the connected boards to list of enum"""
         boards = int(bit_values) if bit_values is not None else 0
         #convert bit field to list of enum values
