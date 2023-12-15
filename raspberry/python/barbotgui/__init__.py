@@ -5,8 +5,7 @@ import platform
 import sys
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 from barbot import BarBot, UserMessageType, BarBotState, run_command
-from barbot.ingredients import Ingredient, IngredientType
-from barbot.ingredients import get_list as get_ingredient_list
+from barbot.config import Ingredient, IngredientType
 from barbot.recipes import RecipeCollection, RecipeFilter
 from barbotgui.controls import Keyboard, Numpad, set_no_spacing
 
@@ -285,7 +284,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :param only_normal: If set to true, only return ingredients that are pumped
         :param only_weighed: If set to true, only return ingredients that are added by weight    
         """
-        entries = get_ingredient_list(only_available, only_normal, only_weighed)
+        entries = self.barbot_.config.get_ingredient_list(only_available, only_normal, only_weighed)
         # add ingredient name
         widget = QtWidgets.QComboBox()
         widget.addItem("-", None)

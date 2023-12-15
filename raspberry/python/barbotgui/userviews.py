@@ -4,10 +4,8 @@ from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 import barbotgui
 from barbotgui import View, MainWindow, set_no_spacing, qt_icon_from_file_name
 from barbotgui.controls import GlasFilling, GlasIndicator, BarChart
-from barbot.recipes import RecipeItem, Recipe
-from barbot.ingredients import IngredientType
-from barbot.ingredients import Stir as StirIngredient
-from barbot.recipes import Party
+from barbot.recipes import RecipeItem, Recipe, Party
+from barbot.config import IngredientType, Stir as StirIngredient
 
 
 class UserView(View):
@@ -189,7 +187,7 @@ class ListRecipes(UserView):
         self.window.set_view(RecipeNewOrEdit(self.window, recipe))
 
     def _order(self, recipe):
-        if self.window.barbot_.is_busy():
+        if self.window.barbot_.is_busy:
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
@@ -484,7 +482,7 @@ class SingleIngredient(UserView):
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def _start(self, action_type):
-        if self.window.barbot_.is_busy():
+        if self.window.barbot_.is_busy:
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
@@ -561,10 +559,10 @@ class Statistics(UserView):
         self._content.layout().addWidget(self._content_wrapper)
 
         # initialize with date of last party
-        self._update(self.parties[0] if self.parties else None)
+        self._update(self.window.barbot_.parties.current_party)
 
     def _update(self, party: Party):
-        if party is None:
+        if party is None or len(party.orders) == 0:
             return
 
         statistics = party.get_statistics()
@@ -588,9 +586,8 @@ class Statistics(UserView):
         container.layout().addWidget(label)
         # ingrediends
         data = [
-            (ingr.name, amount / 100.0)
+            (ingr, amount / 100.0)
             for ingr, amount in statistics.ingredients_amount.items()
-            if ingr.type != IngredientType.STIRR
         ]
         chart = BarChart(data)
         container.layout().addWidget(chart)

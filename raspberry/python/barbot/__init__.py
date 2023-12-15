@@ -5,9 +5,8 @@ import logging
 import time
 from typing import Callable, List
 from enum import Enum, auto
-from .ingredients import IngredientType
 from .recipes import PartyCollection,Recipe,RecipeItem
-from .config import BarBotConfig
+from .config import BarBotConfig, IngredientType
 from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes
 from .communication import ErrorType as CommError
 

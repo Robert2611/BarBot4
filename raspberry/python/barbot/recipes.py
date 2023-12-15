@@ -1,12 +1,12 @@
 """Recipes"""
 import os
 import logging
-from dataclasses import dataclass
 from typing import NamedTuple, List, Dict
+from dataclasses import dataclass
 from enum import Enum, auto
 from datetime import datetime, timedelta
 import yaml
-from . import ingredients
+from .config import Ingredient, IngredientType, get_ingredient_by_identifier
 from .config import recipes_directory, fixed_recipes_directory
 from .config import old_recipes_directory, orders_directory
 from .config import BarBotConfig
@@ -24,8 +24,8 @@ class RecipeSorting(Enum):
     #TODO: Implement sorting by makes
     MAKES = auto()
 
-
-class RecipeFilter(NamedTuple):
+@dataclass
+class RecipeFilter():
     """Describes how the recipes should be filtered"""
     Alcoholic: bool = True
     Sorting: RecipeSorting = RecipeSorting.NEWEST
@@ -34,7 +34,7 @@ class RecipeFilter(NamedTuple):
 
 class RecipeItem(NamedTuple):
     """Single line in a recipe containing an ingredient and amount"""
-    ingredient: ingredients.Ingredient
+    ingredient: Ingredient
     amount: int
 
 class Recipe:
@@ -90,7 +90,7 @@ class Recipe:
             if self_item.ingredient != recipe.items[index].ingredient:
                 return False
             # ignore the amount for stirring
-            if self_item.ingredient.type == ingredients.IngredientType.STIRR:
+            if self_item.ingredient.type == IngredientType.STIRR:
                 continue
             if self_item.amount != recipe.items[index].amount:
                 return False
@@ -213,7 +213,7 @@ def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
         r.items = []
         for item_data in data["items"]:
             # all errors are handled by the try catch
-            ingredient = ingredients.by_identifier(item_data["ingredient"])
+            ingredient = get_ingredient_by_identifier(item_data["ingredient"])
             item = RecipeItem(ingredient, item_data["amount"])
             r.items.append(item)
         return r
@@ -224,11 +224,19 @@ class OrderItem(NamedTuple):
     """Items of an order, it is like a recipe item but the ingredient is a string"""
     amount: int
     ingredient: str
+
 class Order(NamedTuple):
     """Order of a recipe containing the recipe name and a copy of the recipe items"""
     recipe: str
     date: datetime = datetime.now()
     items: List[OrderItem] = []
+
+def get_order_from_json(data: dict):
+    """Create a Order object from serialized json data dict.
+    :param data: The parsed JSON data
+    :returns: A new Order with data from the JSON"""
+    items = [OrderItem(line['amount'], line['ingredient']) for line in data['items']]
+    return Order(data['recipe'], data['date'], items)
 
 class PartyStatistics(NamedTuple):
     """Statistics for a party"""
@@ -273,10 +281,10 @@ class Party():
             _increase_entry(cocktail_count, order.recipe)
             hour = datetime(order.date.year, order.date.month, order.date.day, order.date.hour)
             _increase_entry(cocktails_by_time, hour)
-            for item in order["items"]:
-                ing = ingredients.by_identifier(item["ingredient"])
-                if ing.type != ingredients.IngredientType.STIRR:
-                    _increase_entry(ingredients_amount, ing, item["amount"])
+            for item in order.items:
+                ing = get_ingredient_by_identifier(item.ingredient)
+                if ing.type != IngredientType.STIRR:
+                    _increase_entry(ingredients_amount, ing.name, item.amount)
         return PartyStatistics(
             ingredients_amount,
             cocktail_count,
@@ -297,6 +305,7 @@ class PartyCollection(List[Party]):
             self._current_party = self[-1]
         else:
             self._current_party = Party()
+            self.append(self._current_party)
 
     @property
     def current_party(self):
@@ -333,7 +342,7 @@ class PartyCollection(List[Party]):
                 current_party = Party(start=file_datetime)
             # add all orders from the file
             for order in orders_data:
-                current_party.orders.append(order)
+                current_party.orders.append(get_order_from_json(order))
         # also add the last party
         if current_party is not None:
             all_parties.append(current_party)
