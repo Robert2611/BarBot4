@@ -8,6 +8,7 @@ ECHO C - Crusher
 ECHO M - Mainboard
 ECHO S - Straw
 ECHO X - Mixer
+ECHO Z - Zucker
 ECHO -------------
 
 SET /P M=Buchstaben eingeben und ENTER druecken:
@@ -16,6 +17,7 @@ IF %M%==B SET folder=balance
 IF %M%==C SET folder=crusher
 IF %M%==S SET folder=straw
 IF %M%==X SET folder=mixer
+IF %M%==Z SET folder=sugar
 
 ECHO %folder% wurde gewaehlt
 ECHO.

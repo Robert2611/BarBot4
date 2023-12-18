@@ -4,9 +4,15 @@
 #include "WireProtocol.h"
 #include "Servo.h"
 
+#ifdef ARDUINO_AVR_NANO
 #define SERIAL_DEBUG
 #define PIN_SERVO 9
 #define PIN_LED 13
+#else
+// mixer pcb
+#define PIN_SERVO 5   //PD5
+#define PIN_LED 4     //PD4
+#endif
 
 #define SERVO_CLOSED 115
 #define SERVO_OPEN 0
