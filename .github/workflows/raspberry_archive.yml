@@ -48,6 +48,11 @@ jobs:
         cd firmware/crusher/
         platformio run -e atmega_usbasp
         cp .pio/build/atmega_usbasp/firmware.hex ../crusher.hex
+    - name: Build sugar firmware
+      run: |
+        cd firmware/sugar/
+        platformio run -e atmega_usbasp
+        cp .pio/build/atmega_usbasp/firmware.hex ../crusher.hex
     - name: Firmware Archive
       run: |
         cd firmware
@@ -55,6 +60,7 @@ jobs:
         zip firmware.zip mixer.hex
         zip firmware.zip straw.hex
         zip firmware.zip crusher.hex
+        zip Firmware.zip sugar.hex
         zip firmware.zip tool-avrdude/*
         zip firmware.zip mainboard.bin
         zip firmware.zip esptool/*
