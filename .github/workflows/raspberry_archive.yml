@@ -52,7 +52,7 @@ jobs:
       run: |
         cd firmware/sugar/
         platformio run -e atmega_usbasp
-        cp .pio/build/atmega_usbasp/firmware.hex ../crusher.hex
+        cp .pio/build/atmega_usbasp/firmware.hex ../sugar.hex
     - name: Firmware Archive
       run: |
         cd firmware
