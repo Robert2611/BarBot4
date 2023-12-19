@@ -204,17 +204,20 @@ class RecipeNewOrEdit(UserView):
         if recipe is not None:
             self._original_recipe = recipe
             self._recipe = recipe.copy()
-            self._new = False
+            self._is_new_cocktail = False
         else:
             self._recipe = Recipe()
             self._original_recipe = None
-            self._new = True
+            self._is_new_cocktail = True
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         # title
         title = QtWidgets.QLabel(
-            "Neues Rezept" if self._new else "Rezept bearbeiten")
+            "Neues Rezept"
+            if self._is_new_cocktail
+            else "Rezept bearbeiten"
+        )
         title.setProperty("class", "Headline")
         self._fixed_content.layout().addWidget(title)
 
@@ -262,7 +265,7 @@ class RecipeNewOrEdit(UserView):
         self._ingredient_widgets = []
         for i in range(10):
             # get selected checkbox entry or default
-            if not self._new and i < len(self._recipe.items):
+            if not self._is_new_cocktail and i < len(self._recipe.items):
                 selected_amount = self._recipe.items[i].amount
                 selected_ingredient = self._recipe.items[i].ingredient
             else:
@@ -344,7 +347,7 @@ class RecipeNewOrEdit(UserView):
         if self._recipe.name is None or self._recipe.name == "":
             self.window.show_message("Bitte einen Namen eingeben")
             return
-        if self._new or self._recipe.name != self._original_recipe.name:
+        if self._is_new_cocktail or self._recipe.name != self._original_recipe.name:
             # name changed or new recipe
             names = [
                 recipe.name
@@ -355,7 +358,7 @@ class RecipeNewOrEdit(UserView):
                 self.window.show_message("Ein Cocktail mit diesem Namen existiert bereits")
                 return
         size = self._get_cocktail_size()
-        if size > self.window.barbot_.configmax_cocktail_size:
+        if size > self.window.barbot_.config.max_cocktail_size:
             self.window.show_message("Dein Cocktail ist zu groß.")
             return
         if size == 0:
@@ -378,14 +381,14 @@ class RecipeNewOrEdit(UserView):
             else:
                 item = RecipeItem(ingredient, amount)
             self._recipe.items.append(item)
-        if not self._new and self._recipe.equal_to(self._original_recipe):
+        if not self._is_new_cocktail and self._recipe.equal_to(self._original_recipe):
             self.window.show_message("Rezept wurde nicht verändert")
             return
         # save copy or new recipe
-        if not self._new:
+        if not self._is_new_cocktail:
             self.window.recipes.remove(self._original_recipe)
         self.window.recipes.add(self._recipe)
-        if self._new:
+        if self._is_new_cocktail:
             self._reload_with_message("Neues Rezept gespeichert")
         else:
             self._reload_with_message("Rezept gespeichert")
@@ -543,10 +546,14 @@ class Statistics(UserView):
         row.layout().addWidget(label)
         # - dropdown
         dates_widget = QtWidgets.QComboBox()
-        for party in self.window.barbot_.parties:
+        selected_party_index = 0
+        for index, party in enumerate(self.window.barbot_.parties):
             dates_widget.addItem(party.start.strftime("%Y-%m-%d"), party)
+            if party == self.window.barbot_.parties.current_party:
+                selected_party_index = index
+        dates_widget.setCurrentIndex(selected_party_index)
         dates_widget.currentIndexChanged.connect(
-            lambda newDate: self._update(dates_widget.currentData())
+            lambda _: self._update(dates_widget.currentData())
         )
         row.layout().addWidget(dates_widget)
 
@@ -558,10 +565,15 @@ class Statistics(UserView):
         barbotgui.set_no_spacing(self._content_wrapper.layout())
         self._content.layout().addWidget(self._content_wrapper)
 
-        # initialize with date of last party
+        # initialize with date of last party        
         self._update(self.window.barbot_.parties.current_party)
 
     def _update(self, party: Party):
+        
+        if self.content is not None:
+            # setting the parent of the previos content to None will destroy it
+            self.content.setParent(None)
+            
         if party is None or len(party.orders) == 0:
             return
 
@@ -581,13 +593,13 @@ class Statistics(UserView):
 
         # total liters
         total_amount = sum(statistics.ingredients_amount.values()) / 100.0
-        label = QtWidgets.QLabel(
-            "Verbrauchte Zutaten ({0:.2g} l)".format(total_amount))
+        label = QtWidgets.QLabel("Verbrauchte Zutaten ({0:.2g} l)".format(total_amount))
         container.layout().addWidget(label)
         # ingrediends
         data = [
             (ingr, amount / 100.0)
-            for ingr, amount in statistics.ingredients_amount.items()
+            for ingr, amount
+            in statistics.ingredients_amount.items()
         ]
         chart = BarChart(data)
         container.layout().addWidget(chart)
@@ -605,9 +617,6 @@ class Statistics(UserView):
         container.layout().addWidget(chart)
 
         # set content
-        if self.content is not None:
-            # setting the parent of the previos content to None will destroy it
-            self.content.setParent(None)
         self.content = container
         self._content_wrapper.layout().addWidget(container)
 
@@ -640,7 +649,7 @@ class OrderRecipe(UserView):
         centered.layout().addWidget(container)
 
         # ask for ice if module is connected
-        if self.window.barbot_.configice_crusher_connected:
+        if self.window.barbot_.config.ice_crusher_connected:
             icon = barbotgui.qt_icon_from_file_name("ice.png")
             ice_button = QtWidgets.QPushButton(icon, "")
             ice_button.setCheckable(True)
@@ -652,7 +661,7 @@ class OrderRecipe(UserView):
             self._cb_ice = None
 
         # ask for straw if module is connected
-        if self.window.barbot_.configstraw_dispenser_connected:
+        if self.window.barbot_.config.straw_dispenser_connected:
             icon = barbotgui.qt_icon_from_file_name("straw.png")
             straw_button = QtWidgets.QPushButton(icon, "")
             straw_button.setCheckable(True)

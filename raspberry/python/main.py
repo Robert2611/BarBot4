@@ -46,9 +46,8 @@ recipe_collection = RecipeCollection()
 recipe_collection.load()
 
 # create statemachine
-if not is_demo:
-    bar_bot_thread = threading.Thread(target=bot.run)
-    bar_bot_thread.start()
+bar_bot_thread = threading.Thread(target=bot.run)
+bar_bot_thread.start()
 
 app = None
 
@@ -72,8 +71,7 @@ try:
     app.exec_()
     # tell the statemachine to stop
     bot.abort()
-    if not is_demo:
-        bar_bot_thread.join()
+    bar_bot_thread.join()
 except Exception as e:
     logging.error(traceback.format_exc())
     with open(exception_file_path, 'a', encoding="utf-8") as f:

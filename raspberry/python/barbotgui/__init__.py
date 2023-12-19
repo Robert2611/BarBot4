@@ -292,7 +292,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, item in enumerate(entries):
             widget.addItem(str(item.name), item)
             if item == selected_ingredient:
-                widget.setCurrentIndex(i)
+                widget.setCurrentIndex(i + 1)
         return widget
 
 class View(QtWidgets.QWidget):
@@ -569,10 +569,10 @@ class BusyView(View):
                 recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), self._row_index, 1)
                 self._row_index += 1
 
-            for item in self._mainboard.current_recipe().items:
+            for item in self.window.barbot_.current_recipe.items:
                 add_widget(item.ingredient.name)
 
-            if self._mainboard.add_straw:
+            if self.window.barbot_._add_straw:
                 add_widget("Strohhalm")
             if self._mainboard.add_ice:
                 add_widget("Eis")

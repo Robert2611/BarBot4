@@ -598,7 +598,7 @@ class System(UserView):
         self._fixed_content.layout().addWidget(back_button)
 
         # add actual content
-        self.window.get_system_view(self._content)
+        self.window.set_system_view(self._content)
 
 
 class RemoveRecipe(UserView):

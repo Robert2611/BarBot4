@@ -31,8 +31,9 @@ class RecipeFilter():
     Sorting: RecipeSorting = RecipeSorting.NEWEST
     AvailableOnly: bool = True
     Descending: bool = False
-
-class RecipeItem(NamedTuple):
+    
+@dataclass
+class RecipeItem():
     """Single line in a recipe containing an ingredient and amount"""
     ingredient: Ingredient
     amount: int
