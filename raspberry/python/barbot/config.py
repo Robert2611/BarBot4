@@ -82,16 +82,12 @@ _ingredients = [
     Sugar
 ]
 
-# for faster access
-_ingredientsByIdentifier = {
-    ingredient.identifier: ingredient
-    for ingredient in _ingredients
-}
-
-
 def get_ingredient_by_identifier(identifier: str):
     """Get an ingredient based on its identifier"""
-    return _ingredientsByIdentifier[identifier]
+    for ingredient in _ingredients:
+        if identifier == ingredient.identifier:
+            return ingredient
+    return None
 
 
 # pylint: disable=locally-disabled, too-many-instance-attributes
@@ -119,6 +115,8 @@ class BarBotConfig:
     def __init__(self):
         self._filename = os.path.join(data_directory, "config.yaml")
         self.ports = PortConfiguration()
+        cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
+        self._fields = [field for field, type in cls_annotations.items()]
         if not self.load():
             self.save()
 
@@ -155,8 +153,7 @@ class BarBotConfig:
 
     def save(self):
         """Save the current config values to the hard drive"""
-        cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
-        values = { field : getattr(self, field) for field, type in cls_annotations.items() }
+        values = { field : getattr(self, field) for field in self._fields }
         with open(self._filename, 'w', encoding="utf-8") as configfile:
             yaml.dump(values, configfile)
 
@@ -177,7 +174,7 @@ class BarBotConfig:
         # update fields with values from
         for field in self._fields:
             if field in data.keys():
-                setattr(sys.modules[__name__], field, data[field])
+                setattr(self, field, data[field])
         return True
 
 class PortConfiguration:

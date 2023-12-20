@@ -1,3 +1,4 @@
 *.pyc
 *.py.bak
 __pycache__/
+test/.barbot

@@ -189,7 +189,9 @@ class BarBot():
 
     def reconnect(self):
         """Reinitiate the connection procedure"""
-        self._set_state(BarBotState.CONNECTING)
+        # in demo mode there is nothing to do here
+        if not self._demo_mode:
+            self._set_state(BarBotState.CONNECTING)
 
     def _get_state_function_name(self, state: BarBotState) -> str:
         """Get the name of the barbot function to be called within the defined state.
