@@ -10,7 +10,7 @@ from datetime import datetime
 import psutil
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QTimer
-from barbotgui import MainWindow
+from barbotgui import *
 from barbot import BarBot
 from barbot.recipes import RecipeCollection
 from barbot.config import log_directory

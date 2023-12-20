@@ -308,7 +308,7 @@ class Numpad(QtWidgets.QWidget):
 
         if style is not None:
             self.setStyleSheet(style)
-        elf.setCursor(QtCore.Qt.BlankCursor)
+        self.setCursor(QtCore.Qt.BlankCursor)
         # move to bottom of the screen
         desktop = Qt.QApplication.desktop().availableGeometry()
         desired = Qt.QRect(Qt.QPoint(0, 0), self.sizeHint())

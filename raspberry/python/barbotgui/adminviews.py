@@ -4,12 +4,12 @@ from barbot.communication import BoardType
 from barbot.config import version as barbot_version
 from barbot.recipes import Recipe
 from barbot.config import PORT_COUNT
-from barbotgui import MainWindow, qt_icon_from_file_name
+from barbotgui.core import BarBotWindow, qt_icon_from_file_name, View
 from barbotgui.userviews import UserView
 
 class AdminLogin(UserView):
     """Login screen for the admin menu"""
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._entered_password = ""
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -71,7 +71,7 @@ class AdminLogin(UserView):
         self._update()
 
     def check_password(self):
-        if self._entered_password == self.window.barbot_.config.admin_password:
+        if self._entered_password == self.barbot_.config.admin_password:
             self.window.set_view(Overview(self.window))
         self.clear_password()
 
@@ -79,7 +79,7 @@ class AdminLogin(UserView):
 class Overview(UserView):
     _is_deleted = False
 
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
@@ -131,7 +131,7 @@ class Overview(UserView):
         wrapper.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(wrapper)
         for board, icon in self.boards:
-            connected = board in self.window.barbot_._connected_boards
+            connected = board in self.barbot_._connected_boards
             # board icon
             icon = qt_icon_from_file_name(icon)
             button_board_icon = QtWidgets.QPushButton(icon, "")
@@ -165,10 +165,10 @@ class Overview(UserView):
         # Timer for updating the current weight display
         self._update_timer = QtCore.QTimer(self)
         self._update_timer.timeout.connect(
-            lambda: self.window.barbot_.get_weight(self.set_weight_label))
+            lambda: self.barbot_.get_weight(self.set_weight_label))
         self._update_timer.start(500)
 
-        self.window.barbot_.get_weight(self.set_weight_label)
+        self.barbot_.get_weight(self.set_weight_label)
 
     def set_weight_label(self, weight):
         weight = weight if weight is not None else "-"
@@ -191,7 +191,7 @@ class Overview(UserView):
 
 
 class Ports(UserView):
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -216,7 +216,7 @@ class Ports(UserView):
         for i in range(PORT_COUNT):
             label = QtWidgets.QLabel(f"Position {(i+1)}")
             table.layout().addWidget(label, i, 0)
-            ingredient = self.window.barbot_.config.ports.ingredient_at_port(i)
+            ingredient = self.barbot_.config.ports.ingredient_at_port(i)
             cb_port = self.window.combobox_ingredients(ingredient, only_normal=True)
             self._ingredient_widgets[i] = cb_port
             table.layout().addWidget(cb_port, i, 1)
@@ -247,14 +247,14 @@ class Ports(UserView):
             )
             return
         # update the ports list and save it
-        self.window.barbot_.config.ports.update(new_ports)
-        self.window.barbot_.config.ports.save()
+        self.barbot_.config.ports.update(new_ports)
+        self.barbot_.config.ports.save()
         self.window.show_message("Positionen wurden gespeichert.")
 
 
 class BalanceCalibration(UserView):
 
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._tare_and_calibrate = False
         self._entered_weight = 0        
@@ -310,7 +310,7 @@ class BalanceCalibration(UserView):
         center_box.layout().addWidget(row)
 
         ok_button = QtWidgets.QPushButton("OK")
-        ok_button.clicked.connect(lambda: self.window.barbot_.get_weight(self._tare))
+        ok_button.clicked.connect(lambda: self.barbot_.get_weight(self._tare))
         row.layout().addWidget(ok_button)
 
         cancel_button = QtWidgets.QPushButton("Abbrechen")
@@ -394,15 +394,15 @@ class BalanceCalibration(UserView):
 
     def _tare(self, tare_weight):
         self.tare_weight = tare_weight
-        self.new_offset = self.window.barbot_.config.balance_offset + \
-            self.tare_weight * self.window.barbot_.config.balance_calibration
+        self.new_offset = self.barbot_.config.balance_offset + \
+            self.tare_weight * self.barbot_.config.balance_calibration
         if self._tare_and_calibrate:
             # continue with calibration
             self._show_dialog_enter_weight()
         else:
             # tare only: set offset, keep calibration
-            self.window.barbot_.set_balance_calibration(
-                self.new_offset, self.window.barbot_.config.balance_calibration)
+            self.barbot_.set_balance_calibration(
+                self.new_offset, self.barbot_.config.balance_calibration)
             self.window.show_message("Kalibrierung wurde gespeichert")
             self._show_calibration_buttons()
 
@@ -410,10 +410,10 @@ class BalanceCalibration(UserView):
         if self._entered_weight > 0:
             def set_calibration_and_save(weight):
                 cal = (weight-self.tare_weight) * \
-                    self.window.barbot_.config.balance_calibration/self._entered_weight
-                self.window.barbot_.set_balance_calibration(self.new_offset, cal)
+                    self.barbot_.config.balance_calibration/self._entered_weight
+                self.barbot_.set_balance_calibration(self.new_offset, cal)
                 self.window.show_message("Kalibrierung gespeichert")
-            self.window.barbot_.get_weight(set_calibration_and_save)
+            self.barbot_.get_weight(set_calibration_and_save)
         else:
             self.window.show_message("Bitte ein Gewicht eingeben")
         self._show_calibration_buttons()
@@ -441,7 +441,7 @@ class BalanceCalibration(UserView):
 
 
 class Cleaning(UserView):
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -488,18 +488,18 @@ class Cleaning(UserView):
 
     def _clean_left(self):
         data = range(0, 6)
-        self.window.barbot_.start_cleaning_cycle(data)
+        self.barbot_.start_cleaning_cycle(data)
 
     def _clean_right(self):
         data = range(6, 12)
-        self.window.barbot_.start_cleaning_cycle(data)
+        self.barbot_.start_cleaning_cycle(data)
 
     def _clean_single(self, port):
-        self.window.barbot_.start_cleaning(port)
+        self.barbot_.start_cleaning(port)
 
 
 class Settings(UserView):
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -536,7 +536,7 @@ class Settings(UserView):
         form_widget.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(form_widget)
         row = 0
-        config = self.window.barbot_.config
+        config = self.barbot_.config
         for entry in self.entries:
             label = QtWidgets.QLabel(entry["name"])
             if entry["type"] == int:
@@ -564,7 +564,7 @@ class Settings(UserView):
         self._content.layout().addWidget(save_button)
 
     def _save(self):
-        config = self.window.barbot_.config
+        config = self.barbot_.config
         for entry in self.entries:
             if entry["type"] == int:
                 setattr(config, entry["setting"], entry["widget"].value())
@@ -573,14 +573,14 @@ class Settings(UserView):
                         entry["widget"].isChecked())
             else:
                 setattr(config, entry["setting"], entry["widget"].text())
-        self.window.barbot_.config.save()
-        self.window.barbot_.reconnect()
+        self.barbot_.config.save()
+        self.barbot_.reconnect()
         self.window.show_message(
             "Einstellungen wurden gespeichert, barbot wird neu gestartet")
 
 
 class System(UserView):
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
@@ -598,13 +598,13 @@ class System(UserView):
         self._fixed_content.layout().addWidget(back_button)
 
         # add actual content
-        self.window.set_system_view(self._content)
+        View.set_system_view(self._content)
 
 
 class RemoveRecipe(UserView):
     _list = None
 
-    def __init__(self, window: MainWindow):
+    def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._recipe:Recipe = None
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -661,7 +661,7 @@ class RemoveRecipe(UserView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-        for recipe in self.window.recipes.get_filtered(self.window.recipe_filter, self.window.barbot_.config):
+        for recipe in self.window.recipes.get_filtered(None, self.barbot_.config):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())
