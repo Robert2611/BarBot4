@@ -97,37 +97,28 @@ def get_ingredient_by_identifier(identifier: str):
 # pylint: disable=locally-disabled, too-many-instance-attributes
 class BarBotConfig:
     """Configuration for the barbot"""
+    # fields
+    mac_address:str = ""
+    max_speed:int = 200
+    max_accel:int = 300
+    max_cocktail_size:int = 30
+    admin_password:str = "0000"
+    pump_power:int = 100
+    pump_power_sirup:int = 255
+    balance_offset:int = -119.1
+    balance_calibration:int = -1040
+    cleaning_time:int = 3000
+    stirrer_connected:bool = True
+    stirring_time:int = 3000
+    ice_crusher_connected:bool = False
+    ice_amount:int = 100
+    straw_dispenser_connected:bool = False
+    sugar_dispenser_connected:bool = False
+    sugar_per_unit:int = 4
+    
     def __init__(self):
         self._filename = os.path.join(data_directory, "config.yaml")
-
-        self.mac_address = ""
-        self.max_speed = 200
-        self.max_accel = 300
-        self.max_cocktail_size = 30
-        self.admin_password = "0000"
-        self.pump_power = 100
-        self.pump_power_sirup = 255
-        self.balance_offset = -119.1
-        self.balance_calibration = -1040
-        self.cleaning_time = 3000
-        self.stirrer_connected = True
-        self.stirring_time = 3000
-        self.ice_crusher_connected = False
-        self.ice_amount = 100
-        self.straw_dispenser_connected = False
-        self.sugar_dispenser_connected = False
-        self.sugar_per_unit = 4
-
         self.ports = PortConfiguration()
-
-        # all public attribute
-        self._fields = [
-            name for name in dir(self)
-            if not name.startswith('_')
-            # exclude complex types
-            and name not in ["ports"]
-        ]
-
         if not self.load():
             self.save()
 
@@ -164,7 +155,8 @@ class BarBotConfig:
 
     def save(self):
         """Save the current config values to the hard drive"""
-        values = { field : getattr(self, field) for field in self._fields }
+        cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
+        values = { field : getattr(self, field) for field, type in cls_annotations.items() }
         with open(self._filename, 'w', encoding="utf-8") as configfile:
             yaml.dump(values, configfile)
 
@@ -278,6 +270,7 @@ def _create_if_not_exists(*path):
     if not os.path.exists(folder):
         os.makedirs(folder)
     return folder
+
 fixed_recipes_directory = _create_if_not_exists(data_directory, "fixed_recipes")
 recipes_directory = _create_if_not_exists(data_directory, "recipes")
 old_recipes_directory = _create_if_not_exists(data_directory, "old_recipes")
