@@ -3,7 +3,7 @@
 import subprocess
 import logging
 import time
-from typing import Callable, List
+from typing import Callable, List, NamedTuple
 from enum import Enum, auto
 from .recipes import PartyCollection,Recipe,RecipeItem
 from .config import BarBotConfig, IngredientType
@@ -15,7 +15,6 @@ def run_command(cmd_str):
     :param cmd_str: Command to be executed
     """
     subprocess.Popen([cmd_str], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True)
-
 
 class UserMessageType(Enum):
     """Enumeration of possible messages to be shown to the user"""
@@ -82,6 +81,11 @@ class _IdleTask():
         if self._callback is not None:
             self._callback(result)
 
+class MixingOptions(NamedTuple):
+    recipe: Recipe
+    add_straw: bool = False
+    add_ice: bool = False
+
 class BarBot():
     """The main class containing the statemachine of the barbot"""
     def __init__(self, demo_mode = False):
@@ -95,15 +99,14 @@ class BarBot():
         self._connected_boards = [] if not self._demo_mode else [BoardType.BALANCE]
         self._message: UserMessageType = None
         self._progress = 0
-        self._add_straw = False
-        self._add_ice = False
         self._idle_tasks: list[_IdleTask] = []
         self._state = BarBotState.IDLE if self._demo_mode else BarBotState.CONNECTING
-        self._current_recipe: Recipe = None
+        self._current_mixing_options: MixingOptions = None
         self._current_recipe_item: RecipeItem = None
         self._config = BarBotConfig()
         self._parties = PartyCollection()
         self._mainboard = Mainboard()
+        self._state_changed: bool = False
         # callbacks
         self.on_mixing_finished: Callable[[Recipe], None] = lambda current_recipe: None
         self.on_mixing_progress_changed: Callable[[int], None] = lambda progress: None
@@ -134,9 +137,9 @@ class BarBot():
         return self._abort_mixing
 
     @property
-    def current_recipe(self) -> Recipe:
-        """Get the recipe that is being mixed"""
-        return self._current_recipe
+    def current_mixing_options(self) -> MixingOptions:
+        """Get the mixing options for what is being mixed"""
+        return self._current_mixing_options
 
     @property
     def current_recipe_item(self) -> RecipeItem:
@@ -203,7 +206,10 @@ class BarBot():
             # call self._do function
             func = getattr(self, self._get_state_function_name(self._state))
             func()
-            if self._state not in \
+            if self._state_changed:
+                self._state_changed = False
+            # only go to idle if there was no state change in between
+            elif self._state not in \
                 [BarBotState.STARTUP, BarBotState.IDLE, BarBotState.CONNECTING, BarBotState.SEARCHING]:
                 self._go_to_idle()
 
@@ -302,6 +308,7 @@ class BarBot():
     def _set_state(self, state):
         self._state = state
         logging.debug("State changed to '%s'",self._state)
+        self._state_changed = True
         if self.on_state_changed is not None:
             self.on_state_changed(state)
 
@@ -362,6 +369,9 @@ class BarBot():
         """Go to idle state of the barbot, reset the user message and home the hardware"""
         self._set_message(UserMessageType.NONE)
         self._set_state(BarBotState.IDLE)
+        #reset current values
+        self._current_mixing_options = None
+        self._current_recipe_item = None
         if not self._demo_mode:
             self._mainboard.set("SetLED", 3)
             # first move to what is supposed to be zero, then home
@@ -473,7 +483,7 @@ class BarBot():
             self._mainboard.set("PlatformLED", 5)
             self._mainboard.set("SetLED", 5)
         self._reset_user_input()
-        for item in self._current_recipe.items:
+        for item in self._current_mixing_options.recipe.items:
             # user aborted
             if self._abort_mixing:
                 break
@@ -491,7 +501,7 @@ class BarBot():
             self._set_mixing_progress(progress)
 
         # add ice if it was selected and mixing was not aborted
-        if self._add_ice and not self._abort_mixing:
+        if self.current_mixing_options.add_ice and not self._abort_mixing:
             if not self._demo_mode:
                 self._do_crushing()
             else:
@@ -504,7 +514,7 @@ class BarBot():
             self._mainboard.do("Move", 0)
 
         # add straw if it was selected and mixing was not aborted
-        if self._add_straw and not self._abort_mixing:
+        if self._current_mixing_options.add_straw and not self._abort_mixing:
             if not self._demo_mode:
                 self._do_straw()
             else:
@@ -521,10 +531,10 @@ class BarBot():
         time.sleep(4)
         if not self._demo_mode:
             self._mainboard.set("PlatformLED", 0)
-            self._parties.current_party.add_order(self._current_recipe)
+            self._parties.current_party.add_order(self._current_mixing_options.recipe)
         self._set_message(UserMessageType.NONE)
         if self.on_mixing_finished is not None:
-            self.on_mixing_finished(self._current_recipe)
+            self.on_mixing_finished(self._current_mixing_options.recipe)
 
     def _do_crushing(self):
         """Perform the crushing of ice"""
@@ -666,11 +676,11 @@ class BarBot():
 
     # start commands
 
-    def start_mixing(self, recipe: Recipe):
+    def start_mixing(self, options: MixingOptions):
         """Start mixing a recipe.
-        :param recipe: The recipe that is to be mixed."""
+        :param options: Mixing options"""
         self._abort_mixing = False
-        self._current_recipe = recipe
+        self._current_mixing_options = options
         self._set_state(BarBotState.MIXING)
 
     def start_single_ingredient(self, recipe_item: RecipeItem):

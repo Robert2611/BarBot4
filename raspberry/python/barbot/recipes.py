@@ -27,10 +27,11 @@ class RecipeSorting(Enum):
 @dataclass
 class RecipeFilter():
     """Describes how the recipes should be filtered"""
-    Alcoholic: bool = True
-    Sorting: RecipeSorting = RecipeSorting.NEWEST
-    AvailableOnly: bool = True
-    Descending: bool = False
+    show_alcoholic: bool = True
+    show_non_acloholic: bool = True
+    sorting: RecipeSorting = RecipeSorting.NEWEST
+    only_available: bool = True
+    descending: bool = False
     
 @dataclass
 class RecipeItem():
@@ -159,12 +160,15 @@ class RecipeCollection():
         filtered = []
         for recipe in self._recipes:
             if recipe_filter is not None:
-                if recipe.is_alcoholic != recipe_filter.Alcoholic:
+                is_alcoholic = recipe.is_alcoholic
+                if is_alcoholic and not recipe_filter.show_alcoholic:
                     continue
-                if recipe_filter.AvailableOnly and not recipe.is_available(config):
+                if not is_alcoholic and not recipe_filter.show_non_acloholic:
+                    continue
+                if recipe_filter.only_available and not recipe.is_available(config):
                     continue
             filtered.append(recipe)
-        desc = recipe_filter.Descending if recipe_filter is not None else False
+        desc = recipe_filter.descending if recipe_filter is not None else False
         filtered.sort(key=lambda r: r.created, reverse=desc)
         return filtered
 
