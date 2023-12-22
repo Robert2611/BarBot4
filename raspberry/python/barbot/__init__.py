@@ -262,7 +262,7 @@ class BarBot():
             self._set_state(BarBotState.CONNECTING)
             return
         # wait for a status message
-        if self._mainboard.read_message().type != ResponseTypes.STATUS:
+        if self._mainboard.read_message().message_type != ResponseTypes.STATUS:
             return
         # check all boards that should be connected and warn if they are not
         self._get_boards_connected()
@@ -736,7 +736,7 @@ class BarBot():
         """Synchronously get the connected boards and save them to '_connected_boards'
         """
         result = self._mainboard.get("GetConnectedBoards")
-        self._connected_boards = self._parse_connected_boards(result)
+        self._connected_boards = self._parse_connected_boards(result.return_parameters[0])
 
     def _parse_connected_boards(self, bit_values) -> List[BoardType]:
         """Parse bit values of the connected boards to list of enum"""
@@ -749,7 +749,7 @@ class BarBot():
         The callback is executed after execution.
         """
         def internal_callback(result):
-            self._connected_boards = self._parse_connected_boards(result)
+            self._connected_boards = self._parse_connected_boards(result.return_parameters[0])
             callback(self._connected_boards)
         self._idle_tasks.append(
             _IdleTask(_IdleTaskType.GET, internal_callback, "GetConnectedBoards")

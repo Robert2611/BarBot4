@@ -152,7 +152,7 @@ class Mainboard:
             result.error = ErrorType.COMM_ERROR
         if result.was_successfull and message.message_type == ResponseTypes.ERROR:
             # first parameter is the error type
-            result.error = message.parameters[0]
+            result.error = ErrorType[message.parameters[0]]
             result.return_parameters = message.parameters[1:]
         if result.was_successfull and message.message_type == ResponseTypes.ACK:
             # an ack can include more info
@@ -170,7 +170,7 @@ class Mainboard:
         retries_left = MAX_RETRIES
         # make sure to always run the loop once
         while retries_left > 0:
-            result = self.send_command_and_read_response(command, parameters)
+            result = self.send_command_and_read_response(command, *parameters)
 
             # ACK was received for the command, so wait until it finished
             while result.was_successfull:
@@ -206,7 +206,7 @@ class Mainboard:
         retries_left = MAX_RETRIES
         # make sure to always run the loop once
         while retries_left > 0:
-            result = self.send_command_and_read_response(command, parameters)
+            result = self.send_command_and_read_response(command, *parameters)
             if result.was_successfull:
                 # at success, exit the loop
                 break
@@ -228,7 +228,7 @@ class Mainboard:
         retries_left = MAX_RETRIES
         # make sure to always run the loop once
         while retries_left > 0:
-            result = self.send_command_and_read_response(command, parameters)
+            result = self.send_command_and_read_response(command, *parameters)
             if result.was_successfull:
                 # at success, first check if we actually received a value
                 if len(result.return_parameters) == 0:
@@ -251,8 +251,8 @@ class Mainboard:
         This will not wait for any response."""
         if self._is_connected:
             cmd = command
-            for parameter in parameters:
-                cmd = cmd + " " + str(parameter)
+            for p in parameters:
+                cmd = cmd + " " + str(p)
             cmd = cmd + "\r"
             logging.debug(">%s", cmd)
             try:
@@ -322,7 +322,7 @@ class Mainboard:
                         continue
                     if len(tokens) < 2:
                         return RawResponse(ResponseTypes.COMM_ERROR, "wrong format")
-                    return RawResponse(tokens[0], tokens[1], tokens[2:])
+                    return RawResponse(ResponseTypes[tokens[0]], tokens[1], tokens[2:])
             return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")
         except bluetooth.btcommon.BluetoothError as e:
             self._is_connected = False

@@ -175,7 +175,7 @@ class TestRecipe(unittest.TestCase):
         recipe = load_recipe_from_file(temp_path, f"{self.test_recipe.name}.yaml")
         
         #check
-        self.assertTrue(self.test_recipe.equal_to(recipe))
+        assert self.test_recipe.equal_to(recipe)
 
     def test_save_load(self):
         
@@ -191,4 +191,4 @@ class TestRecipe(unittest.TestCase):
         recipe = load_recipe_from_file(temp_path, filename)
 
         #check
-        self.assertTrue(self.test_recipe.equal_to(recipe))
+        assert self.test_recipe.equal_to(recipe)

@@ -43,11 +43,11 @@ class Ingredient():
     def density(self):
         """Get the density of this ingredient"""
         if self.type == IngredientType.JUICE:
-            self.density = DENSITY_JUICE
+            return DENSITY_JUICE
         elif self.type == IngredientType.SIRUP:
-            self.density = DENSITY_SIRUP
+            return DENSITY_SIRUP
         elif self.type == IngredientType.SPIRIT:
-            self.density = DENSITY_SPIRIT
+            return DENSITY_SPIRIT
         else:
             # no info, so just assume water
             self.density = DENSITY_WATER
