@@ -21,7 +21,6 @@ class MainWindow(BarBotWindow):
         self._keyboard: Keyboard = None
         self._timer: QtCore.QTimer
         self._admin_button_active : bool = False
-        self.default_view = lambda: ListRecipes(self)
 
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)

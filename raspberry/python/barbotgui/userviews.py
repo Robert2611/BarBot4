@@ -445,11 +445,11 @@ class SingleIngredient(UserView):
         panel.layout().addWidget(self._amount_widget)
 
         # start button
-        start_button = QtWidgets.QPushButton("Los")
-        start_button.clicked.connect(
+        self._start_button = QtWidgets.QPushButton("Los")
+        self._start_button.clicked.connect(
             lambda: self._start(self.ActionType.INGREDIENT)
         )
-        panel.layout().addWidget(start_button)
+        panel.layout().addWidget(self._start_button)
 
         if self.barbot_.config.straw_dispenser_connected:
             # straw button
@@ -624,7 +624,7 @@ class Statistics(UserView):
 
 
 class OrderRecipe(UserView):
-    def __init__(self, window: BarBotWindow, recipe: Recipe):
+    def __init__(self, window: BarBotWindow, recipe: Recipe = None):
         super().__init__(window)
         self.recipe = recipe
         self._content.setLayout(QtWidgets.QGridLayout())

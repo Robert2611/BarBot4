@@ -78,8 +78,6 @@ class AdminLogin(UserView):
 
 
 class Overview(UserView):
-    _is_deleted = False
-
     def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())

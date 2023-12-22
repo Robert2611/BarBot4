@@ -6,7 +6,6 @@ from barbot.config import BarBotConfig, PortConfiguration, get_ingredient_by_ide
 from barbot.recipes import load_recipe_from_file, Recipe, RecipeItem
 import barbot.config
 
-test_data_path = os.path.join(os.path.dirname(__file__), "data")
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists
 os.makedirs(temp_path, exist_ok=True)
