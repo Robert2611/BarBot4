@@ -98,7 +98,7 @@ class ListRecipes(UserView):
         self._update_list()
 
     def _update_list(self):
-        recipes = self.window.recipes.get_filtered(self.window.recipe_filter, self.barbot_.config)
+        recipes = self.window.recipes.get_filtered(self.window.recipe_filter, self.barbot_.ports, self.barbot_.config)
         # clear the list
         while self._listbox.layout().count():
             item = self._listbox.layout().takeAt(0)
@@ -175,7 +175,7 @@ class ListRecipes(UserView):
                 right_column.layout().addWidget(instruction)
 
             # order button
-            if recipe.is_available(self.barbot_.config):
+            if recipe.is_available(self.barbot_.ports, self.barbot_.config):
                 icon = qt_icon_from_file_name("order.png")
                 order_button = QtWidgets.QPushButton(icon, "")
                 order_button.setProperty("class", "BtnOrder")
@@ -355,7 +355,7 @@ class RecipeNewOrEdit(UserView):
             names = [
                 recipe.name
                 for recipe
-                in self.window.recipes.get_filtered(None, self.barbot_.config)
+                in self.window.recipes.get_filtered(None, self.barbot_.ports, self.barbot_.config)
             ]
             if self._recipe.name in names:
                 self.window.show_message("Ein Cocktail mit diesem Namen existiert bereits")
@@ -502,8 +502,7 @@ class SingleIngredient(UserView):
                     pass
                 else:
                     # normal ingredient
-                    ports = config.ports
-                    port = ports.port_of_ingredient(ingredient)
+                    port = self.barbot_.ports.port_of_ingredient(ingredient)
                     if port is None:
                         self.window.show_message(
                             "Diese Zutat ist nicht anschlossen")

@@ -1,10 +1,11 @@
 """Views to be shown for admins"""
+from typing import Dict
 from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 from barbot.communication import BoardType
 from barbot.config import version as barbot_version
 from barbot.recipes import Recipe
 from barbot.config import PORT_COUNT
-from barbotgui.core import BarBotWindow, qt_icon_from_file_name, View
+from barbotgui.core import BarBotWindow, qt_icon_from_file_name, View, Ingredient
 from barbotgui.userviews import UserView
 
 class AdminLogin(UserView):
@@ -216,7 +217,7 @@ class Ports(UserView):
         for i in range(PORT_COUNT):
             label = QtWidgets.QLabel(f"Position {(i+1)}")
             table.layout().addWidget(label, i, 0)
-            ingredient = self.barbot_.config.ports.ingredient_at_port(i)
+            ingredient = self.barbot_.ports.ingredient_at_port(i)
             cb_port = self.window.combobox_ingredients(ingredient, only_normal=True)
             self._ingredient_widgets[i] = cb_port
             table.layout().addWidget(cb_port, i, 1)
@@ -231,12 +232,12 @@ class Ports(UserView):
         self._content.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def _save(self):
-        new_ports = {}
+        new_ports:Dict[int, Ingredient] = {}
         for port, cb in self._ingredient_widgets.items():
             new_ports[port] = cb.currentData()
         # check for duplicates
         not_none_entries = [
-            ing
+            ing.name
             for ing in new_ports.values()
             if ing is not None
         ]
@@ -247,8 +248,8 @@ class Ports(UserView):
             )
             return
         # update the ports list and save it
-        self.barbot_.config.ports.update(new_ports)
-        self.barbot_.config.ports.save()
+        self.barbot_.ports.update(new_ports)
+        self.barbot_.ports.save()
         self.window.show_message("Positionen wurden gespeichert.")
 
 
@@ -661,7 +662,7 @@ class RemoveRecipe(UserView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-        for recipe in self.window.recipes.get_filtered(None, self.barbot_.config):
+        for recipe in self.window.recipes.get_filtered(None, self.barbot_.ports, self.barbot_.config):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())

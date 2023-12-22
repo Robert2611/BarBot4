@@ -13,7 +13,7 @@ from PyQt5.QtCore import QTimer
 from barbotgui import *
 from barbot import BarBot
 from barbot.recipes import RecipeCollection
-from barbot.config import log_directory
+from barbot.config import log_directory, BarBotConfig, PortConfiguration
 
 # cofigure logging
 exception_file_path = os.path.join(
@@ -41,7 +41,9 @@ logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
 
 is_demo = "-d" in sys.argv[1:]
-bot = BarBot(is_demo)
+ports = PortConfiguration()
+config = BarBotConfig()
+bot = BarBot(config, ports, is_demo)
 recipe_collection = RecipeCollection()
 recipe_collection.load()
 

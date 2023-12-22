@@ -2,6 +2,7 @@
 import os
 import sys
 import yaml
+import logging
 from enum import Enum
 from typing import Dict, List
 from dataclasses import dataclass
@@ -53,7 +54,7 @@ class Ingredient():
 
 
 Stir = Ingredient('ruehren',        'Rühren',               IngredientType.STIRR,   0xDDE3E1D3   )
-Sugar = Ingredient('sugar',         'Zucker',               IngredientType.SUGAR,   0x55FFFFFF   )
+Sugar = Ingredient('zucker',         'Zucker',               IngredientType.SUGAR,   0x55FFFFFF   )
 
 _ingredients = [
     Ingredient('rum weiss',         'Weißer Rum',           IngredientType.SPIRIT,  0x55FFFFFF    ),
@@ -90,93 +91,6 @@ def get_ingredient_by_identifier(identifier: str):
     return None
 
 
-# pylint: disable=locally-disabled, too-many-instance-attributes
-class BarBotConfig:
-    """Configuration for the barbot"""
-    # fields
-    mac_address:str = ""
-    max_speed:int = 200
-    max_accel:int = 300
-    max_cocktail_size:int = 30
-    admin_password:str = "0000"
-    pump_power:int = 100
-    pump_power_sirup:int = 255
-    balance_offset:int = -119.1
-    balance_calibration:int = -1040
-    cleaning_time:int = 3000
-    stirrer_connected:bool = True
-    stirring_time:int = 3000
-    ice_crusher_connected:bool = False
-    ice_amount:int = 100
-    straw_dispenser_connected:bool = False
-    sugar_dispenser_connected:bool = False
-    sugar_per_unit:int = 4
-    
-    def __init__(self):
-        self._filename = os.path.join(data_directory, "config.yaml")
-        self.ports = PortConfiguration()
-        cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
-        self._fields = [field for field, type in cls_annotations.items()]
-        if not self.load():
-            self.save()
-
-    def is_ingredient_available(self, ingredient_:Ingredient):
-        """Check if an ingredient is available at the barbot.
-        :param ingredient_: The ingredient to check"""
-        if ingredient_.type == IngredientType.STIRR:
-            return self.stirrer_connected
-        if ingredient_.type == IngredientType.SUGAR:
-            return self.sugar_dispenser_connected
-        return ingredient_ in self.ports.connected_ingredients
-    
-    def get_ingredient_list(self, only_available = False, only_normal = False, only_weighed = False) -> List[Ingredient]:
-        """Get list of ingredients
-        :param only_available: If set to true,
-        only return ingredients that are currently connected to ports
-        :param only_normal: If set to true, only return ingredients that are pumped
-        :param only_weighed: If set to true, only return ingredients that are added by weight    
-        """
-        filtered = []
-        for ingredient in _ingredients:
-            if only_available and not self.is_ingredient_available(ingredient):
-                continue
-            if IngredientType.STIRR == ingredient.type:
-                if only_normal is True:
-                    continue
-                if only_weighed is True:
-                    continue
-            if IngredientType.SUGAR == ingredient.type:
-                if only_normal is True:
-                    continue
-            filtered.append(ingredient)
-        return filtered
-
-    def save(self):
-        """Save the current config values to the hard drive"""
-        values = { field : getattr(self, field) for field in self._fields }
-        with open(self._filename, 'w', encoding="utf-8") as configfile:
-            yaml.dump(values, configfile)
-
-    @property
-    def is_mac_address_valid(self):
-        """Get whether the mac address has the correct structure"""
-        if self.mac_address is None:
-            return False
-        return len(self.mac_address.strip()) == 17
-
-    def load(self):
-        """Load the config from file"""
-        # load config if it exists
-        if not os.path.isfile(self._filename):
-            return False
-        with open(self._filename, 'r', encoding="utf-8") as configfile:
-            data = yaml.safe_load(configfile)
-        # update fields with values from
-        for field in self._fields:
-            if field in data.keys():
-                setattr(self, field, data[field])
-        return True
-
 class PortConfiguration:
     """Manages the relation between the ports and the connected ingredients"""
     def __init__(self):
@@ -184,6 +98,7 @@ class PortConfiguration:
         self._list: dict[int, Ingredient]= {i: None for i in range(PORT_COUNT)}
         # if loading failed save the default value to file
         if not self.load():
+            logging.warn("Port configuration not fould, write default.")
             self.save()
 
     def update(self, new_ports:Dict[int, Ingredient]):
@@ -245,6 +160,94 @@ class PortConfiguration:
     def connected_ingredients(self) -> List[Ingredient]:
         """Get a list of all connected ingredients"""
         return [ i for i in self._list.values() if i is not None ]
+
+# pylint: disable=locally-disabled, too-many-instance-attributes
+class BarBotConfig:
+    """Configuration for the barbot"""
+    # fields
+    mac_address:str = ""
+    max_speed:int = 200
+    max_accel:int = 300
+    max_cocktail_size:int = 30
+    admin_password:str = "0000"
+    pump_power:int = 100
+    pump_power_sirup:int = 255
+    balance_offset:int = -119.1
+    balance_calibration:int = -1040
+    cleaning_time:int = 3000
+    stirrer_connected:bool = True
+    stirring_time:int = 3000
+    ice_crusher_connected:bool = False
+    ice_amount:int = 100
+    straw_dispenser_connected:bool = False
+    sugar_dispenser_connected:bool = False
+    sugar_per_unit:int = 4
+    
+    def __init__(self):
+        self._filename = os.path.join(data_directory, "config.yaml")
+        cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
+        self._fields = [field for field, type in cls_annotations.items()]
+        if not self.load():
+            logging.warn("Config not fould, write default.")
+            self.save()
+
+    def is_ingredient_available(self, ports: PortConfiguration, ingredient_:Ingredient):
+        """Check if an ingredient is available at the barbot.
+        :param ingredient_: The ingredient to check"""
+        if ingredient_.type == IngredientType.STIRR:
+            return self.stirrer_connected
+        if ingredient_.type == IngredientType.SUGAR:
+            return self.sugar_dispenser_connected
+        return ingredient_ in ports.connected_ingredients
+    
+    def get_ingredient_list(self, ports: PortConfiguration, only_available = False, only_normal = False, only_weighed = False) -> List[Ingredient]:
+        """Get list of ingredients
+        :param only_available: If set to true,
+        only return ingredients that are currently connected to ports
+        :param only_normal: If set to true, only return ingredients that are pumped
+        :param only_weighed: If set to true, only return ingredients that are added by weight    
+        """
+        filtered = []
+        for ingredient in _ingredients:
+            if only_available and not self.is_ingredient_available(ports, ingredient):
+                continue
+            if IngredientType.STIRR == ingredient.type:
+                if only_normal is True:
+                    continue
+                if only_weighed is True:
+                    continue
+            if IngredientType.SUGAR == ingredient.type:
+                if only_normal is True:
+                    continue
+            filtered.append(ingredient)
+        return filtered
+
+    def save(self):
+        """Save the current config values to the hard drive"""
+        values = { field : getattr(self, field) for field in self._fields }
+        with open(self._filename, 'w', encoding="utf-8") as configfile:
+            yaml.dump(values, configfile)
+
+    @property
+    def is_mac_address_valid(self):
+        """Get whether the mac address has the correct structure"""
+        if self.mac_address is None:
+            return False
+        return len(self.mac_address.strip()) == 17
+
+    def load(self):
+        """Load the config from file"""
+        # load config if it exists
+        if not os.path.isfile(self._filename):
+            return False
+        with open(self._filename, 'r', encoding="utf-8") as configfile:
+            data = yaml.safe_load(configfile)
+        # update fields with values from
+        for field in self._fields:
+            if field in data.keys():
+                setattr(self, field, data[field])
+        return True
+
 
 def _get_version():
     """Get version from 'version.txt'"""

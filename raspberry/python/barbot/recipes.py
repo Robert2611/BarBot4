@@ -9,7 +9,7 @@ import yaml
 from .config import Ingredient, IngredientType, get_ingredient_by_identifier
 from .config import recipes_directory, fixed_recipes_directory
 from .config import old_recipes_directory, orders_directory
-from .config import BarBotConfig
+from .config import BarBotConfig, PortConfiguration
 
 PARTY_MAX_DURATION = timedelta(days=1)
 PARTY_MIN_ORDER_COUNT = 5
@@ -49,14 +49,14 @@ class Recipe:
         self.post_instruction = ""
         self.is_fixed = False
 
-    def save(self):
+    def save(self, folder: str = recipes_directory):
         """Save the recipe to the drive"""
         # fixed recipes cannot be modified
         if self.is_fixed:
             return False
         try:
             filename = self.name + ".yaml"
-            filepath = os.path.join(recipes_directory, filename)
+            filepath = os.path.join(folder, filename)
             data = {}
             data["created"] = self.created
             data["pre_instruction"] = self.pre_instruction
@@ -98,12 +98,12 @@ class Recipe:
                 return False
         return True
 
-    def is_available(self, config: BarBotConfig) -> bool:
+    def is_available(self, ports: PortConfiguration, config: BarBotConfig) -> bool:
         """A recipe is available if all its ingredients are available i.e. connected to a port.
         :param config: The barbot config to use for cheking if the recipe is available
         """
         for item in self.items:
-            if not config.is_ingredient_available(item.ingredient):
+            if not config.is_ingredient_available(ports, item.ingredient):
                 return False
         return True
 
@@ -139,7 +139,7 @@ class RecipeCollection():
         for file in os.listdir(recipes_directory):
             if not file.endswith(".yaml"):
                 continue
-            r = _load_recipe_from_file(recipes_directory, file)
+            r = load_recipe_from_file(recipes_directory, file)
             if r is not None:
                 r.is_fixed = False
                 self._recipes.append(r)
@@ -147,12 +147,12 @@ class RecipeCollection():
         for file in os.listdir(fixed_recipes_directory):
             if not file.endswith(".yaml"):
                 continue
-            r = _load_recipe_from_file(fixed_recipes_directory, file)
+            r = load_recipe_from_file(fixed_recipes_directory, file)
             if r is not None:
                 r.is_fixed = True
                 self._recipes.append(r)
 
-    def get_filtered(self, recipe_filter: RecipeFilter, config : BarBotConfig) -> List[Recipe]:
+    def get_filtered(self, recipe_filter: RecipeFilter, ports: PortConfiguration, config : BarBotConfig) -> List[Recipe]:
         """Get a filtered list of recpies using the given filter"""
         # lazy loading
         if self._recipes is None:
@@ -165,7 +165,7 @@ class RecipeCollection():
                     continue
                 if not is_alcoholic and not recipe_filter.show_non_acloholic:
                     continue
-                if recipe_filter.only_available and not recipe.is_available(config):
+                if recipe_filter.only_available and not recipe.is_available(ports, config):
                     continue
             filtered.append(recipe)
         desc = recipe_filter.descending if recipe_filter is not None else False
@@ -197,7 +197,7 @@ class RecipeCollection():
         recipe.save()
         self._recipes.append(recipe)
 
-def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
+def load_recipe_from_file(folder: str, filename: str) -> Recipe:
     """Load a recipe from a file
     
         :param folder: Parent folder of the file
@@ -225,6 +225,7 @@ def _load_recipe_from_file(folder: str, filename: str) -> Recipe:
     except OSError as ex:
         logging.warning("Error in recipe load: %s", ex)
         return None
+
 class OrderItem(NamedTuple):
     """Items of an order, it is like a recipe item but the ingredient is a string"""
     amount: int

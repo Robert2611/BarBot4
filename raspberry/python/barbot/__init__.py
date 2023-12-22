@@ -6,7 +6,7 @@ import time
 from typing import Callable, List, NamedTuple
 from enum import Enum, auto
 from .recipes import PartyCollection,Recipe,RecipeItem
-from .config import BarBotConfig, IngredientType
+from .config import BarBotConfig, IngredientType, PortConfiguration
 from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes
 from .communication import ErrorType as CommError
 
@@ -88,7 +88,7 @@ class MixingOptions(NamedTuple):
 
 class BarBot():
     """The main class containing the statemachine of the barbot"""
-    def __init__(self, demo_mode = False):
+    def __init__(self, config: BarBotConfig, ports: PortConfiguration, demo_mode = False):
         self._abort = False
         self._demo_mode = demo_mode
         self._user_input:UserInputType = UserInputType.UNDEFINED
@@ -103,7 +103,8 @@ class BarBot():
         self._state = BarBotState.IDLE if self._demo_mode else BarBotState.CONNECTING
         self._current_mixing_options: MixingOptions = None
         self._current_recipe_item: RecipeItem = None
-        self._config = BarBotConfig()
+        self._config = config
+        self._ports = ports
         self._parties = PartyCollection()
         self._mainboard = Mainboard()
         self._state_changed: bool = False
@@ -130,6 +131,11 @@ class BarBot():
     def config(self) -> BarBotConfig:
         """Get the config of the barbot"""
         return self._config
+    
+    @property
+    def ports(self) -> BarBotConfig:
+        """Get the port configuration of the barbot"""
+        return self._ports
 
     @property
     def was_aborted(self) -> bool:
@@ -401,7 +407,7 @@ class BarBot():
         else:
             # cl to g
             weight = int(item.amount * item.ingredient.density * 10)
-            port = self._config.ports.port_of_ingredient(item.ingredient)
+            port = self._ports.port_of_ingredient(item.ingredient)
             logging.info("Start adding %i g of '%s' at port %i",\
                 weight, item.ingredient.name, port)
         while True:
