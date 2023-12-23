@@ -6,6 +6,7 @@ from PyQt5 import QtWidgets, Qt, QtCore, QtGui
 from barbot import BarBot, UserMessageType, BarBotState, run_command
 from barbot.config import Ingredient, IngredientType
 from barbot.recipes import RecipeCollection, RecipeFilter
+from barbot import UserInputType
 from barbotgui.controls import set_no_spacing
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17
@@ -182,7 +183,7 @@ class SystemBusyView(View):
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
     def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+        super().__init__(window, is_idle_view=False)
 
         self._message = None
 
@@ -238,7 +239,7 @@ class BusyView(View):
         buttons_container.setLayout(QtWidgets.QHBoxLayout())
         self._message.layout().addWidget(buttons_container)
 
-        def add_button(text, result):
+        def add_button(text, result:UserInputType):
             button = QtWidgets.QPushButton(text)
             def callback():
                 return self.barbot_.set_user_input(result)
@@ -257,8 +258,8 @@ class BusyView(View):
                 message_string += "Bitte neue Flasche anschließen."
             message_label.setText(message_string)
 
-            add_button("Cocktail\nabbrechen", False)
-            add_button("Erneut\nversuchen", True)
+            add_button("Cocktail\nabbrechen", UserInputType.NO)
+            add_button("Erneut\nversuchen", UserInputType.YES)
 
         elif message == UserMessageType.PLACE_GLAS:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
@@ -283,29 +284,29 @@ class BusyView(View):
             message_label.setText(
                 "Möchtest du einen Strohhalm haben?")
 
-            add_button("Ja", True)
-            add_button("Nein", False)
+            add_button("Ja", UserInputType.YES)
+            add_button("Nein", UserInputType.NO)
 
         elif message == UserMessageType.ASK_FOR_ICE:
             message_label.setText(
                 "Möchtest du Eis in deinem Cocktail haben?")
 
-            add_button("Ja", True)
-            add_button("Nein", False)
+            add_button("Ja", UserInputType.YES)
+            add_button("Nein", UserInputType.NO)
 
         elif message == UserMessageType.STRAWS_EMPTY:
             message_label.setText("Strohhalm konnte nicht hinzugefügt werden.")
 
-            add_button("Egal", False)
-            add_button("Erneut versuchen", True)
+            add_button("Egal", UserInputType.NO)
+            add_button("Erneut versuchen", UserInputType.YES)
 
         elif message == UserMessageType.CLEANING_ADAPTER:
             text = "Für die Reinigung muss der Reinigungsadapter angeschlossen sein.\n"
             text += "Ist der Adapter angeschlossen?"
             message_label.setText(text)
 
-            add_button("Ja", True)
-            add_button("Abbrechen", False)
+            add_button("Ja", UserInputType.YES)
+            add_button("Abbrechen", UserInputType.NO)
 
         elif message == UserMessageType.I2C_ERROR:
             text = "Ein Kommunikationsfehler ist aufegtreten.\n"
@@ -313,75 +314,75 @@ class BusyView(View):
                 und versuche es erneut"
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.UNKNOWN_ERROR:
             text = "Ein unbekannter Fehler ist aufgetreten.\n"
             text += "Weitere Informationen findest du im Log"
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.GLAS_REMOVED_WHILE_DRAFTING:
             text = "Das Glas wurde während des Mischens entfernt!\n"
             text += "Drücke auf OK, um zum Start zurück zu fahren"
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.ICE_EMPTY:
             message_label.setText("Eis konnte nicht hinzugefügt werden.")
 
-            add_button("Eis weg lassen", False)
-            add_button("Erneut versuchen", True)
+            add_button("Eis weg lassen", UserInputType.NO)
+            add_button("Erneut versuchen", UserInputType.YES)
 
         elif message == UserMessageType.CRUSHER_COVER_OPEN:
             text = "Bitte den Deckel des Eiscrushers schließen!"
             message_label.setText(text)
 
-            add_button("Eis weg lassen", False)
-            add_button("Erneut versuchen", True)
+            add_button("Eis weg lassen", UserInputType.NO)
+            add_button("Erneut versuchen", UserInputType.YES)
 
         elif message == UserMessageType.CRUSHER_TIMEOUT:
             text = "Eis crushen hat zu lange gedauert, bitte überprüfe Crusher und Akku"
             message_label.setText(text)
 
-            add_button("Eis weg lassen", False)
-            add_button("Erneut versuchen", True)
+            add_button("Eis weg lassen", UserInputType.NO)
+            add_button("Erneut versuchen", UserInputType.YES)
 
         elif message == UserMessageType.BOARD_NOT_CONNECTED_BALANCE:
             text = "Waage konnte nicht gefunden werden. Bitte Verbindung überprüfen."
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.BOARD_NOT_CONNECTED_CRUSHER:
             text = "Eis Crusher konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.BOARD_NOT_CONNECTED_MIXER:
             text = "Mixer konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.BOARD_NOT_CONNECTED_STRAW:
             text = "Strohhalm dispenser konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         elif message == UserMessageType.BOARD_NOT_CONNECTED_SUGAR:
             text = "Zuckerdosierer konnte nicht gefunden werden. \
                 Bitte Verbindung überprüfen oder deaktivieren."
             message_label.setText(text)
 
-            add_button("OK", True)
+            add_button("OK", UserInputType.YES)
 
         self._message_container.setVisible(True)
         self._content_container.setVisible(False)

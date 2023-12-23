@@ -77,7 +77,7 @@ class _IdleTask():
             _IdleTaskType.DO: mainboard.do,
             _IdleTaskType.GET: mainboard.get,
             _IdleTaskType.SET: mainboard.set
-        }.get(self._task_type)()
+        }.get(self._task_type)(self._command, *self._parameters)
         if self._callback is not None:
             self._callback(result)
 
@@ -721,12 +721,14 @@ class BarBot():
         """Add a straw to the glas"""
         self._set_state(BarBotState.STRAW)
 
-    def get_weight(self, callback):
+    def get_weight(self, callback:Callable[[float],None]):
         """Get the weight when the state machine is idle again.
         The callback is executed after execution.
         """
-        def internal_callback(res):
-            self._weight = float(res) if res is not None else None
+        def internal_callback(res:CommunicationResult):
+            self._weight = float(res.return_parameters[0]) \
+                if res.was_successfull and len(res.return_parameters) > 0 \
+                else None
             callback(self._weight)
         self._idle_tasks.append(
             _IdleTask(_IdleTaskType.GET, internal_callback, "GetWeight")

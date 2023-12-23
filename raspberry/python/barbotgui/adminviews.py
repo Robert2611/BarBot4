@@ -164,7 +164,8 @@ class Overview(UserView):
         # Timer for updating the current weight display
         self._update_timer = QtCore.QTimer(self)
         self._update_timer.timeout.connect(
-            lambda: self.barbot_.get_weight(self.set_weight_label))
+            lambda: self.barbot_.get_weight(self.set_weight_label)
+        )
         self._update_timer.start(500)
 
         self.barbot_.get_weight(self.set_weight_label)

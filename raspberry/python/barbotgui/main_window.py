@@ -35,7 +35,7 @@ class MainWindow(BarBotWindow):
         self.mousePressEvent = lambda _: self.close_keyboard()
 
         # forward status changed
-        self._barbot_state_trigger.connect(self.update_view)
+        self._barbot_state_trigger.connect(lambda _: self.update_view())
         self._barbot.on_state_changed = self._barbot_state_trigger.emit
 
         # forward message changed

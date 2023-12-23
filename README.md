@@ -26,13 +26,9 @@ Nun könnt ihr euch z.B. mit [Putty](https://www.putty.org/) unter Windows direk
 ### BarBot4 installieren
 Zuerst muss der Ordner erstellt und die Dateien heruntergeladen werden:
 ```bash
-mkdir barbot
-url=$(curl -s "https://api.github.com/repos/Robert2611/BarBot4/releases/latest" \
-	| grep "/raspberry.tar.gz"\
-	| cut -d : -f 2,3 \
-	| tr -d \" \
-)
-curl -s -L $url | tar xvz -C ./barbot
+content= $(curl -s "https://api.github.com/repos/Robert2611/BarBot4/releases/latest")
+url= $(echo $content | grep -Po '(?<="browser_download_url": ").*raspberry.tar.gz(?=")')
+mkdir barbot && curl -s -L $url | tar xvz -C ./barbot
 ```
 Dann sollten die Packetquellen neu vom Server geladen werden und das Installer-Script gestartet werden:
 ```bash

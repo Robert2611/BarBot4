@@ -178,7 +178,7 @@ class Mainboard:
                 if result.was_successfull and message.command != command:
                     result.error = ErrorType.ANSWER_FOR_WRONG_COMMAND
                 if result.was_successfull and message.message_type == ResponseTypes.ERROR:
-                    result.error = message.parameters[0]
+                    result.error = ErrorType(int(message.parameters[0]))
                     result.return_parameters = message.parameters[1:]
                 if result.was_successfull:
                     if message.message_type == ResponseTypes.DONE:
