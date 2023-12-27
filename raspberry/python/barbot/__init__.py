@@ -388,7 +388,7 @@ class BarBot():
 
     def _has_glas(self):
         result = self._mainboard.get("HasGlas")
-        return result.was_successfull and result.return_parameters[0] != "1"
+        return result.was_successfull and result.return_parameters[0] == "1"
 
     def _draft_one(self, item: RecipeItem) -> bool:
         """Draft a single ingredient.
@@ -464,12 +464,11 @@ class BarBot():
         self._set_mixing_progress(progress)
 
         if not self._demo_mode:
-            self._mainboard.set("PlatformLED", 3)
+            self._set_message(UserMessageType.PLACE_GLAS)
+            self._reset_user_input()
             # wait for the glas
-            if self._has_glas():
+            if not self._has_glas():
                 self._mainboard.set("PlatformLED", 2)
-                self._set_message(UserMessageType.PLACE_GLAS)
-                self._reset_user_input()
                 # wait for glas or user abort
                 def glas_present_or_user_input():
                     if self._has_glas():
@@ -485,6 +484,7 @@ class BarBot():
                 if self._user_input != UserInputType.UNDEFINED:
                     return
 
+        self._mainboard.set("PlatformLED", 3)
         # wait for the user to take the hands off the glas
         time.sleep(1)
         if not self._demo_mode:
@@ -539,7 +539,7 @@ class BarBot():
         time.sleep(4)
         if not self._demo_mode:
             self._mainboard.set("PlatformLED", 0)
-            self._parties.current_party.add_order(self._current_mixing_options.recipe)
+        self._parties.current_party.add_order(self._current_mixing_options.recipe)
         self._set_message(UserMessageType.NONE)
         if self.on_mixing_finished is not None:
             self.on_mixing_finished(self._current_mixing_options.recipe)
@@ -738,7 +738,8 @@ class BarBot():
         """Synchronously get the connected boards and save them to '_connected_boards'
         """
         result = self._mainboard.get("GetConnectedBoards")
-        self._connected_boards = self._parse_connected_boards(result.return_parameters[0])
+        if result.was_successfull and len(result.return_parameters) > 0:
+            self._connected_boards = self._parse_connected_boards(result.return_parameters[0])
 
     def _parse_connected_boards(self, bit_values) -> List[BoardType]:
         """Parse bit values of the connected boards to list of enum"""

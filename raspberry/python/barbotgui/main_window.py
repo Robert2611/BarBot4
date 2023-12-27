@@ -9,7 +9,7 @@ from barbot.recipes import RecipeCollection
 from barbotgui.core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry
 from barbotgui.controls import Keyboard, Numpad, set_no_spacing
 from barbotgui.adminviews import AdminLogin
-from barbotgui.userviews import ListRecipes
+from barbotgui.userviews import ListRecipes, OrderRecipe
 
 class MainWindow(BarBotWindow):
     """Main window for the barbot"""
@@ -147,9 +147,10 @@ class MainWindow(BarBotWindow):
         """Set the view to the busy view if the barbot is busy.
         Else load the last idle view. If none was set, load the recipe list """
         if not self._barbot.is_busy:
-            if self._last_idle_view is None or force_reload:
+            # load the default view
+            if self._last_idle_view is None or isinstance(self._last_idle_view, OrderRecipe) or force_reload:
                 self.set_view(ListRecipes(self))
-            if self._last_idle_view != self._current_view:
+            elif self._last_idle_view != self._current_view:
                 self.set_view(self._last_idle_view)
         else:
             self.set_view(BusyView(self))

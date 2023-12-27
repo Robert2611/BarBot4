@@ -263,6 +263,8 @@ class BusyView(View):
 
         elif message == UserMessageType.PLACE_GLAS:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
+            
+            add_button("abbrechen", UserInputType.NO)
 
         elif message == UserMessageType.MIXING_DONE_REMOVE_GLAS:
             if self.barbot_.was_aborted:

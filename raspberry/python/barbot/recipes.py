@@ -270,7 +270,18 @@ class Party():
         _filepath = os.path.join(orders_directory, _filename)
         with open(_filepath, "a", encoding="utf-8") as file:
             # append as part of list
-            yaml.dump([order], file)
+            data = {
+                "recipe": order.recipe,
+                "date": order.date,
+                "items": [
+                    {
+                        "amount" : item.amount,
+                        "ingredient": item.ingredient
+                    }
+                    for item in order.items
+                ]
+            }
+            yaml.dump([data], file)
         self.orders.append(order)
 
     def get_statistics(self) -> PartyStatistics:

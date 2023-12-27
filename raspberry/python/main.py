@@ -35,7 +35,9 @@ logging.basicConfig(
 
 # log to file and stdout
 if "-t" in sys.argv[1:]:
-    logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s\t%(message)s'))
+    logging.getLogger().addHandler(handler)
 
 logging.info("<<<<<<BarBot started>>>>>>")
 logging.info("--------------------------")
