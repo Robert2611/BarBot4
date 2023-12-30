@@ -82,6 +82,7 @@ class _IdleTask():
             self._callback(result)
 
 class MixingOptions(NamedTuple):
+    """Keeps the options for a mixing process"""
     recipe: Recipe
     add_straw: bool = False
     add_ice: bool = False
@@ -131,7 +132,7 @@ class BarBot():
     def config(self) -> BarBotConfig:
         """Get the config of the barbot"""
         return self._config
-    
+
     @property
     def ports(self) -> BarBotConfig:
         """Get the port configuration of the barbot"""
@@ -217,8 +218,12 @@ class BarBot():
             if self._state_changed:
                 self._state_changed = False
             # only go to idle if there was no state change in between
-            elif self._state not in \
-                [BarBotState.STARTUP, BarBotState.IDLE, BarBotState.CONNECTING, BarBotState.SEARCHING]:
+            elif self._state not in [
+                    BarBotState.STARTUP,
+                    BarBotState.IDLE,
+                    BarBotState.CONNECTING,
+                    BarBotState.SEARCHING
+                ]:
                 self._go_to_idle()
 
         if not self._demo_mode:
@@ -311,7 +316,7 @@ class BarBot():
     def abort(self):
         """Abort the barbot state machine"""
         self._abort_mixing = True
-        self._abort = True 
+        self._abort = True
 
     def _set_state(self, state):
         self._state = state

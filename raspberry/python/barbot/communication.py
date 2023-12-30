@@ -51,13 +51,42 @@ class ResponseTypes(Enum):
     COMM_ERROR = auto()
     TIMEOUT = auto()
 
+@dataclass
+class FirmwareVersion:
+    """Firmware version handling"""
+    major: int
+    minor: int
+    patch: int
+
+    def __str__(self):
+        return f"v{self.major}.{self.minor}.{self.patch}"
+
+    def is_at_least(self, major:int, minor:int = 0, patch:int = 0):
+        """Check if this firmware version is at least the given version"""
+        if self.major != major:
+            # major version differs
+            return self.major > major
+        if self.minor != minor:
+            # major is the same but minor version differs
+            return self.minor > minor
+        # major and minor are the same, so let the patch version decide
+        return self.patch >= patch
+
+def decode_firmware_version(version: int):
+    """Decode a firmware version string comming from """
+    major = version // 10000
+    version -= (major * 10000)
+    minor = version // 100
+    version -= (minor * 100)
+    patch = version
+    return FirmwareVersion(major=major, minor=minor, patch=patch)
+
 class CommunicationResult():
     """Result of a command sent to the mainboard"""
-    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: List[str] = []):
+    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: List[str] = None):
         self.error: ErrorType = error
-        self.return_parameters: list[str] = return_parameters
-        
-        
+        self.return_parameters: List[str] = [] if return_parameters is None else return_parameters
+
     @property
     def was_successfull(self):
         """Get whether an error code was set"""
@@ -77,6 +106,7 @@ class Mainboard:
         self._is_connected = False
         self._buffer: str = ""
         self._last_message_was_status_idle = False
+        self._firmware_version: FirmwareVersion = FirmwareVersion(0, 0, 0)
 
     @property
     def is_connected(self):
@@ -107,15 +137,27 @@ class Mainboard:
             self._conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
             self._conn.connect((mac_address, 1))
             self._conn.settimeout(CONNECTION_TIMEOUT)
-            # wait for Arduino to initialize
-            time.sleep(1)
+            # read one line to make sure the mainboard has started
             self._read_line()
             self._is_connected = True
             logging.info("Connection successfull")
+            # read firmware version
+            response = self.get("GetFirmwareVersion")
+            if response.was_successfull and len(response.return_parameters) > 0:
+                self._firmware_version = decode_firmware_version(int(response.return_parameters[0]))
+                logging.info("Fimrware version is: %s", self._firmware_version)
+            else:
+                self._firmware_version = FirmwareVersion(0, 0, 0)
+                logging.warning("Could not read firmware version, probably legacy")
         except bluetooth.BluetoothError as e:
             logging.warning("Connection failed %s", e)
             return False
         return True
+
+    @property
+    def firmware_version(self):
+        """Get the firmware version, only valid after connecting!"""
+        return self._firmware_version
 
     def read_non_status_message(self) -> RawResponse:
         """Read a response message.
