@@ -2,6 +2,7 @@
 #define BAR_BOT_SHARED_H
 #include "Arduino.h"
 #include "Wire.h"
+#include "Version.h"
 
 #define BALANCE_BOARD_ADDRESS 0x01
 #define MIXER_BOARD_ADDRESS 0x02
@@ -73,6 +74,27 @@ inline void printColor(RGB_t color)
     Serial.print(color.g, HEX);
     Serial.print(" b");
     Serial.println(color.b, HEX);
+}
+
+//Expected format: 'v[major].[minor].[patch]'
+inline long firmwareVersionToLong(String versionString)
+{
+    // it must start with a 'v'
+    if(!versionString.startsWith("v"))
+        return 0;
+    int indexFirstDot = versionString.indexOf('.');
+    if(1 >= indexFirstDot)
+        return 0;
+    //skip the v
+    int major = versionString.substring(1, indexFirstDot).toInt();
+    versionString = versionString.substring(indexFirstDot + 1);
+    int indexSecondDot = versionString.indexOf('.');
+    if(0 >= indexSecondDot)
+        return 0;
+    int minor = versionString.substring(0, indexSecondDot).toInt();
+    int patch = versionString.substring(indexSecondDot + 1).toInt();
+
+    return (long)major * 10000 + minor * 100 + patch;
 }
 
 #endif

@@ -46,7 +46,7 @@ void DoLEDandBluetoothTask(void *parameters)
 		else
 		{
 			Serial.print("Starting (");
-			Serial.print(state_m.status);
+			Serial.print(state_m.get_state());
 			Serial.println(")");
 		}
 		//always update
@@ -69,8 +69,7 @@ void DoLEDandBluetoothTask(void *parameters)
 void addCommands()
 {
 	//test command that returns done after a defined time
-	protocol.addDoCommand(
-		"Delay",
+	protocol.addDoCommand("Delay",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 1)
@@ -86,20 +85,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = 0;
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Draft",
+		}
+	);
+	protocol.addDoCommand("Draft",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 2)
@@ -116,20 +115,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = state_m.get_last_draft_remaining_weight();
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Crush",
+		}
+	);
+	protocol.addDoCommand("Crush",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 1)
@@ -145,20 +144,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = state_m.get_last_draft_remaining_weight();
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Sugar",
+		}
+	);
+	protocol.addDoCommand("Sugar",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 1)
@@ -174,20 +173,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = state_m.get_last_draft_remaining_weight();
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Mix",
+		}
+	);
+	protocol.addDoCommand("Mix",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 1)
@@ -203,20 +202,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = 0; //error code sensefull??
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Clean",
+		}
+	);
+	protocol.addDoCommand("Clean",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 2)
@@ -233,20 +232,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = 0; //error code sensefull??
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Straw",
+		}
+	);
+	protocol.addDoCommand("Straw",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 0)
@@ -258,23 +257,23 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = 0; //error code sensefull??
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Home",
+		}
+	);
+	protocol.addDoCommand("Home",
 		[](int param_c, char **param_v, long *result)
 		{
-			if (state_m.status == Idle)
+			if (state_m.get_state() == Idle)
 			{
 				state_m.start_homing();
 				return true;
@@ -283,20 +282,20 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = 0; //error code sensefull??
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
-	protocol.addDoCommand(
-		"Move",
+		}
+	);
+	protocol.addDoCommand("Move",
 		[](int param_c, char **param_v, long *result)
 		{
 			if (param_c == 1)
@@ -312,171 +311,196 @@ void addCommands()
 		},
 		[](int *error_code, long *parameter)
 		{
-			if (state_m.status > BarBotStatus_t::Error)
+			if (state_m.get_state() > BarBotState_t::Error)
 			{
-				(*error_code) = state_m.status;
+				(*error_code) = state_m.get_state();
 				(*parameter) = 0; //error code sensefull??
 				state_m.reset_error();
 				return CommandStatus_t::Error;
 			}
-			else if (state_m.status == BarBotStatus_t::Idle)
+			else if (state_m.get_state() == BarBotState_t::Idle)
 				return CommandStatus_t::Done;
 			else
 				return CommandStatus_t::Running;
-		});
+		}
+	);
 	protocol.addSetCommand("PlatformLED",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long a = atoi(param_v[0]);
-								   if (a >= 0 && a < 10)
-								   {
-									   state_m.start_set_balance_LED(a);
-									   //Wait blocking!
-									   while (true)
-									   {
-										   if (state_m.status == BarBotStatus_t::Idle)
-										   {
-											   (*result) = state_m.get_ping_result();
-											   return true;
-										   }
-										   else if (state_m.status == BarBotStatus_t::SetBalanceLED)
-										   {
-											   //wait
-											   yield();
-										   }
-										   else
-										   {
-											   (*result) = -state_m.status;
-											   state_m.reset_error();
-											   Serial.println(state_m.status);
-											   return false;
-										   }
-									   }
-								   }
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a >= 0 && a < 10)
+				{
+					state_m.start_set_balance_LED(a);
+					//Wait blocking!
+					while (true)
+					{
+						if (state_m.get_state() == BarBotState_t::Idle)
+						{
+							(*result) = state_m.get_ping_result();
+							return true;
+						}
+						else if (state_m.get_state() == BarBotState_t::SetBalanceLED)
+						{
+							//wait
+							yield();
+						}
+						else
+						{
+							(*result) = -state_m.get_state();
+							state_m.reset_error();
+							Serial.println(state_m.get_state());
+							return false;
+						}
+					}
+				}
+			}
+			return false;
+		}
+	);
 	protocol.addSetCommand("SetSpeed",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long s = atoi(param_v[0]);
-								   if (s > 0 && s < 5000)
-								   {
-									   state_m.set_max_speed(s);
-									   return true;
-								   }
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long s = atoi(param_v[0]);
+				if (s > 0 && s < 5000)
+				{
+					state_m.set_max_speed(s);
+					return true;
+				}
+			}
+			return false;
+		}
+	);
 	protocol.addSetCommand("SetAccel",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long a = atoi(param_v[0]);
-								   if (a > 0 && a < 5000)
-								   {
-									   state_m.set_max_accel(a);
-									   return true;
-								   }
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a > 0 && a < 5000)
+				{
+					state_m.set_max_accel(a);
+					return true;
+				}
+			}
+			return false;
+		}
+	);
 	protocol.addSetCommand("SetBalanceCalibration",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long cal = atol(param_v[0]);
-								   if (cal != 0)
-								   {
-									   balance.setCalibration(cal);
-									   return true;
-								   }
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long cal = atol(param_v[0]);
+				if (cal != 0)
+				{
+					balance.setCalibration(cal);
+					return true;
+				}
+			}
+			return false;
+		}
+	);
 	protocol.addSetCommand("SetBalanceOffset",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long offset = atol(param_v[0]);
-								   balance.setOffset(offset);
-								   return true;
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long offset = atol(param_v[0]);
+				balance.setOffset(offset);
+				return true;
+			}
+			return false;
+		}
+	);
 	protocol.addSetCommand("SetPumpPower",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long a = atoi(param_v[0]);
-								   if (a > 0 && a <= 100)
-								   {
-									   state_m.set_pump_power(a);
-									   return true;
-								   }
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a > 0 && a <= 100)
+				{
+					state_m.set_pump_power(a);
+					return true;
+				}
+			}
+			return false;
+		}
+	);
 	protocol.addSetCommand("SetLED",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   if (param_c == 1)
-							   {
-								   long a = atoi(param_v[0]);
-								   if (a >= 0 && a < 10)
-								   {
-									   LEDContr.setType(a);
-									   return true;
-								   }
-							   }
-							   return false;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			if (param_c == 1)
+			{
+				long a = atoi(param_v[0]);
+				if (a >= 0 && a < 10)
+				{
+					LEDContr.setType(a);
+					return true;
+				}
+			}
+			return false;
+		}
+	);
+	protocol.addGetCommand("IsIdle",
+		[](int param_c, char **param_v, long *result)
+		{
+			(*result) = state_m.get_state() == BarBotState_t::Idle;
+			return true;
+		}
+	);
+	protocol.addGetCommand("GetFirmwareVersion",
+		[](int param_c, char **param_v, long *result)
+		{
+			(*result) = firmwareVersionToLong(FIRMWARE_VERSION);
+			return true;
+		}
+	);
 	protocol.addGetCommand("GetWeight",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   (*result) = (long)balance.getWeight();
-							   return true;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			(*result) = (long)balance.getWeight();
+			return true;
+		}
+	);
 	protocol.addGetCommand("HasGlas",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   (*result) = balance.getWeight() > GLASS_WEIGHT_MIN;
-							   return true;
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			(*result) = balance.getWeight() > GLASS_WEIGHT_MIN;
+			return true;
+		}
+	);
 	protocol.addGetCommand("GetConnectedBoards",
-						   [](int param_c, char **param_v, long *result)
-						   {
-							   state_m.start_ping_all();
-							   //Wait blocking!
-							   while (true)
-							   {
-								   if (state_m.status == BarBotStatus_t::Idle)
-								   {
-									   (*result) = state_m.get_ping_result();
-									   return true;
-								   }
-								   else if (state_m.status == BarBotStatus_t::PingAll)
-								   {
-									   //wait
-									   yield();
-								   }
-								   else
-								   {
-									   (*result) = -state_m.status;
-									   state_m.reset_error();
-									   Serial.println(state_m.status);
-									   return false;
-								   }
-							   }
-						   });
+		[](int param_c, char **param_v, long *result)
+		{
+			state_m.start_ping_all();
+			//Wait blocking!
+			while (true)
+			{
+				if (state_m.get_state() == BarBotState_t::Idle)
+				{
+					(*result) = state_m.get_ping_result();
+					return true;
+				}
+				else if (state_m.get_state() == BarBotState_t::PingAll)
+				{
+					//wait
+					yield();
+				}
+				else
+				{
+					(*result) = -state_m.get_state();
+					state_m.reset_error();
+					Serial.println(state_m.get_state());
+					return false;
+				}
+			}
+		}
+	);
 }
 
 void setup()
