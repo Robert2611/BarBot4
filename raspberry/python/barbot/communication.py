@@ -1,5 +1,5 @@
 """This module handles the communication between the barbot and the mainboard"""
-import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import NamedTuple, List
 from enum import Enum, auto
@@ -58,6 +58,15 @@ class FirmwareVersion:
     minor: int
     patch: int
 
+    def __eq__(self, other):
+        if self.major != other.major:
+            return False
+        if self.minor != other.minor:
+            return False
+        if self.patch != other.patch:
+            return False
+        return True
+
     def __str__(self):
         return f"v{self.major}.{self.minor}.{self.patch}"
 
@@ -72,13 +81,11 @@ class FirmwareVersion:
         # major and minor are the same, so let the patch version decide
         return self.patch >= patch
 
-def decode_firmware_version(version: int):
-    """Decode a firmware version string comming from """
-    major = version // 10000
-    version -= (major * 10000)
-    minor = version // 100
-    version -= (minor * 100)
-    patch = version
+def decode_firmware_version(version: int) -> FirmwareVersion:
+    """Decode a firmware version string comming from the mainboard"""
+    version = int(version)
+    major, version = divmod(version, 10000)
+    minor, patch = divmod(version, 100)
     return FirmwareVersion(major=major, minor=minor, patch=patch)
 
 class CommunicationResult():
@@ -98,20 +105,43 @@ class RawResponse(NamedTuple):
     command: str
     parameters: List[str] = []
 
-class Mainboard:
-    """Class representing the mainboard of the barbot, it is used to handle the communication"""
-    def __init__(self):
-        self._conn: bluetooth.BluetoothSocket = None
-        self._error = None
-        self._is_connected = False
-        self._buffer: str = ""
-        self._last_message_was_status_idle = False
-        self._firmware_version: FirmwareVersion = FirmwareVersion(0, 0, 0)
+class MainboardConnection(ABC):
+    """Abstract representation of a serial connection to the mainboard"""
+
+    @staticmethod
+    @abstractmethod
+    def find_bar_bot() -> str:
+        """Returns an identifier that can be used by the connect() method"""
+        return ""
+
+    @abstractmethod
+    def connect(self, identifier: str = "") -> bool:
+        """Connect, return true if successfull"""
+        return self.is_connected
+
+    @abstractmethod
+    def disconnect(self):
+        pass
+
+    @abstractmethod
+    def read_line(self) -> str:
+        return ""
 
     @property
-    def is_connected(self):
-        """Get wether the mainboard is connected via bluetooth"""
-        return self._is_connected
+    @abstractmethod
+    def is_connected(self) -> bool:
+        return False
+
+    @abstractmethod
+    def send(self, line:str):
+        pass
+
+
+class MainboardConnectionBluetooth(MainboardConnection):
+
+    def __init__(self):
+        self._conn : bluetooth.BluetoothSocket = None
+        self._is_connected = False
 
     @staticmethod
     def find_bar_bot() -> str:
@@ -128,9 +158,52 @@ class Mainboard:
             pass
         return None
 
-    def connect(self, mac_address: str):
+    def _read_line_unsave(self):
+        data = b''
+        # make sure to read everything there is
+        while True:
+            # read up to 1024 bytes
+            received = self._conn.recv(1024)
+            data += received
+            # we actually received 1024 bytes
+            if len(received) == 1024:
+                logging.warning("read_line: More than 1024 bytes read!")
+                # make shure to all bytes in the pipeline
+                continue
+            # we received a new line character
+            if data[-1:] == b'\n':
+                break
+        decoded_data = data.decode('utf-8')
+        # only take the last part of the message
+        lines = decoded_data.split('\n')
+        if len(lines) > 2:
+            logging.warning("read_line: More than one line in buffer!")
+        return lines[-2]
+
+    def read_line(self) -> str:
+        """Read the last line that was received on the manboard connection.
+        This command is blocking!
+        :returns: The last line received. None, if the mainboard is not connected."""
+        if self._conn is None:
+            self._is_connected = False
+            return None
+        try:
+            line = self._read_line_unsave()
+        except bluetooth.btcommon.BluetoothError as e:
+            self._is_connected = False
+            logging.error("Read failed with BluetoothError:%s", e.args)
+            return RawResponse(ResponseTypes.COMM_ERROR, e)
+
+        return line
+
+
+    def send(self, line : str):
+        self._conn.send(f"{line}\r".encode())
+
+    def connect(self, identifier: str):
         """Connect to a bluetooth device with the given mac address.
         :param mac_address: The mac address of the device to connect to."""
+        mac_address = identifier
         if self._conn is not None:
             self._conn.close()
         try:
@@ -138,21 +211,32 @@ class Mainboard:
             self._conn.connect((mac_address, 1))
             self._conn.settimeout(CONNECTION_TIMEOUT)
             # read one line to make sure the mainboard has started
-            self._read_line()
+            self.read_line()
             self._is_connected = True
             logging.info("Connection successfull")
-            # read firmware version
-            response = self.get("GetFirmwareVersion")
-            if response.was_successfull and len(response.return_parameters) > 0:
-                self._firmware_version = decode_firmware_version(int(response.return_parameters[0]))
-                logging.info("Fimrware version is: %s", self._firmware_version)
-            else:
-                self._firmware_version = FirmwareVersion(0, 0, 0)
-                logging.warning("Could not read firmware version, probably legacy")
         except bluetooth.BluetoothError as e:
             logging.warning("Connection failed %s", e)
             return False
         return True
+
+    def disconnect(self):
+        """Disconnect from the mainboard by closing the bluetooth connection"""
+        if self._conn is not None:
+            self._conn.close()
+
+class Mainboard:
+    """Class representing the mainboard of the barbot, it is used to handle the communication"""
+    def __init__(self, connection: MainboardConnection):
+        self._connection = connection
+        self._error = None
+        self._buffer: str = ""
+        self._last_message_was_status_idle = False
+        self._firmware_version: FirmwareVersion = FirmwareVersion(0, 0, 0)
+
+    @property
+    def is_connected(self):
+        """Get wether the mainboard is connected and ready"""
+        return self._connection.is_connected
 
     @property
     def firmware_version(self):
@@ -169,6 +253,28 @@ class Mainboard:
             logging.info("Status message discarded")
             message = self.read_message()
         return message
+
+    def connect(self, identifier: str):
+        self._connection.connect(identifier)
+        if not self._connection.is_connected:
+            return False
+        # read firmware version
+        response = self.get("GetFirmwareVersion")
+        if response.was_successfull and len(response.return_parameters) > 0:
+            self._firmware_version = decode_firmware_version(int(response.return_parameters[0]))
+            logging.info("Fimrware version is: %s", self._firmware_version)
+        else:
+            self._firmware_version = FirmwareVersion(0, 0, 0)
+            logging.warning("Could not read firmware version, probably legacy")
+        return self._connection.is_connected
+
+    def disconnect(self):
+        """Disconnect from the mainboard"""
+        self._connection.disconnect()
+
+    def find_bar_bot(self):
+        """Find available mainboards, get the first one """
+        return self._connection.find_bar_bot()
 
     def send_command_and_read_response(self, command, *parameters:str) -> CommunicationResult:
         """Send a command and read back its response from the mainboard.
@@ -291,82 +397,44 @@ class Mainboard:
     def send_command(self, command, *parameters:str):
         """Send a command to the mainboard.
         This will not wait for any response."""
-        if self._is_connected:
-            cmd = command
+        if self.is_connected:
+            line = command
             for p in parameters:
-                cmd = cmd + " " + str(p)
-            cmd = cmd + "\r"
-            logging.debug(">%s", cmd)
+                line += " " + str(p)
+            logging.debug(">%s", line)
             try:
-                self._conn.send(cmd.encode())
+                self._connection.send(line)
                 return True
             except bluetooth.BluetoothError:
                 logging.exception("Send command failed")
         return False
 
-    def disconnect(self):
-        """Disconnect from the mainboard by closing the bluetooth connection"""
-        if self._conn is not None:
-            self._conn.close()
-
-    def _read_line(self):
-        """Read the last line that was received on the manboard connection.
-        This command is blocking!
-        :returns: The last line received. None, if the mainboard is not connected."""
-        if self._conn is None:
-            self._is_connected = False
-            return None
-        data = b''
-        # make sure to read everything there is
-        while True:
-            # read up to 1024 bytes
-            received = self._conn.recv(1024)
-            data += received
-            # we actually received 1024 bytes
-            if len(received) == 1024:
-                logging.warning("read_line: More than 1024 bytes read!")
-                # make shure to all bytes in the pipeline
-                continue
-            # we received a new line character
-            if data[-1:] == b'\n':
-                break
-        decoded_data = data.decode('utf-8')
-        # only take the last part of the message
-        lines = decoded_data.split('\n')
-        if len(lines) > 2:
-            logging.warning("read_line: More than one line in buffer!")
-        return lines[-2]
-
     def read_message(self) -> RawResponse:
         """Read a response message from the mainboard.
         :returns: Response object containing information about the response or errors """
-        if self._conn is None:
-            self._is_connected = False
+        if not self.is_connected:
             return RawResponse(ResponseTypes.COMM_ERROR, "port not open")
-        try:
-            line = self._read_line()
-            tokens = line.split()
-            # Do not repeat "STATUS IDLE" over and over again
-            if len(tokens) >= 2 and tokens[0] == "STATUS" and tokens[1] == "IDLE":
-                if not self._last_message_was_status_idle:
-                    logging.debug("<%s", line)
-                    self._last_message_was_status_idle = True
-            else:
-                if self._last_message_was_status_idle:
-                    self._last_message_was_status_idle = False
+        line = self._connection.read_line()
+        if line == "":
+            return RawResponse(ResponseTypes.COMM_ERROR, "empty line read")
+        tokens = line.split()
+        # Do not repeat "STATUS IDLE" over and over again
+        if len(tokens) >= 2 and tokens[0] == "STATUS" and tokens[1] == "IDLE":
+            if not self._last_message_was_status_idle:
                 logging.debug("<%s", line)
+                self._last_message_was_status_idle = True
+        else:
+            if self._last_message_was_status_idle:
+                self._last_message_was_status_idle = False
+            logging.debug("<%s", line)
 
-            # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
-            # find message type
-            if len(tokens) > 0:
-                for msg_type in ResponseTypes:
-                    if msg_type.name != tokens[0]:
-                        continue
-                    if len(tokens) < 2:
-                        return RawResponse(ResponseTypes.COMM_ERROR, "wrong format")
-                    return RawResponse(ResponseTypes[tokens[0]], tokens[1], tokens[2:])
-            return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")
-        except bluetooth.btcommon.BluetoothError as e:
-            self._is_connected = False
-            logging.error("Read failed with BluetoothError:%s", e.args)
-            return RawResponse(ResponseTypes.COMM_ERROR, e)
+        # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
+        # find message type
+        if len(tokens) > 0:
+            for msg_type in ResponseTypes:
+                if msg_type.name != tokens[0]:
+                    continue
+                if len(tokens) < 2:
+                    return RawResponse(ResponseTypes.COMM_ERROR, "wrong format")
+                return RawResponse(ResponseTypes[tokens[0]], tokens[1], tokens[2:])
+        return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")

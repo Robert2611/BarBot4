@@ -7,7 +7,7 @@ from typing import Callable, List, NamedTuple
 from enum import Enum, auto
 from .recipes import PartyCollection,Recipe,RecipeItem
 from .config import BarBotConfig, IngredientType, PortConfiguration
-from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes
+from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes, MainboardConnectionBluetooth
 from .communication import ErrorType as CommError
 
 def run_command(cmd_str):
@@ -107,7 +107,7 @@ class BarBot():
         self._config = config
         self._ports = ports
         self._parties = PartyCollection()
-        self._mainboard = Mainboard()
+        self._mainboard = Mainboard(MainboardConnectionBluetooth)
         self._state_changed: bool = False
         # callbacks
         self.on_mixing_finished: Callable[[Recipe], None] = lambda current_recipe: None

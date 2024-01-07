@@ -14,6 +14,7 @@ from barbotgui import *
 from barbot import BarBot
 from barbot.recipes import RecipeCollection
 from barbot.config import log_directory, BarBotConfig, PortConfiguration
+from barbot.mockup import MaiboardConnectionMockup
 
 # cofigure logging
 exception_file_path = os.path.join(
@@ -45,7 +46,8 @@ logging.info("--------------------------")
 is_demo = "-d" in sys.argv[1:]
 ports = PortConfiguration()
 config = BarBotConfig()
-bot = BarBot(config, ports, is_demo)
+bot = BarBot(config, ports)
+bot._mainboard._connection = MaiboardConnectionMockup()
 recipe_collection = RecipeCollection()
 recipe_collection.load()
 

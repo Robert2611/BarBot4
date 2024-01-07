@@ -243,9 +243,10 @@ class BarBotConfig:
         with open(self._filename, 'r', encoding="utf-8") as configfile:
             data = yaml.safe_load(configfile)
         # update fields with values from
-        for field in self._fields:
-            if field in data.keys():
-                setattr(self, field, data[field])
+        if data is not None:
+            for field in self._fields:
+                if field in data.keys():
+                    setattr(self, field, data[field])
         return True
 
 
