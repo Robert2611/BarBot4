@@ -116,29 +116,31 @@ class MainboardConnection(ABC):
 
     @abstractmethod
     def connect(self, identifier: str = "") -> bool:
-        """Connect, return true if successfull"""
+        """Establish connection to the mainboard"""
         return self.is_connected
 
     @abstractmethod
     def disconnect(self):
-        pass
+        """Close the mainboard connection"""
 
     @abstractmethod
     def read_line(self) -> str:
+        """Read a single line from the mainboard"""
         return ""
 
     @property
     @abstractmethod
     def is_connected(self) -> bool:
+        """Check if the mainboard connected and ready to communicate"""
         return False
 
     @abstractmethod
     def send(self, line:str):
-        pass
+        """Send a line to the minboard"""
 
 
 class MainboardConnectionBluetooth(MainboardConnection):
-
+    """Implementation of the MaimboardConnection using bluetooth"""
     def __init__(self):
         self._conn : bluetooth.BluetoothSocket = None
         self._is_connected = False
@@ -196,11 +198,10 @@ class MainboardConnectionBluetooth(MainboardConnection):
 
         return line
 
-
     def send(self, line : str):
         self._conn.send(f"{line}\r".encode())
 
-    def connect(self, identifier: str):
+    def connect(self, identifier: str = ""):
         """Connect to a bluetooth device with the given mac address.
         :param mac_address: The mac address of the device to connect to."""
         mac_address = identifier
@@ -223,6 +224,10 @@ class MainboardConnectionBluetooth(MainboardConnection):
         """Disconnect from the mainboard by closing the bluetooth connection"""
         if self._conn is not None:
             self._conn.close()
+
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
 
 class Mainboard:
     """Class representing the mainboard of the barbot, it is used to handle the communication"""
@@ -255,6 +260,7 @@ class Mainboard:
         return message
 
     def connect(self, identifier: str):
+        """Connect to the mainboard"""
         self._connection.connect(identifier)
         if not self._connection.is_connected:
             return False

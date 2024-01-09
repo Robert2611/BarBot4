@@ -5,7 +5,7 @@ from barbot.config import BarBotConfig, PortConfiguration, get_ingredient_by_ide
 from barbot.recipes import load_recipe_from_file, Recipe, RecipeItem
 from barbot.communication import decode_firmware_version, FirmwareVersion, Mainboard
 import barbot.config
-from connection_mockup import MaiboardConnectionMockup
+from barbot.mockup import MaiboardConnectionMockup
 
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists

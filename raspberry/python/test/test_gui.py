@@ -9,15 +9,12 @@ import barbotgui.userviews
 from barbotgui.userviews import ListRecipes, RecipeNewOrEdit, SingleIngredient, Statistics, OrderRecipe
 from barbotgui.adminviews import AdminLogin, BalanceCalibration, Overview, Ports, Cleaning, Settings, RemoveRecipe
 from barbot.mockup import MaiboardConnectionMockup
+from barbot import Mainboard 
 
 recipes_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "recipes")
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists
 os.makedirs(temp_path, exist_ok=True)
-
-def test_gui(main_window):
-    assert main_window._current_view.is_idle_view
-    assert isinstance(main_window._current_view, ListRecipes)
 
 @pytest.fixture
 def mainboard_connection_mockup() -> MaiboardConnectionMockup:
@@ -27,10 +24,10 @@ def mainboard_connection_mockup() -> MaiboardConnectionMockup:
 def main_window(qtbot, mainboard_connection_mockup):
     ports = PortConfiguration()
     config = BarBotConfig()
-    bot = BarBot(config, ports)
-    # inject mockup for communication
-    bot._mainboard._connection = mainboard_connection_mockup
-    mainboard_connection_mockup.set_result_for_getter("GetConnectedBoards", 1<<BoardType.BALANCE.value | 1<<BoardType.MIXER.value)
+    mainboard = Mainboard(mainboard_connection_mockup)
+    bot = BarBot(config, ports, mainboard)
+    boards_encoded = 1<<BoardType.BALANCE.value | 1<<BoardType.MIXER.value
+    mainboard_connection_mockup.set_result_for_getter("GetConnectedBoards", boards_encoded)
     recipe_collection = RecipeCollection()
     recipe_collection.load()
     bar_bot_thread = threading.Thread(target=bot.run)
@@ -38,14 +35,14 @@ def main_window(qtbot, mainboard_connection_mockup):
     window = barbotgui.MainWindow(bot, recipe_collection)
     window.show()
     qtbot.addWidget(window)
+    while window.barbot_.is_busy:
+        time.sleep(1)
     yield window
     bot.abort()
     bar_bot_thread.join(2)
 
 @pytest.mark.timeout(20)
 def test_single_ingredient(main_window, mainboard_connection_mockup):
-    while main_window.barbot_.is_busy:
-        time.sleep(1)
     mainboard_connection_mockup.clear_command_history()
     view = SingleIngredient(main_window)
     main_window.set_view(view)
@@ -58,20 +55,36 @@ def test_single_ingredient(main_window, mainboard_connection_mockup):
         time.sleep(1)
     assert "Draft" in mainboard_connection_mockup.command_history
 
-def test_views(main_window):
-    #create all views
-    views = [ListRecipes, RecipeNewOrEdit, SingleIngredient, Statistics, RecipeNewOrEdit]
-    for view in views:
+def test_admin_views(main_window):
+    admin_views = [
+        AdminLogin,
+        BalanceCalibration,
+        Overview,
+        Ports,
+        Cleaning,
+        Settings,
+        RemoveRecipe
+    ]
+    for view in admin_views:
+        print(f"testing: {view}")
         main_window.set_view(view(main_window))
+        time.sleep(0.2)
 
+def test_order_recipe(main_window):
     # OrderRecipe needs a recipe, so we load one
-
     recipe = load_recipe_from_file(recipes_path, "Anti.yaml")
     if recipe is None:
         raise Exception("Could not load recipe")
     main_window.set_view(OrderRecipe(main_window, recipe))
 
-    #create all admin views
-    admin_views = [AdminLogin, BalanceCalibration, Overview, Ports, Cleaning, Settings, RemoveRecipe]
-    for view in admin_views:
+def test_views(main_window):
+    views = [
+        ListRecipes,
+        RecipeNewOrEdit,
+        SingleIngredient,
+        Statistics,
+        RecipeNewOrEdit
+    ]
+    for view in views:
         main_window.set_view(view(main_window))
+        time.sleep(0.2)

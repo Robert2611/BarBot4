@@ -14,6 +14,7 @@ from barbotgui import *
 from barbot import BarBot
 from barbot.recipes import RecipeCollection
 from barbot.config import log_directory, BarBotConfig, PortConfiguration
+from barbot import MainboardConnectionBluetooth, Mainboard
 from barbot.mockup import MaiboardConnectionMockup
 
 # cofigure logging
@@ -46,8 +47,8 @@ logging.info("--------------------------")
 is_demo = "-d" in sys.argv[1:]
 ports = PortConfiguration()
 config = BarBotConfig()
-bot = BarBot(config, ports)
-bot._mainboard._connection = MaiboardConnectionMockup()
+mainboard = Mainboard(MaiboardConnectionMockup() if is_demo else MainboardConnectionBluetooth())
+bot = BarBot(config, ports, mainboard)
 recipe_collection = RecipeCollection()
 recipe_collection.load()
 

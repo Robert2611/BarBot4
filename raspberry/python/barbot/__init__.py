@@ -7,7 +7,7 @@ from typing import Callable, List, NamedTuple
 from enum import Enum, auto
 from .recipes import PartyCollection,Recipe,RecipeItem
 from .config import BarBotConfig, IngredientType, PortConfiguration
-from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes, MainboardConnectionBluetooth
+from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes
 from .communication import ErrorType as CommError
 
 def run_command(cmd_str):
@@ -89,25 +89,24 @@ class MixingOptions(NamedTuple):
 
 class BarBot():
     """The main class containing the statemachine of the barbot"""
-    def __init__(self, config: BarBotConfig, ports: PortConfiguration, demo_mode = False):
+    def __init__(self, config: BarBotConfig, ports: PortConfiguration, mainboard: Mainboard):
         self._abort = False
-        self._demo_mode = demo_mode
         self._user_input:UserInputType = UserInputType.UNDEFINED
         self._abort_mixing = False
         self._weight_timeout = 1
         self._weight = None
         self._pumps_to_clean = []
-        self._connected_boards = [] if not self._demo_mode else [BoardType.BALANCE]
+        self._connected_boards = []
         self._message: UserMessageType = None
         self._progress = 0
         self._idle_tasks: list[_IdleTask] = []
-        self._state = BarBotState.IDLE if self._demo_mode else BarBotState.CONNECTING
+        self._state = BarBotState.CONNECTING
         self._current_mixing_options: MixingOptions = None
         self._current_recipe_item: RecipeItem = None
         self._config = config
         self._ports = ports
         self._parties = PartyCollection()
-        self._mainboard = Mainboard(MainboardConnectionBluetooth)
+        self._mainboard = mainboard
         self._state_changed: bool = False
         # callbacks
         self.on_mixing_finished: Callable[[Recipe], None] = lambda current_recipe: None
@@ -197,8 +196,7 @@ class BarBot():
     def reconnect(self):
         """Reinitiate the connection procedure"""
         # in demo mode there is nothing to do here
-        if not self._demo_mode:
-            self._set_state(BarBotState.CONNECTING)
+        self._set_state(BarBotState.CONNECTING)
 
     def _get_state_function_name(self, state: BarBotState) -> str:
         """Get the name of the barbot function to be called within the defined state.
@@ -208,7 +206,7 @@ class BarBot():
 
     def run(self):
         """main loop, runs the whole time"""
-        logging.debug("State machine started%s", " in demo mode" if self._demo_mode else "")
+        logging.debug("State machine started")
         while not self._abort:
             # reset abort flag
             self._abort_mixing = False
@@ -225,22 +223,17 @@ class BarBot():
                     BarBotState.SEARCHING
                 ]:
                 self._go_to_idle()
-
-        if not self._demo_mode:
-            self._mainboard.disconnect()
+        self._mainboard.disconnect()
 
     def _do_idle(self):
         """Perform idle task"""
-        if not self._demo_mode:
-            # read status message
-            self._mainboard.read_message()
-            if not self._mainboard.is_connected:
-                self._set_state(BarBotState.CONNECTING)
-            if len(self._idle_tasks) > 0:
-                self._idle_tasks[0].execute(self._mainboard)
-                self._idle_tasks.pop(0)
-        else:
-            time.sleep(0.1)
+        # read status message
+        self._mainboard.read_message()
+        if not self._mainboard.is_connected:
+            self._set_state(BarBotState.CONNECTING)
+        if len(self._idle_tasks) > 0:
+            self._idle_tasks[0].execute(self._mainboard)
+            self._idle_tasks.pop(0)
 
     def _do_searching(self):
         """Search for a barbot in range, save its mac address and connect to it if one is found."""
@@ -385,11 +378,10 @@ class BarBot():
         #reset current values
         self._current_mixing_options = None
         self._current_recipe_item = None
-        if not self._demo_mode:
-            self._mainboard.set("SetLED", 3)
-            # first move to what is supposed to be zero, then home
-            self._mainboard.do("Move", 0)
-            self._mainboard.do("Home")
+        self._mainboard.set("SetLED", 3)
+        # first move to what is supposed to be zero, then home
+        self._mainboard.do("Move", 0)
+        self._mainboard.do("Home")
 
     def _has_glas(self):
         result = self._mainboard.get("HasGlas")
@@ -419,11 +411,14 @@ class BarBot():
             if item.ingredient.type == IngredientType.SUGAR:
                 result = self._mainboard.do("Sugar", weight)
             else:
-                # TODO: Handle non successfull SET
                 if item.ingredient.type == IngredientType.SIRUP:
-                    self._mainboard.set("SetPumpPower", self._config.pump_power_sirup)
+                    result = self._mainboard.set("SetPumpPower", self._config.pump_power_sirup)
                 else:
-                    self._mainboard.set("SetPumpPower", self._config.pump_power)
+                    result = self._mainboard.set("SetPumpPower", self._config.pump_power)
+                if not result.was_successfull:
+                    self._set_message(UserMessageType.UNKNOWN_ERROR)
+                    self._wait_for_user_input()
+                    return False
                 result = self._mainboard.do("Draft", port, weight)
             # user aborted
             if self._abort_mixing:
@@ -468,82 +463,65 @@ class BarBot():
         progress = 0
         self._set_mixing_progress(progress)
 
-        if not self._demo_mode:
-            self._set_message(UserMessageType.PLACE_GLAS)
-            self._reset_user_input()
-            # wait for the glas
-            if not self._has_glas():
-                self._mainboard.set("PlatformLED", 2)
-                # wait for glas or user abort
-                def glas_present_or_user_input():
-                    if self._has_glas():
-                        return True
-                    # any user input was set
-                    if self._user_input != UserInputType.UNDEFINED:
-                        return True
-                    return False
-                if not self._wait_for(glas_present_or_user_input):
-                    return
-                self._set_message(UserMessageType.NONE)
-                # user answered with anything
+        self._set_message(UserMessageType.PLACE_GLAS)
+        self._reset_user_input()
+        # wait for the glas
+        if not self._has_glas():
+            self._mainboard.set("PlatformLED", 2)
+            # wait for glas or user abort
+            def glas_present_or_user_input():
+                if self._has_glas():
+                    return True
+                # any user input was set
                 if self._user_input != UserInputType.UNDEFINED:
-                    return
+                    return True
+                return False
+            if not self._wait_for(glas_present_or_user_input):
+                return
+            self._set_message(UserMessageType.NONE)
+            # user answered with anything
+            if self._user_input != UserInputType.UNDEFINED:
+                return
 
         self._mainboard.set("PlatformLED", 3)
         # wait for the user to take the hands off the glas
         time.sleep(1)
-        if not self._demo_mode:
-            self._mainboard.set("PlatformLED", 5)
-            self._mainboard.set("SetLED", 5)
+        self._mainboard.set("PlatformLED", 5)
+        self._mainboard.set("SetLED", 5)
         self._reset_user_input()
         for item in self._current_mixing_options.recipe.items:
             # user aborted
             if self._abort_mixing:
                 break
             self._current_recipe_item = item
-            if not self._demo_mode:
-                # do the actual draft, exit the loop if it did not succeed
-                if not self._draft_one(item):
-                    break
-            else:
-                if self._abort_mixing:
-                    logging.warning("Waiting aborted")
-                    return
-                time.sleep(1)
+            # do the actual draft, exit the loop if it did not succeed
+            if not self._draft_one(item):
+                break
             progress += 1
             self._set_mixing_progress(progress)
 
         # add ice if it was selected and mixing was not aborted
         if self.current_mixing_options.add_ice and not self._abort_mixing:
-            if not self._demo_mode:
-                self._do_crushing()
-            else:
-                time.sleep(1)
+            self._do_crushing()
             progress += 1
             self._set_mixing_progress(progress)
 
         # move to start
-        if not self._demo_mode:
-            self._mainboard.do("Move", 0)
+        self._mainboard.do("Move", 0)
 
         # add straw if it was selected and mixing was not aborted
         if self._current_mixing_options.add_straw and not self._abort_mixing:
-            if not self._demo_mode:
-                self._do_straw()
-            else:
-                time.sleep(1)
+            self._do_straw()
             progress += 1
             self._set_mixing_progress(progress)
 
         #mising is done
         self._set_message(UserMessageType.MIXING_DONE_REMOVE_GLAS)
-        if not self._demo_mode:
-            self._mainboard.set("PlatformLED", 2)
-            self._mainboard.set("SetLED", 4)
+        self._mainboard.set("PlatformLED", 2)
+        self._mainboard.set("SetLED", 4)
         # show message and led for some seconds
         time.sleep(4)
-        if not self._demo_mode:
-            self._mainboard.set("PlatformLED", 0)
+        self._mainboard.set("PlatformLED", 0)
         self._parties.current_party.add_order(self._current_mixing_options.recipe)
         self._set_message(UserMessageType.NONE)
         if self.on_mixing_finished is not None:
@@ -635,9 +613,6 @@ class BarBot():
         if self._user_input != UserInputType.YES:
             return
         self._set_message(UserMessageType.NONE)
-        if self._demo_mode:
-            time.sleep(2)
-            return
         for pump_index in self._pumps_to_clean:
             # user aborted
             if self._abort_mixing:
@@ -645,16 +620,10 @@ class BarBot():
             self._mainboard.do("Clean", pump_index, self._config.cleaning_time)
 
     def _do_cleaning(self):
-        if self._demo_mode:
-            time.sleep(2)
-            return
         weight = int(self._current_recipe_item.weight)
         self._mainboard.do("Clean", self._current_recipe_item.port, weight)
 
     def _do_single_ingredient(self):
-        if self._demo_mode:
-            time.sleep(2)
-            return
         self._set_message(UserMessageType.PLACE_GLAS)
         self._reset_user_input()
         # wait for glas or user abort
@@ -751,6 +720,11 @@ class BarBot():
         boards = int(bit_values) if bit_values is not None else 0
         #convert bit field to list of enum values
         return [b for b in BoardType if boards & 1 << b.value]
+    
+    @property
+    def connected_boards(self) -> List[BoardType]:
+        """Get a list of the connected boards, it is read once on startup"""
+        return self._connected_boards
 
     def get_boards_connected(self, callback):
         """Get the connected boards when the state machine is idle again.
