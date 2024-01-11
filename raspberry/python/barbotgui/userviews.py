@@ -11,8 +11,10 @@ from barbotgui.controls import GlasFilling, GlasIndicator, BarChart, set_no_spac
 
 
 class UserView(View):
+    """Base class for all user views"""
     def __init__(self, window: BarBotWindow):
         super().__init__(window)
+
         self.navigation_items = [
             ["Liste", ListRecipes],
             ["Neu", RecipeNewOrEdit],
@@ -22,31 +24,18 @@ class UserView(View):
         self.setLayout(QtWidgets.QVBoxLayout())
         set_no_spacing(self.layout())
 
-        self.header = QtWidgets.QWidget()
-        self.layout().addWidget(self.header)
+        self.__add_header()
+        self.__add_navigation()
 
-        # navigation
-        self.navigation = QtWidgets.QWidget()
-        self.layout().addWidget(self.navigation)
-        self.navigation.setLayout(QtWidgets.QHBoxLayout())
-
-        for text, _class in self.navigation_items:
-            button = QtWidgets.QPushButton(text)
-            def btn_click(_, c=_class):
-                return self.window.set_view(c(self.window))
-            button.clicked.connect(btn_click)
-            self.navigation.layout().addWidget(button, 1)
-
-        # content
         content_wrapper = QtWidgets.QWidget()
         self.layout().addWidget(content_wrapper, 1)
         content_wrapper.setLayout(QtWidgets.QGridLayout())
         set_no_spacing(content_wrapper.layout())
 
-        # fixed content
-        self._fixed_content = QtWidgets.QWidget()
-        content_wrapper.layout().addWidget(self._fixed_content)
+        self.__add_scroller_and_content_to(content_wrapper)
+        self.__add_fixed_content_to(content_wrapper)
 
+    def __add_scroller_and_content_to(self, content_wrapper):
         scroller = QtWidgets.QScrollArea()
         scroller.setProperty("class", "ContentScroller")
         scroller.setWidgetResizable(True)
@@ -62,46 +51,75 @@ class UserView(View):
         self._content.setProperty("class", "IdleContent")
         scroller.setWidget(self._content)
 
+    def __add_fixed_content_to(self, content_wrapper):
+        self._fixed_content = QtWidgets.QWidget()
+        content_wrapper.layout().addWidget(self._fixed_content)
+
+    def __add_header(self):
+        self.header = QtWidgets.QWidget()
+        self.layout().addWidget(self.header)
+
+    def __add_navigation(self):
+        self.navigation = QtWidgets.QWidget()
+        self.layout().addWidget(self.navigation)
+        self.navigation.setLayout(QtWidgets.QHBoxLayout())
+
+        for text, _class in self.navigation_items:
+            button = QtWidgets.QPushButton(text)
+            def btn_click(_, c=_class):
+                return self.window.set_view(c(self.window))
+            button.clicked.connect(btn_click)
+            self.navigation.layout().addWidget(button, 1)
+
+    def _add_title_to_fixed_content(self, title_name):
+        title = QtWidgets.QLabel(title_name)
+        title.setProperty("class", "Headline")
+        self._fixed_content.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        self._fixed_content.layout().addWidget(title)
+
+    def _add_dummy_widget_to_content(self):
+        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+
 class ListRecipes(UserView):
+    """List of known recipes"""
     def __init__(self, window: BarBotWindow):
         super().__init__(window)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
-        # filter: alcoholic
+        self._add_filter_alcoholic()
+        self._add_filter_available()
+        self._add_recipe_list_container()
+
+        self._update_recipe_list()
+
+    def _add_filter_alcoholic(self):
         self._cb_alcoholic = QtWidgets.QCheckBox("Alkoholisch")
         self._fixed_content.layout().addWidget(self._cb_alcoholic)
         self._cb_alcoholic.setChecked(self.window.recipe_filter.show_alcoholic)
+        self._cb_alcoholic.toggled.connect(self._update_recipe_list)
 
-        def cb_alcoholic_toggled(s):
-            self.window.recipe_filter.show_alcoholic = self._cb_alcoholic.isChecked()
-            self.window.recipe_filter.show_non_acloholic = not self._cb_alcoholic.isChecked()
-            self._update_list()
-        self._cb_alcoholic.toggled.connect(cb_alcoholic_toggled)
-
-        # filter: available
+    def _add_filter_available(self):
         self._cb_available = QtWidgets.QCheckBox("Nur verfügbare")
         self._fixed_content.layout().addWidget(self._cb_available)
         self._cb_available.setChecked(self.window.recipe_filter.only_available)
+        self._cb_available.toggled.connect(self._update_recipe_list)
 
-        def cb_available_toggled(s):
-            self.window.recipe_filter.only_available = self._cb_available.isChecked()
-            self._update_list()
-        self._cb_available.toggled.connect(cb_available_toggled)
+    def _add_recipe_list_container(self):
+        self._recipe_list_container = QtWidgets.QWidget()
+        self._recipe_list_container.setLayout(QtWidgets.QVBoxLayout())
+        self._content.layout().addWidget(self._recipe_list_container)
+        set_no_spacing(self._recipe_list_container.layout())
 
-        self._listbox = QtWidgets.QWidget()
-        self._listbox.setLayout(QtWidgets.QVBoxLayout())
-        self._content.layout().addWidget(self._listbox)
-
-        set_no_spacing(self._listbox.layout())
-
-        self._update_list()
-
-    def _update_list(self):
-        recipes = self.window.recipes.get_filtered(self.window.recipe_filter, self.barbot_.ports, self.barbot_.config)
+    def _update_recipe_list(self):
+        recipe_filter = self.window.recipe_filter
+        recipe_filter.only_available = self._cb_available.isChecked()
+        recipe_filter.show_alcoholic = self._cb_alcoholic.isChecked()
+        recipe_filter.show_non_acloholic = not self._cb_alcoholic.isChecked()
+        recipes = self.window.recipes.get_filtered(recipe_filter, self.barbot_.ports, self.barbot_.config)
         # clear the list
-        while self._listbox.layout().count():
-            item = self._listbox.layout().takeAt(0)
+        while self._recipe_list_container.layout().count():
+            item = self._recipe_list_container.layout().takeAt(0)
             widget = item.widget()
             if widget is not None:
                 widget.setParent(None)
@@ -110,7 +128,7 @@ class ListRecipes(UserView):
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
             recipe_box.setLayout(QtWidgets.QHBoxLayout())
-            self._listbox.layout().addWidget(recipe_box)
+            self._recipe_list_container.layout().addWidget(recipe_box)
 
             # left column
             left_column = QtWidgets.QWidget()
@@ -184,7 +202,7 @@ class ListRecipes(UserView):
                 right_column.layout().addWidget(order_button, 0)
                 right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
 
-        self._listbox.layout().addWidget(QtWidgets.QWidget(), 1)
+        self._recipe_list_container.layout().addWidget(QtWidgets.QWidget(), 1)
 
     def _open_edit(self, recipe: Recipe):
         self.window.set_view(RecipeNewOrEdit(self.window, recipe))
@@ -194,36 +212,47 @@ class ListRecipes(UserView):
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
-        if recipe == None:
+        if recipe is None:
             self.window.show_message("Rezept nicht gefunden")
             return
         self.window.set_view(OrderRecipe(self.window, recipe))
 
 
 class RecipeNewOrEdit(UserView):
+    """View for editing existing recpies and creating new ones"""
     def __init__(self, window: BarBotWindow, recipe: Recipe = None):
         super().__init__(window)
 
-        if recipe is not None:
-            self._original_recipe = recipe
-            self._recipe = recipe.copy()
-            self._is_new_cocktail = False
+        if recipe is None:
+            self._init_new_recipe()
         else:
-            self._recipe = Recipe()
-            self._original_recipe = None
-            self._is_new_cocktail = True
+            self._init_recipe(recipe)
+
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
-        # title
-        title = QtWidgets.QLabel(
-            "Neues Rezept"
-            if self._is_new_cocktail
-            else "Rezept bearbeiten"
-        )
-        title.setProperty("class", "Headline")
-        self._fixed_content.layout().addWidget(title)
+        title = "Neues Rezept" if self._is_new_cocktail else "Rezept bearbeiten"
+        self._add_title_to_fixed_content(title)
 
+        self._add_name_and_instruction()
+        self._add_ingredients(10)
+        self._add_filling_and_save_button()
+
+        self._add_dummy_widget_to_content()
+
+        self._update_view()
+
+    def _init_new_recipe(self):
+        self._recipe = Recipe()
+        self._original_recipe = None
+        self._is_new_cocktail = True
+
+    def _init_recipe(self, recipe):
+        self._original_recipe = recipe
+        self._recipe = recipe.copy()
+        self._is_new_cocktail = False
+
+    def _add_name_and_instruction(self):
         # wrapper for name and instruction
         wrapper = QtWidgets.QWidget()
         wrapper.setLayout(QtWidgets.QFormLayout())
@@ -232,41 +261,42 @@ class RecipeNewOrEdit(UserView):
 
         # name
         self._name_widget = QtWidgets.QLineEdit(self._recipe.name)
-
-        def open_keyboard_for_name(event):
-            self.window.open_keyboard(self._name_widget)
-        self._name_widget.mousePressEvent = open_keyboard_for_name
+        self._name_widget.mousePressEvent = self._open_keyboard_for_name_widget
         label = QtWidgets.QLabel("Name:")
         wrapper.layout().addRow(label, self._name_widget)
 
         # pre instruction
         self._pre_instruction_widget = QtWidgets.QLineEdit()
         self._pre_instruction_widget.setText(self._recipe.pre_instruction)
-
-        def open_keyboard_for_pre_instruction(event):
-            self.window.open_keyboard(self._pre_instruction_widget)
-        self._pre_instruction_widget.mousePressEvent = open_keyboard_for_pre_instruction
+        self._pre_instruction_widget.mousePressEvent = self._open_keyboard_for_pre_instruction
         label = QtWidgets.QLabel("Vorher:")
         wrapper.layout().addRow(label, self._pre_instruction_widget)
 
         # post instruction
-        self._post_instruction_widget = QtWidgets.QLineEdit()
-        self._post_instruction_widget.setText(self._recipe.post_instruction)
-
-        def open_keyboard_for_post_instruction(event):
-            self.window.open_keyboard(self._post_instruction_widget)
-        self._post_instruction_widget.mousePressEvent = open_keyboard_for_post_instruction
+        widget  = QtWidgets.QLineEdit()
+        widget.setText(self._recipe.post_instruction)
+        widget.mousePressEvent = self._open_keyboard_for_post_instruction_widget
+        self._post_instruction_widget = widget
         label = QtWidgets.QLabel("Nachher:")
         wrapper.layout().addRow(label, self._post_instruction_widget)
 
-        # ingredients
+    def _open_keyboard_for_name_widget(self):
+        self.window.open_keyboard(self._name_widget)
+
+    def _open_keyboard_for_pre_instruction(self):
+        self.window.open_keyboard(self._pre_instruction_widget)
+
+    def _open_keyboard_for_post_instruction_widget(self):
+        self.window.open_keyboard(self._post_instruction_widget)
+
+    def _add_ingredients(self, max_count):
         self._content.layout().addWidget(QtWidgets.QLabel("Zutaten:"))
         ingredients_container = QtWidgets.QWidget()
         ingredients_container.setLayout(QtWidgets.QGridLayout())
         self._content.layout().addWidget(ingredients_container, 1)
         # fill grid
         self._ingredient_widgets = []
-        for i in range(10):
+        for i in range(max_count):
             # get selected checkbox entry or default
             if not self._is_new_cocktail and i < len(self._recipe.items):
                 selected_amount = self._recipe.items[i].amount
@@ -276,11 +306,11 @@ class RecipeNewOrEdit(UserView):
                 selected_ingredient = None
             # add ingredient name
             ingredient_widget = self.window.combobox_ingredients(selected_ingredient)
-            ingredient_widget.currentIndexChanged.connect(self._update_table)
+            ingredient_widget.currentIndexChanged.connect(self._update_view)
             ingredients_container.layout().addWidget(ingredient_widget, i, 0)
             # add ingredient amount
             amount_widget = self.window.combobox_amounts(selected_amount)
-            amount_widget.currentIndexChanged.connect(self._update_table)
+            amount_widget.currentIndexChanged.connect(self._update_view)
             if(i >= len(self._recipe.items) \
                or self._recipe.items[i].ingredient.type == IngredientType.STIRR):
                 amount_widget.setVisible(False)
@@ -289,6 +319,7 @@ class RecipeNewOrEdit(UserView):
             # safe references for later
             self._ingredient_widgets.append([ingredient_widget, amount_widget])
 
+    def _add_filling_and_save_button(self):
         # row for label and button
         row = QtWidgets.QWidget()
         row.setLayout(QtWidgets.QHBoxLayout())
@@ -301,11 +332,6 @@ class RecipeNewOrEdit(UserView):
         button.clicked.connect(self._save)
         row.layout().addWidget(button)
         row.layout().setAlignment(button, QtCore.Qt.AlignCenter)
-
-        # dummy
-        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
-
-        self._update_table()
 
     def _get_cocktail_size(self):
         size = 0
@@ -326,16 +352,14 @@ class RecipeNewOrEdit(UserView):
         element.style().unpolish(element)
         element.style().polish(element)
 
-    def _update_table(self):
+    def _update_view(self):
         # cocktail size
         size = self._get_cocktail_size()
         max_size = self.barbot_.config.max_cocktail_size
         label = self._filling_label
-        label.setText("%i von %i cl" % (size, max_size))
-        if size > max_size:
-            label.setProperty("class", "HasError")
-        else:
-            label.setProperty("class", "")
+        label.setText(f"{size} von {max_size} cl")
+        has_error = size > max_size
+        label.setProperty("class", "HasError" if has_error else "")
         self._force_redraw(label)
         # visibility
         for ingredient_widget, amount_widget in self._ingredient_widgets:
@@ -412,21 +436,30 @@ class SingleIngredient(UserView):
 
     def __init__(self, window: BarBotWindow):
         super().__init__(window)
+        
         self._ice_index = -2
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
-        # title
-        title = QtWidgets.QLabel("Nachschlag")
-        title.setProperty("class", "Headline")
-        self._fixed_content.layout().addWidget(title)
+        self._add_title_to_fixed_content("Nachschlag")
+        self._add_info_text()
+        self._add_ingredient_section()
+        
+        if self.barbot_.config.straw_dispenser_connected:
+            self._add_straw_button()
+        if self.barbot_.config.stirrer_connected:
+            self._add_stir_button()
+        if self.barbot_.config.ice_crusher_connected:
+            self._add_crusher_button()
 
-        # text
+        self._add_dummy_widget_to_content()
+
+    def _add_info_text(self):
         text = QtWidgets.QLabel(
             "Ist dein Cocktail noch nicht perfekt?\nHier kannst du nachhelfen.")
         self._content.layout().addWidget(text)
 
-        # selectors
+    def _add_ingredient_section(self):
         panel = QtWidgets.QWidget()
         panel.setProperty("class", "CenterPanel")
         panel.setLayout(QtWidgets.QVBoxLayout())
@@ -451,43 +484,37 @@ class SingleIngredient(UserView):
         )
         panel.layout().addWidget(self._start_button)
 
-        if self.barbot_.config.straw_dispenser_connected:
-            # straw button
-            icon = qt_icon_from_file_name("straw.png")
-            straw_button = QtWidgets.QPushButton(icon, "")
-            straw_button.setProperty("class", "IconButton")
-            straw_button.clicked.connect(
-                lambda: self._start(self.ActionType.STRAW)
-            )
-            self._content.layout().addWidget(straw_button)
-            self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
+    def _add_stir_button(self):            
+        icon = qt_icon_from_file_name("stir.png")
+        stir_button = QtWidgets.QPushButton(icon, "")
+        stir_button.setProperty("class", "IconButton")
+        stir_button.clicked.connect(
+            lambda: self._start(self.ActionType.STIR)
+        )
+        self._content.layout().addWidget(stir_button)
+        self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignCenter)
 
-        if self.barbot_.config.stirrer_connected:
-            # stir button
-            icon = qt_icon_from_file_name("stir.png")
-            stir_button = QtWidgets.QPushButton(icon, "")
-            stir_button.setProperty("class", "IconButton")
-            stir_button.clicked.connect(
-                lambda: self._start(self.ActionType.STIR)
-            )
-            self._content.layout().addWidget(stir_button)
-            self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignCenter)
+    def _add_straw_button(self):
+        icon = qt_icon_from_file_name("straw.png")
+        straw_button = QtWidgets.QPushButton(icon, "")
+        straw_button.setProperty("class", "IconButton")
+        straw_button.clicked.connect(
+            lambda: self._start(self.ActionType.STRAW)
+        )
+        self._content.layout().addWidget(straw_button)
+        self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
 
-        if self.barbot_.config.ice_crusher_connected:
-            # ice button
-            icon = qt_icon_from_file_name("ice.png")
-            ice_button = QtWidgets.QPushButton(icon, "")
-            ice_button.setProperty("class", "IconButton")
-            ice_button.clicked.connect(
-                lambda: self._start(self.ActionType.ICE)
-            )
-            self._content.layout().addWidget(ice_button)
-            self._content.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
+    def _add_crusher_button(self):
+        icon = qt_icon_from_file_name("ice.png")
+        ice_button = QtWidgets.QPushButton(icon, "")
+        ice_button.setProperty("class", "IconButton")
+        ice_button.clicked.connect(
+            lambda: self._start(self.ActionType.ICE)
+        )
+        self._content.layout().addWidget(ice_button)
+        self._content.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
 
-        # dummy
-        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
-
-    def _start(self, action_type):
+    def _start(self, action_type: ActionType):
         if self.barbot_.is_busy:
             self.window.show_message(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
@@ -530,16 +557,19 @@ class Statistics(UserView):
     """View that shows statistics of a party"""
     def __init__(self, window: BarBotWindow):
         super().__init__(window)
-        self.content = None
+        self._statistics_widget = None
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
-        # title
-        title = QtWidgets.QLabel("Statistik")
-        title.setProperty("class", "Headline")
-        self._fixed_content.layout().addWidget(title)
+        self._add_title_to_fixed_content("Statistik")
+        self._add_date_selector()
+        self._add_dummy_widget_to_content()
+        self._add_statisctics_container()
 
-        # date selector
+        # initialize with date of last party        
+        self._update_view(self.barbot_.parties.current_party)
+
+    def _add_date_selector(self):
         row = QtWidgets.QWidget()
         row.setLayout(QtWidgets.QHBoxLayout())
         self._content.layout().addWidget(row)
@@ -555,33 +585,25 @@ class Statistics(UserView):
                 selected_party_index = index
         dates_widget.setCurrentIndex(selected_party_index)
         dates_widget.currentIndexChanged.connect(
-            lambda _: self._update(dates_widget.currentData())
+            lambda _: self._update_view(dates_widget.currentData())
         )
         row.layout().addWidget(dates_widget)
 
-        # dummy
-        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+    def _add_statisctics_container(self):
+        self._statistics_container = QtWidgets.QWidget()
+        self._statistics_container.setLayout(QtWidgets.QGridLayout())
+        set_no_spacing(self._statistics_container.layout())
+        self._content.layout().addWidget(self._statistics_container)
 
-        self._content_wrapper = QtWidgets.QWidget()
-        self._content_wrapper.setLayout(QtWidgets.QGridLayout())
-        set_no_spacing(self._content_wrapper.layout())
-        self._content.layout().addWidget(self._content_wrapper)
-
-        # initialize with date of last party        
-        self._update(self.barbot_.parties.current_party)
-
-    def _update(self, party: Party):
-        
-        if self.content is not None:
-            # setting the parent of the previos content to None will destroy it
-            self.content.setParent(None)
-            
+    def _update_view(self, party: Party):
+        self._remove_old_statistics_widget()
         if party is None or len(party.orders) == 0:
             return
-
         statistics = party.get_statistics()
+        self._statistics_widget = self._create_statistics_widget(statistics)
+        self._statistics_container.layout().addWidget(self._statistics_widget)
 
-        # create container
+    def _create_statistics_widget(self, statistics):
         container = QtWidgets.QWidget()
         container.setLayout(QtWidgets.QVBoxLayout())
 
@@ -595,7 +617,7 @@ class Statistics(UserView):
 
         # total liters
         total_amount = sum(statistics.ingredients_amount.values()) / 100.0
-        label = QtWidgets.QLabel("Verbrauchte Zutaten ({0:.2g} l)".format(total_amount))
+        label = QtWidgets.QLabel(f"Verbrauchte Zutaten ({total_amount:.2g} l)")
         container.layout().addWidget(label)
         # ingrediends
         data = [
@@ -618,71 +640,38 @@ class Statistics(UserView):
         chart = BarChart(data)
         container.layout().addWidget(chart)
 
-        # set content
-        self.content = container
-        self._content_wrapper.layout().addWidget(container)
+        return container
 
+    def _remove_old_statistics_widget(self):
+        if self._statistics_widget is not None:
+            # setting the parent of the previos content to None will destroy it
+            self._statistics_widget.setParent(None)
+            self._statistics_widget = None
 
 class OrderRecipe(UserView):
+    """Shown when the order button is clicked for a recipe"""
     def __init__(self, window: BarBotWindow, recipe: Recipe = None):
         super().__init__(window)
-        self.recipe = recipe
+
+        self._recipe = recipe
+        self._cb_ice = None
+        self._cb_straw = None
+
         self._content.setLayout(QtWidgets.QGridLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
-        # title
-        title = QtWidgets.QLabel("Cocktail mischen")
-        title.setProperty("class", "Headline")
-        self._fixed_content.layout().addWidget(title)
-
-        centered = QtWidgets.QWidget()
-        centered.setLayout(QtWidgets.QVBoxLayout())
-        centered.setProperty("class", "CenteredContent")
-        self._content.layout().addWidget(centered, 0, 0, QtCore.Qt.AlignCenter)
-
-        # cocktail name
-        label = QtWidgets.QLabel(recipe.name)
-        label.setProperty("class", "Headline")
-        centered.layout().addWidget(label)
-
-        # container
-        container = QtWidgets.QWidget()
-        container.setLayout(QtWidgets.QHBoxLayout())
-        centered.layout().addWidget(container)
-
-        # ask for ice if module is connected
-        if self.barbot_.config.ice_crusher_connected:
-            icon = qt_icon_from_file_name("ice.png")
-            ice_button = QtWidgets.QPushButton(icon, "")
-            ice_button.setCheckable(True)
-            ice_button.setProperty("class", "IconCheckButton")
-            container.layout().addWidget(ice_button)
-            container.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
-            self._cb_ice = ice_button
-        else:
-            self._cb_ice = None
-
-        # ask for straw if module is connected
-        if self.barbot_.config.straw_dispenser_connected:
-            icon = qt_icon_from_file_name("straw.png")
-            straw_button = QtWidgets.QPushButton(icon, "")
-            straw_button.setCheckable(True)
-            straw_button.setProperty("class", "IconCheckButton")
-            container.layout().addWidget(straw_button)
-            container.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
-            self._cb_straw = straw_button
-        else:
-            self._cb_straw = None
-
+        self._add_title_to_fixed_content("Cocktail mischen")
+        self._add_centered_content_to_content()
+        self._add_cocktail_name_to_centered_content()
         if recipe.pre_instruction:
-            text = "Bitte Glas vorbereiten:\n" + recipe.pre_instruction
-            label = QtWidgets.QLabel(text)
-            centered.layout().addWidget(label)
+            self._add_pre_instruction_to_centered_content()
+        self._add_order_and_cancel_button_to_centered_content()
 
-        # order and cancel button
+    def _add_order_and_cancel_button_to_centered_content(self):
         buttons_container = QtWidgets.QWidget()
         buttons_container.setLayout(QtWidgets.QHBoxLayout())
-        centered.layout().addWidget(buttons_container)
+        self._centered_content.layout().addWidget(buttons_container)
+
         # cancel
         button = QtWidgets.QPushButton("Abbrechen")
 
@@ -692,15 +681,63 @@ class OrderRecipe(UserView):
         buttons_container.layout().addWidget(button)
         # order
         button = QtWidgets.QPushButton("Los!")
-        button.clicked.connect(lambda _: self.order())
+        button.clicked.connect(self._order)
         buttons_container.layout().addWidget(button)
 
-    def order(self):
+    def _add_cocktail_name_to_centered_content(self):
+        label = QtWidgets.QLabel(self._recipe.name)
+        label.setProperty("class", "Headline")
+        self._centered_content.layout().addWidget(label)
+
+    def _add_pre_instruction_to_centered_content(self):
+        text = "Bitte Glas vorbereiten:\n" + self.recipe.pre_instruction
+        label = QtWidgets.QLabel(text)
+        self._centered_content.layout().addWidget(label)
+
+    def _add_centered_content_to_content(self):
+        self._centered_content = QtWidgets.QWidget()
+        self._centered_content.setLayout(QtWidgets.QVBoxLayout())
+        self._centered_content.setProperty("class", "CenteredContent")
+        self._content.layout().addWidget(self._centered_content, 0, 0, QtCore.Qt.AlignCenter)
+
+    def _add_special_ingredient_buttons(self):
+        # container
+        container = QtWidgets.QWidget()
+        container.setLayout(QtWidgets.QHBoxLayout())
+        self._centered_content.layout().addWidget(container)
+
+        # ask for ice if module is connected
+        if self.barbot_.config.ice_crusher_connected:
+            self._add_ice_button_to(container)
+
+        # ask for straw if module is connected
+        if self.barbot_.config.straw_dispenser_connected:
+            self._add_straw_button_to(container)
+
+    def _add_ice_button_to(self, container):
+        icon = qt_icon_from_file_name("ice.png")
+        ice_button = QtWidgets.QPushButton(icon, "")
+        ice_button.setCheckable(True)
+        ice_button.setProperty("class", "IconCheckButton")
+        container.layout().addWidget(ice_button)
+        container.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
+        self._cb_ice = ice_button
+
+    def _add_straw_button_to(self, container):
+        icon = qt_icon_from_file_name("straw.png")
+        straw_button = QtWidgets.QPushButton(icon, "")
+        straw_button.setCheckable(True)
+        straw_button.setProperty("class", "IconCheckButton")
+        container.layout().addWidget(straw_button)
+        container.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
+        self._cb_straw = straw_button
+
+    def _order(self):
         add_ice = self._cb_ice.isChecked() if self._cb_ice is not None else False
         add_straw = self._cb_straw.isChecked() if self._cb_straw is not None else False
         self.barbot_.start_mixing(
             MixingOptions(
-                self.recipe,
+                self._recipe,
                 add_straw=add_straw,
                 add_ice=add_ice
             )
