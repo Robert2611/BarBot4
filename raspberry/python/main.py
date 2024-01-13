@@ -8,13 +8,16 @@ import signal
 import os
 from datetime import datetime
 import psutil
+
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QTimer
-from barbotgui import *
-from barbot import BarBot
+
+from barbotgui import MainWindow
+
+from barbot import BarBot, Mainboard
 from barbot.recipes import RecipeCollection
 from barbot.config import log_directory, BarBotConfig, PortConfiguration
-from barbot import MainboardConnectionBluetooth, Mainboard
+from barbot.communication import MainboardConnectionBluetooth
 from barbot.mockup import MaiboardConnectionMockup
 
 # cofigure logging

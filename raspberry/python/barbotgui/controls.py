@@ -1,5 +1,15 @@
+"""Controls used by the barbot gui"""
 from typing import List
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from dataclasses import dataclass
+from PyQt5 import QtWidgets, QtCore, QtGui, Qt
+
+def move_widget_to_bottom_of_screen(window: QtWidgets.QWidget):
+    """Move a widget to the bottom of the screen"""
+    desktop = Qt.QApplication.desktop().availableGeometry()
+    desired = Qt.QRect(Qt.QPoint(0, 0), window.sizeHint())
+    desired.moveBottomRight(desktop.bottomRight())
+    desired.setLeft(desktop.left())
+    window.setGeometry(desired)
 
 def set_no_spacing(layout):
     """Set the spacing to zero for a given QtLayout
@@ -7,50 +17,62 @@ def set_no_spacing(layout):
     layout.setSpacing(0)
     layout.setContentsMargins(0, 0, 0, 0)
 
+@dataclass
+class BarChartRow():
+    """Single bar in a bar chart"""
+    name: str
+    value: float
+
 class BarChart(QtWidgets.QWidget):
-    def __init__(self, data):
+    """Bar chart with labels"""
+    def __init__(self, rows: List[BarChartRow]):
         super().__init__()
         self.setLayout(QtWidgets.QGridLayout())
-        names = [item[0] for item in data]
-        values = [item[1] for item in data]
-        max_value = max(values)
-        values_relative = [v/max_value for v in values]
-        for row in range(len(data)):
-            # name label
-            label = QtWidgets.QLabel(names[row])
-            self.layout().addWidget(label, row, 0)
-            # bar
-            bar_wrapper = QtWidgets.QWidget()
-            bar_wrapper.setProperty("class", "BarChartWrapper")
-            bar_wrapper.setLayout(QtWidgets.QHBoxLayout())
-            set_no_spacing(bar_wrapper.layout())
-            self.layout().addWidget(bar_wrapper, row, 1)
 
-            # set width of bar as horizontal stretch
-            w = int(values_relative[row] * 100)
-            bar_widget = QtWidgets.QWidget()
-            bar_widget.setProperty("class", "BarChartBar")
-            bar_wrapper.layout().addWidget(bar_widget, w)
+        self._names = [row.name for row in rows]
+        self._values = [row.value for row in rows]
+        self._row_count = len(rows)
 
-            dummy = QtWidgets.QWidget()
-            bar_wrapper.layout().addWidget(dummy, 100 - w)
+        max_value = max(self._values)
+        self._values_relative = [v/max_value for v in self._values]
 
-            # value label
-            label = QtWidgets.QLabel(str(values[row]))
-            self.layout().addWidget(label, row, 2)
+        for row_index in range(self._row_count):
+            self._add_name_label(row_index)
+            self._add_bar(row_index)
+            self._add_value_label(row_index)
 
+    def _add_bar(self, row_index):
+        bar_wrapper = QtWidgets.QWidget()
+        bar_wrapper.setProperty("class", "BarChartWrapper")
+        bar_wrapper.setLayout(QtWidgets.QHBoxLayout())
+        set_no_spacing(bar_wrapper.layout())
+        self.layout().addWidget(bar_wrapper, row_index, 1)
 
+        # set width of bar as horizontal stretch
+        w = int(self._values_relative[row_index] * 100)
+        bar_widget = QtWidgets.QWidget()
+        bar_widget.setProperty("class", "BarChartBar")
+        bar_wrapper.layout().addWidget(bar_widget, w)
+
+        dummy = QtWidgets.QWidget()
+        bar_wrapper.layout().addWidget(dummy, 100 - w)
+
+    def _add_name_label(self, row_index):
+        label = QtWidgets.QLabel(self._names[row_index])
+        self.layout().addWidget(label, row_index, 0)
+
+    def _add_value_label(self, row_index):
+        label = QtWidgets.QLabel(str(self._values[row_index]))
+        self.layout().addWidget(label, row_index, 2)
+
+@dataclass
 class GlasFilling():
+    """Single part of a a glass filling"""
     color: str
     fraction: float
 
-    def __init__(self, color, fraction):
-        self.color = color
-        self.fraction = fraction
-
-
 class GlasIndicator(QtWidgets.QLabel):
-    list = []
+    """Visual representation of the ingredients inside a glas"""
     _top_width = 80
     _bottom_width = 70
     _height = 120
@@ -65,7 +87,7 @@ class GlasIndicator(QtWidgets.QLabel):
         self.setMinimumSize(QtCore.QSize(
             self._top_width, self._height + 2 * self._roundness))
 
-    def draw_filling(self, painter, start, end, draw_top=True):
+    def _draw_filling(self, painter, start, end, draw_top=True):
         # create some support variables so the points are easier to read
         w_b = self._bottom_width
         w_t = self._top_width
@@ -113,21 +135,24 @@ class GlasIndicator(QtWidgets.QLabel):
             )
             painter.drawPath(path)
 
-    def paintEvent(self, e):
+    # pylint: disable=locally-disabled, invalid-name, missing-function-docstring
+    def paintEvent(self, _):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        total = 0
-        self.draw_glas(painter)
+
+        self._draw_glas(painter)
+
+        sum_of_fractions = 0
         for filling in self._fillings:
             # transparent pen
             painter.setPen(QtGui.QColor("#FF999999"))
             painter.setBrush(QtGui.QColor(filling.color))
-            self.draw_filling(painter, total, total + filling.fraction)
-            total = total + filling.fraction
+            self._draw_filling(painter, sum_of_fractions, sum_of_fractions + filling.fraction)
+            sum_of_fractions += filling.fraction
         painter.end()
 
-    def draw_glas(self, painter):
+    def _draw_glas(self, painter):
         painter.setPen(QtGui.QColor("#FF999999"))
         painter.setBrush(QtGui.QColor("#55FFFFFF"))
 
@@ -178,85 +203,76 @@ class Keyboard(QtWidgets.QWidget):
 
     def __init__(self, target: QtWidgets.QLineEdit, style=None):
         super().__init__()
+
         self.target = target
+
         self.setLayout(QtWidgets.QVBoxLayout())
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.update_keys()
         self.setProperty("class", "Keyboard")
         if style is not None:
             self.setStyleSheet(style)
         self.setCursor(QtCore.Qt.BlankCursor)
-        # move to bottom of the screen
-        desktop = Qt.QApplication.desktop().availableGeometry()
-        desired = Qt.QRect(Qt.QPoint(0, 0), self.sizeHint())
-        desired.moveBottomRight(desktop.bottomRight())
-        desired.setLeft(desktop.left())
-        self.setGeometry(desired)
 
-    def update_keys(self):
-        """Update or, at first call, create the keyboard keys"""
-            # first row
-        keys = [
+        self._number_keys = [
             ["1", "!"], ["2", "\""], ["3", "§"], ["4", "$"], ["5", "%"],
             ["6", "&"], ["7", "/"], ["8", "("], ["9", ")"], ["0", "ß"]
         ]
-        if not self._is_widgets_created:
-            self.first_row = self.add_row([data[0] for data in keys])
-        for index, data in enumerate(keys):
-            self.first_row[index].setText(
-                data[1] if self._is_shift else data[0])
+        self._letter_keys = [
+            ["q", "w", "e", "r", "t", "z", "u", "i", "o", "p"],
+            ["a", "s", "d", "f", "g", "h", "j", "k", "l", "ö"],
+            ["y", "x", "c", "v", "b", "n", "m", "ä", "ü"]
+        ]
+        self._add_keys()
+        self._update_keys()
+        move_widget_to_bottom_of_screen(self)
 
-            # second row
-        keys = ["q", "w", "e", "r", "t", "z", "u", "i", "o", "p"]
-        if not self._is_widgets_created:
-            self.second_row = self.add_row(keys)
-        for index, letter in enumerate(keys):
-            self.second_row[index].setText(
-                str.upper(letter) if self._is_shift else letter)
+    def _add_keys(self):
+        #number keys
+        self._numbers_row = self._add_row([data[0] for data in self._number_keys])
+        #letter keys
+        self._letters_rows = []
+        for keys in self._letter_keys:
+            row = self._add_row(keys)
+            self._letters_rows.append(row)
+        #special keys
+        self._add_special_keys_row()
 
-            # third row
-        keys = ["a", "s", "d", "f", "g", "h", "j", "k", "l", "ö"]
-        if not self._is_widgets_created:
-            self.third_row = self.add_row(keys)
-        for index, letter in enumerate(keys):
-            self.third_row[index].setText(
-                str.upper(letter) if self._is_shift else letter)
+    def _update_keys(self):
+        #number keys
+        for index, data in enumerate(self._number_keys):
+            new_text = data[1] if self._is_shift else data[0]
+            self._numbers_row[index].setText()
+        #letter keys
+        for keys in self._letter_keys:
+            for index, letter in enumerate(keys):
+                new_text = str.upper(letter) if self._is_shift else letter
+                self._letters_rows[index].setText(new_text)
 
-        # fourth row
-        keys = ["y", "x", "c", "v", "b", "n", "m", "ä", "ü"]
-        if not self._is_widgets_created:
-            self.fourth_row = self.add_row(keys)
-        for index, letter in enumerate(keys):
-            self.fourth_row[index].setText(
-                str.upper(letter) if self._is_shift else letter)
+    def _add_special_keys_row(self):
+        row = QtWidgets.QWidget()
+        row.setLayout(QtWidgets.QHBoxLayout())
+        set_no_spacing(row.layout())
+        # shift
+        button = QtWidgets.QPushButton("▲")
+        button.clicked.connect(lambda: self._button_clicked("shift"))
+        row.layout().addWidget(button)
+        # space
+        button = QtWidgets.QPushButton(" ")
+        button.clicked.connect(lambda: self._button_clicked(" "))
+        row.layout().addWidget(button)
+        # delete
+        button = QtWidgets.QPushButton("←")
+        button.clicked.connect(lambda: self._button_clicked("delete"))
+        row.layout().addWidget(button)
+        self.layout().addWidget(row)
 
-        # last row
-        if not self._is_widgets_created:
-            row = QtWidgets.QWidget()
-            row.setLayout(QtWidgets.QHBoxLayout())
-            set_no_spacing(row.layout())
-            # shift
-            button = QtWidgets.QPushButton("▲")
-            button.clicked.connect(lambda: self.button_clicked("shift"))
-            row.layout().addWidget(button)
-            # space
-            button = QtWidgets.QPushButton(" ")
-            button.clicked.connect(lambda: self.button_clicked(" "))
-            row.layout().addWidget(button)
-            # delete
-            button = QtWidgets.QPushButton("←")
-            button.clicked.connect(lambda: self.button_clicked("delete"))
-            row.layout().addWidget(button)
-            self.layout().addWidget(row)
-        self._is_widgets_created = True
-
-    def button_clicked(self, content):
+    def _button_clicked(self, content):
         """Handle a button click"""
         if self.target is None:
             return
         if content == "shift":
             self._is_shift = not self._is_shift
-            self.update_keys()
+            self._update_keys()
         else:
             if content == "delete":
                 self.target.setText(self.target.text()[:-1])
@@ -265,12 +281,12 @@ class Keyboard(QtWidgets.QWidget):
             # reset shift state
             if self._is_shift:
                 self._is_shift = False
-                self.update_keys()
+                self._update_keys()
 
-    def add_row(self, keys: List[str]) -> List[QtWidgets.QPushButton]:
+    def _add_row(self, keys: List[str]) -> List[QtWidgets.QPushButton]:
         """Add a row defined by a list of characters to the layout
         :param keys: List of key characters to be added
-        :retunrs: List of buttons that were added
+        :returns: List of buttons that were added
         """
         res = []
         row = QtWidgets.QWidget()
@@ -279,7 +295,7 @@ class Keyboard(QtWidgets.QWidget):
         for letter in keys:
             button = QtWidgets.QPushButton(letter)
             button.clicked.connect(
-                lambda checked, b=button: self.button_clicked(b.text()))
+                lambda _, b=button: self._button_clicked(b.text()))
             res.append(button)
             row.layout().addWidget(button)
         self.layout().addWidget(row)
@@ -294,30 +310,25 @@ class Numpad(QtWidgets.QWidget):
         super().__init__()
         self.target = target
         self.current_value = 0
+
         self.setLayout(QtWidgets.QVBoxLayout())
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setProperty("class", "Keyboard")
+        if style is not None:
+            self.setStyleSheet(style)
+        self.setCursor(QtCore.Qt.BlankCursor)
 
-        #value label
+        self._add_value_label()
+        self._add_keypad()
+
+        move_widget_to_bottom_of_screen(self)
+
+    def _add_value_label(self):
         self._value_label = QtWidgets.QLabel()
         self.layout().addWidget(self._value_label)
         #TODO: Make label white, maybe show current value in gray before first entry
 
-        #keypad
-        self.create_keypad()
-
-        if style is not None:
-            self.setStyleSheet(style)
-        self.setCursor(QtCore.Qt.BlankCursor)
-        # move to bottom of the screen
-        desktop = Qt.QApplication.desktop().availableGeometry()
-        desired = Qt.QRect(Qt.QPoint(0, 0), self.sizeHint())
-        desired.moveBottomRight(desktop.bottomRight())
-        desired.setLeft(desktop.left())
-        self.setGeometry(desired)
-
-    def create_keypad(self):
-        """Create the buttons for the keypad"""
+    def _add_keypad(self):
         # numpad
         numpad = QtWidgets.QWidget()
         numpad.setLayout(QtWidgets.QGridLayout())
@@ -327,30 +338,28 @@ class Numpad(QtWidgets.QWidget):
                 num = y * 3 + x + 1
                 button = QtWidgets.QPushButton(str(num))
                 button.clicked.connect(
-                    lambda checked, value=num: self.button_clicked(value))
+                    lambda _, value=num: self._button_clicked(value))
                 numpad.layout().addWidget(button, y, x)
         # Cancel
         button = QtWidgets.QPushButton("Abbrechen")
-        button.clicked.connect(lambda checked: self.close())
+        button.clicked.connect(self.close)
         numpad.layout().addWidget(button, 3, 0)
         # zero
         button = QtWidgets.QPushButton("0")
-        button.clicked.connect(lambda checked: self.button_clicked(0))
+        button.clicked.connect(lambda _: self._button_clicked(0))
         numpad.layout().addWidget(button, 3, 1)
         # enter
         button = QtWidgets.QPushButton("Ok")
-        button.clicked.connect(lambda checked: self.apply())
+        button.clicked.connect(self._apply_value_to_target)
         numpad.layout().addWidget(button, 3, 2)
         self.layout().addWidget(numpad)
 
-    def apply(self):
-        """Apply the new value to the target"""
+    def _apply_value_to_target(self):
         if self.target.minimum() <= self.current_value <= self.target.maximum():
             self.target.setValue(self.current_value)
         self.close()
 
-    def button_clicked(self, number):
-        """A number button was clicked, handle it"""
+    def _button_clicked(self, number):
         if self.target is None:
             return
         self.current_value *= 10
@@ -370,7 +379,7 @@ class Numpad(QtWidgets.QWidget):
         for letter in keys:
             button = QtWidgets.QPushButton(letter)
             button.clicked.connect(
-                lambda checked, b=button: self.button_clicked(b.text()))
+                lambda checked, b=button: self._button_clicked(b.text()))
             res.append(button)
             row.layout().addWidget(button)
         self.layout().addWidget(row)

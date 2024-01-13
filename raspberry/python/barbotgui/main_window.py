@@ -1,7 +1,8 @@
+"""The main window of the barbot gui"""
 import logging
 import os
 
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from PyQt5 import QtWidgets, Qt, QtCore
 
 from barbot import BarBot
 from barbot.recipes import RecipeCollection
@@ -15,7 +16,7 @@ class MainWindow(BarBotWindow):
     """Main window for the barbot"""
     def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
         super().__init__(barbot_, recipes)
-        
+
         self._current_view : View = None
         self._last_idle_view : View = None
         self._keyboard: Keyboard = None
@@ -35,7 +36,7 @@ class MainWindow(BarBotWindow):
         self.mousePressEvent = lambda _: self.close_keyboard()
 
         # forward status changed
-        self._barbot_state_trigger.connect(lambda _: self.update_view())
+        self._barbot_state_trigger.connect(self.update_view)
         self._barbot.on_state_changed = self._barbot_state_trigger.emit
 
         # forward message changed
@@ -85,7 +86,7 @@ class MainWindow(BarBotWindow):
         """forward progress if the current view is a busyview"""
         if self._current_view is not None and isinstance(self._current_view, BusyView):
             self._current_view.update_message(message)
-    
+
     def header_clicked(self, _):
         """Handle the header click"""
         if not self._admin_button_active:
@@ -143,12 +144,12 @@ class MainWindow(BarBotWindow):
             self._last_idle_view = view
         self._content_wrapper.layout().addWidget(self._current_view)
 
-    def update_view(self, force_reload=False):
+    def update_view(self):
         """Set the view to the busy view if the barbot is busy.
         Else load the last idle view. If none was set, load the recipe list """
         if not self._barbot.is_busy:
             # load the default view
-            if self._last_idle_view is None or isinstance(self._last_idle_view, OrderRecipe) or force_reload:
+            if self._last_idle_view is None or isinstance(self._last_idle_view, OrderRecipe):
                 self.set_view(ListRecipes(self))
             elif self._last_idle_view != self._current_view:
                 self.set_view(self._last_idle_view)

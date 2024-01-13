@@ -1,8 +1,9 @@
+"""Core functionality of the barbot gui"""
 import os
 import platform
 import sys
 from typing import Optional
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from PyQt5 import QtWidgets, Qt, QtCore
 from barbot import BarBot, UserMessageType, BarBotState, run_command
 from barbot.config import Ingredient, IngredientType
 from barbot.recipes import RecipeCollection, RecipeFilter
@@ -43,12 +44,13 @@ def qt_icon_from_file_name(file_name) -> Qt.QIcon:
     return Qt.QIcon(path)
 
 class BarBotWindow(QtWidgets.QMainWindow):
+    """Main window of the barbot, this is the entry point for the barbot gui"""
     # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
     _barbot_state_trigger = QtCore.pyqtSignal(BarBotState)
     _mixing_progress_trigger = QtCore.pyqtSignal(int)
     _message_trigger = QtCore.pyqtSignal(UserMessageType)
     _show_message_trigger = QtCore.pyqtSignal(str)
-    
+
     def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
         super().__init__()
         self.recipe_filter = RecipeFilter(descending = True)
@@ -69,7 +71,7 @@ class BarBotWindow(QtWidgets.QMainWindow):
         """Show a given message to the user.
         :param message: Message string"""
         self._show_message_trigger.emit(message)
-    
+
     def combobox_amounts(self, selected_amount=None):
         """Create a combobox for selecting the amount of a ingredient.
         Set it to the selected data if provided.
@@ -93,7 +95,9 @@ class BarBotWindow(QtWidgets.QMainWindow):
         :param only_normal: If set to true, only return ingredients that are pumped
         :param only_weighed: If set to true, only return ingredients that are added by weight    
         """
-        entries = self.barbot_.config.get_ingredient_list(self.barbot_.ports, only_available, only_normal, only_weighed)
+        entries = self.barbot_.config.get_ingredient_list(
+            self.barbot_.ports, only_available, only_normal, only_weighed
+        )
         # add ingredient name
         widget = QtWidgets.QComboBox()
         widget.addItem("-", None)
@@ -103,10 +107,10 @@ class BarBotWindow(QtWidgets.QMainWindow):
             if item == selected_ingredient:
                 widget.setCurrentIndex(i + 1)
         return widget
-        
+
     def set_view(self, view: Optional["View"]):
-        pass
-        
+        """Set the currrently visible view to the specified instance of View"""
+
 class View(QtWidgets.QWidget):
     """Content that can be shown in the center of the main window"""
 
@@ -124,7 +128,7 @@ class View(QtWidgets.QWidget):
     def window(self):
         """Get the window the view is used for"""
         return self._window
-    
+
     @property
     def barbot_(self):
         """The barbot"""
@@ -165,21 +169,22 @@ class View(QtWidgets.QWidget):
         container.layout().addWidget(QtWidgets.QWidget(), 1)
 
 class SystemBusyView(View):
+    """View to access system (eg. restart) when the mainboard is busy"""
     def __init__(self, window: BarBotWindow):
         super().__init__(window, is_idle_view=False)
-        
+
         self.setLayout(QtWidgets.QVBoxLayout())
         set_no_spacing(self.layout())
-        
+
         self.header = QtWidgets.QWidget()
         self.layout().addWidget(self.header)
-        
+
         self._content = QtWidgets.QWidget()
         self.layout().addWidget(self._content)
-                     
+
         # add actual content
         View.set_system_view(self._content)
-        
+
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
     def __init__(self, window: BarBotWindow):
@@ -263,7 +268,7 @@ class BusyView(View):
 
         elif message == UserMessageType.PLACE_GLAS:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
-            
+
             add_button("abbrechen", UserInputType.NO)
 
         elif message == UserMessageType.MIXING_DONE_REMOVE_GLAS:

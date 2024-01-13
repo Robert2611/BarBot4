@@ -1,6 +1,6 @@
 """Views to be shown for admins"""
 from typing import Dict
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore
 from barbot.communication import BoardType
 from barbot.config import version as barbot_version
 from barbot.recipes import Recipe

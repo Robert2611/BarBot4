@@ -1,6 +1,6 @@
 """All views that are openly accessible"""
 from enum import Enum, auto
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore
 
 from barbot import MixingOptions
 from barbot.recipes import RecipeItem, Recipe, Party
@@ -117,92 +117,103 @@ class ListRecipes(UserView):
         recipe_filter.show_alcoholic = self._cb_alcoholic.isChecked()
         recipe_filter.show_non_acloholic = not self._cb_alcoholic.isChecked()
         recipes = self.window.recipes.get_filtered(recipe_filter, self.barbot_.ports, self.barbot_.config)
-        # clear the list
+
+        self._clear_recipe_list_container()
+        for recipe in recipes:
+            self._add_recipe_to_list_container(recipe)
+
+        # dummy element
+        self._recipe_list_container.layout().addWidget(QtWidgets.QWidget(), 1)
+
+    def _clear_recipe_list_container(self):
         while self._recipe_list_container.layout().count():
             item = self._recipe_list_container.layout().takeAt(0)
             widget = item.widget()
             if widget is not None:
                 widget.setParent(None)
-        # fill it with the recipes
-        for recipe in recipes:
-            # box to hold the recipe
-            recipe_box = QtWidgets.QWidget()
-            recipe_box.setLayout(QtWidgets.QHBoxLayout())
-            self._recipe_list_container.layout().addWidget(recipe_box)
 
-            # left column
-            left_column = QtWidgets.QWidget()
-            left_column.setLayout(QtWidgets.QVBoxLayout())
-            recipe_box.layout().addWidget(left_column)
+    def _add_recipe_to_list_container(self, recipe):
+        # box to hold the recipe
+        recipe_widget = QtWidgets.QWidget()
+        recipe_widget.setLayout(QtWidgets.QHBoxLayout())
+        self._recipe_list_container.layout().addWidget(recipe_widget)
 
-            # title with buttons
-            recipe_title_container = QtWidgets.QWidget()
-            recipe_title_container.setLayout(QtWidgets.QHBoxLayout())
-            left_column.layout().addWidget(recipe_title_container)
+        self._add_left_column_to_recipe_widget(recipe_widget, recipe)
+        self._add_right_column_to_recipe_widget(recipe_widget, recipe)
 
-            # edit button
-            if not recipe.is_fixed:
-                icon = qt_icon_from_file_name("edit.png")
-                edit_button = QtWidgets.QPushButton(icon, "")
-                edit_button.setProperty("class", "BtnEdit")
-                edit_button.clicked.connect(
-                    lambda checked, r=recipe: self._open_edit(r))
-                recipe_title_container.layout().addWidget(edit_button, 0)
+    def _add_left_column_to_recipe_widget(self, recipe_widget, recipe):
+        # container
+        left_column = QtWidgets.QWidget()
+        left_column.setLayout(QtWidgets.QVBoxLayout())
+        recipe_widget.layout().addWidget(left_column)
 
-            # title
-            recipe_title = QtWidgets.QLabel(recipe.name)
-            recipe_title.setProperty("class", "RecipeTitle")
-            recipe_title_container.layout().addWidget(recipe_title, 1)
+        # title with buttons
+        recipe_title_container = QtWidgets.QWidget()
+        recipe_title_container.setLayout(QtWidgets.QHBoxLayout())
+        left_column.layout().addWidget(recipe_title_container)
 
-            # items container for holding the recipe items
-            recipe_items_container = QtWidgets.QWidget()
-            recipe_items_container.setLayout(QtWidgets.QVBoxLayout())
-            left_column.layout().addWidget(recipe_items_container, 1)
+        # edit button
+        if not recipe.is_fixed:
+            icon = qt_icon_from_file_name("edit.png")
+            edit_button = QtWidgets.QPushButton(icon, "")
+            edit_button.setProperty("class", "BtnEdit")
+            edit_button.clicked.connect(
+                lambda checked, r=recipe: self._open_edit(r))
+            recipe_title_container.layout().addWidget(edit_button, 0)
 
-            # add items
-            item: RecipeItem
-            for item in recipe.items:
-                label = QtWidgets.QLabel()
-                if item.ingredient.type == IngredientType.STIRR:
-                    label.setText(f"-{item.ingredient.name}-")
-                elif item.ingredient.type == IngredientType.SUGAR:
-                    label.setText(f"{item.amount:.0f} TL {item.ingredient.name}")
-                else:
-                    label.setText(f"{item.amount:.0f} cl {item.ingredient.name}")
-                recipe_items_container.layout().addWidget(label)
+        # title
+        recipe_title = QtWidgets.QLabel(recipe.name)
+        recipe_title.setProperty("class", "RecipeTitle")
+        recipe_title_container.layout().addWidget(recipe_title, 1)
 
-            # right column
-            right_column = QtWidgets.QWidget()
-            right_column.setLayout(QtWidgets.QVBoxLayout())
-            recipe_box.layout().addWidget(right_column)
+        # items container for holding the recipe items
+        recipe_items_container = QtWidgets.QWidget()
+        recipe_items_container.setLayout(QtWidgets.QVBoxLayout())
+        left_column.layout().addWidget(recipe_items_container, 1)
 
-            fillings = []
-            for item in recipe.items:
-                if item.ingredient.type != IngredientType.STIRR:
-                    relative = item.amount / self.barbot_.config.max_cocktail_size
-                    filling = GlasFilling(item.ingredient.color, relative)
-                    fillings.append(filling)
-            indicator = GlasIndicator(fillings)
-            right_column.layout().addWidget(indicator)
-            right_column.layout().setAlignment(indicator, QtCore.Qt.AlignRight)
+        # add items
+        item: RecipeItem
+        for item in recipe.items:
+            label = QtWidgets.QLabel()
+            if item.ingredient.type == IngredientType.STIRR:
+                label.setText(f"-{item.ingredient.name}-")
+            elif item.ingredient.type == IngredientType.SUGAR:
+                label.setText(f"{item.amount:.0f} TL {item.ingredient.name}")
+            else:
+                label.setText(f"{item.amount:.0f} cl {item.ingredient.name}")
+            recipe_items_container.layout().addWidget(label)
 
-            # instruction
-            if recipe.post_instruction:
-                instruction = QtWidgets.QLabel(recipe.post_instruction)
-                instruction.setWordWrap(True)
-                right_column.layout().addWidget(instruction)
+    def _add_right_column_to_recipe_widget(self, recipe_widget, recipe):
+        # container
+        right_column = QtWidgets.QWidget()
+        right_column.setLayout(QtWidgets.QVBoxLayout())
+        recipe_widget.layout().addWidget(right_column)
 
-            # order button
-            if recipe.is_available(self.barbot_.ports, self.barbot_.config):
-                icon = qt_icon_from_file_name("order.png")
-                order_button = QtWidgets.QPushButton(icon, "")
-                order_button.setProperty("class", "BtnOrder")
-                order_button.clicked.connect(
-                    lambda _, r=recipe: self._order(r))
-                right_column.layout().addWidget(order_button, 0)
-                right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
+        fillings = []
+        for item in recipe.items:
+            if item.ingredient.type != IngredientType.STIRR:
+                relative = item.amount / self.barbot_.config.max_cocktail_size
+                filling = GlasFilling(item.ingredient.color, relative)
+                fillings.append(filling)
+        indicator = GlasIndicator(fillings)
+        right_column.layout().addWidget(indicator)
+        right_column.layout().setAlignment(indicator, QtCore.Qt.AlignRight)
 
-        self._recipe_list_container.layout().addWidget(QtWidgets.QWidget(), 1)
+        # instruction
+        if recipe.post_instruction:
+            instruction = QtWidgets.QLabel(recipe.post_instruction)
+            instruction.setWordWrap(True)
+            right_column.layout().addWidget(instruction)
+
+        # order button
+        if recipe.is_available(self.barbot_.ports, self.barbot_.config):
+            icon = qt_icon_from_file_name("order.png")
+            order_button = QtWidgets.QPushButton(icon, "")
+            order_button.setProperty("class", "BtnOrder")
+            order_button.clicked.connect(
+                lambda _, r=recipe: self._order(r))
+            right_column.layout().addWidget(order_button, 0)
+            right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
 
     def _open_edit(self, recipe: Recipe):
         self.window.set_view(RecipeNewOrEdit(self.window, recipe))
@@ -436,7 +447,7 @@ class SingleIngredient(UserView):
 
     def __init__(self, window: BarBotWindow):
         super().__init__(window)
-        
+
         self._ice_index = -2
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
@@ -444,7 +455,7 @@ class SingleIngredient(UserView):
         self._add_title_to_fixed_content("Nachschlag")
         self._add_info_text()
         self._add_ingredient_section()
-        
+
         if self.barbot_.config.straw_dispenser_connected:
             self._add_straw_button()
         if self.barbot_.config.stirrer_connected:
@@ -484,7 +495,7 @@ class SingleIngredient(UserView):
         )
         panel.layout().addWidget(self._start_button)
 
-    def _add_stir_button(self):            
+    def _add_stir_button(self):
         icon = qt_icon_from_file_name("stir.png")
         stir_button = QtWidgets.QPushButton(icon, "")
         stir_button.setProperty("class", "IconButton")
@@ -566,7 +577,7 @@ class Statistics(UserView):
         self._add_dummy_widget_to_content()
         self._add_statisctics_container()
 
-        # initialize with date of last party        
+        # initialize with date of last party
         self._update_view(self.barbot_.parties.current_party)
 
     def _add_date_selector(self):
