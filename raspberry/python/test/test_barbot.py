@@ -1,5 +1,6 @@
 import unittest
 import os
+from tempfile import mkdtemp
 from datetime import datetime
 from barbot.config import BarBotConfig, PortConfiguration, get_ingredient_by_identifier
 from barbot.recipes import load_recipe_from_file, Recipe, RecipeItem
@@ -7,13 +8,10 @@ from barbot.communication import decode_firmware_version, FirmwareVersion, Mainb
 import barbot.config
 from barbot.mockup import MaiboardConnectionMockup
 
-temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
-# make sure the temp data folder exists
-os.makedirs(temp_path, exist_ok=True)
-
 class TestPorts(unittest.TestCase):
     def setUp(self):
-        barbot.config.data_directory = temp_path
+        self.temp_path = mkdtemp()
+        barbot.config.data_directory = self.temp_path
         self.ingredients = [
             'rum weiss',
             'rum braun',
@@ -34,7 +32,7 @@ class TestPorts(unittest.TestCase):
 
     def write_test_data(self):
         """Write port config to file, they will be deserialized when ports are initialized"""
-        with open(os.path.join(temp_path, "ports.yaml"), "w", encoding="utf-8") as f:
+        with open(os.path.join(self.temp_path, "ports.yaml"), "w", encoding="utf-8") as f:
             for i, name in enumerate(self.ingredients):
                 f.write(f"{i}: '{name}'\n")
 
@@ -51,7 +49,7 @@ class TestPorts(unittest.TestCase):
         for i, name in enumerate(self.ingredients):
             ingredient = barbot.config.get_ingredient_by_identifier(name)
             self.assertEqual(read_ingredients[i], ingredient)
-            
+
     def test_save_load(self):
 
         # write data to disk
@@ -61,7 +59,7 @@ class TestPorts(unittest.TestCase):
         ports = PortConfiguration()
 
         # remove the config file
-        os.remove(os.path.join(temp_path, "ports.yaml"))
+        os.remove(os.path.join(self.temp_path, "ports.yaml"))
 
         # and save it again
         ports.save()
@@ -75,10 +73,10 @@ class TestPorts(unittest.TestCase):
             ingredient = barbot.config.get_ingredient_by_identifier(name)
             self.assertEqual(read_ingredients[i], ingredient)
 
-class TestConfigAndPorts(unittest.TestCase):
+class TestConfig(unittest.TestCase):
     def setUp(self):
-        # let the BarBotConfig load from that folder 
-        barbot.config.data_directory = temp_path
+        self.temp_path = mkdtemp()
+        barbot.config.data_directory = self.temp_path
         # shape is
         # name : (value_as_string, expected_value)
         self.config_elements = {
@@ -88,7 +86,7 @@ class TestConfigAndPorts(unittest.TestCase):
             "cleaning_time" : ('4', 4),
             "ice_amount" : ('5', 5),
             "ice_crusher_connected" : ('false', False),
-            "mac_address" : ('7', 7),
+            "mac_address" : ('00:80:41:ae:fd:7e', '00:80:41:ae:fd:7e'),
             "max_accel" : ('8', 8),
             "max_cocktail_size" : ('9', 9),
             "max_speed" : ('10', 10),
@@ -103,7 +101,7 @@ class TestConfigAndPorts(unittest.TestCase):
 
     def write_test_data(self):
         """Write config it will be deserialized when BarBotConfig is initialized"""
-        with open(os.path.join(temp_path, "config.yaml"), "w", encoding="utf-8") as f:
+        with open(os.path.join(self.temp_path, "config.yaml"), "w", encoding="utf-8") as f:
             for name, value in self.config_elements.items():
                 f.write(f"{name}: {value[0]}\n")
 
@@ -126,7 +124,7 @@ class TestConfigAndPorts(unittest.TestCase):
         config = BarBotConfig()
 
         # remove the config files
-        os.remove(os.path.join(temp_path, "config.yaml"))
+        os.remove(os.path.join(self.temp_path, "config.yaml"))
 
         # and save them again
         config.save()
@@ -140,6 +138,7 @@ class TestConfigAndPorts(unittest.TestCase):
 
 class TestRecipe(unittest.TestCase):
     def setUp(self):
+        self.temp_path = mkdtemp()
         self.test_recipe = Recipe()
         self.test_recipe.name = "Test Recipe"
         self.test_recipe.created = datetime.fromisocalendar(1990, 12, 5)
@@ -156,7 +155,7 @@ class TestRecipe(unittest.TestCase):
 
     def write_test_data(self):
         """Write config it will be deserialized when BarBotConfig is initialized"""
-        filename = os.path.join(temp_path, f"{self.test_recipe.name}.yaml")
+        filename = os.path.join(self.temp_path, f"{self.test_recipe.name}.yaml")
         with open(filename, "w", encoding="utf-8") as f:
             created_str = self.test_recipe.created.strftime("YYYY-MM-DD HH:mm:ss")
             f.write(f"created: {created_str}\n")
@@ -172,7 +171,7 @@ class TestRecipe(unittest.TestCase):
         self.write_test_data()
 
         # load recipe
-        recipe = load_recipe_from_file(temp_path, f"{self.test_recipe.name}.yaml")
+        recipe = load_recipe_from_file(self.temp_path, f"{self.test_recipe.name}.yaml")
 
         #check
         assert self.test_recipe.equal_to(recipe)
@@ -180,16 +179,17 @@ class TestRecipe(unittest.TestCase):
     def test_save_load(self):
         # remove previous test data
         filename = f"{self.test_recipe.name}.yaml"
-        os.remove(os.path.join(temp_path, filename))
+        file_path = os.path.join(self.temp_path, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
-        # make sure to save the file to the right folder 
-        barbot.config.recipes_directory = temp_path
+        # make sure to save the file to the right folder
+        barbot.config.recipes_directory = self.temp_path
 
         # save
-        self.test_recipe.save(temp_path)
-        recipe = load_recipe_from_file(temp_path, filename)
+        self.test_recipe.save(self.temp_path)
+        recipe = load_recipe_from_file(self.temp_path, filename)
 
-        #check
         assert self.test_recipe.equal_to(recipe)
 
 class TestCommunication(unittest.TestCase):
