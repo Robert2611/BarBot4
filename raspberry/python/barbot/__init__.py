@@ -720,7 +720,7 @@ class BarBot():
         boards = int(bit_values) if bit_values is not None else 0
         #convert bit field to list of enum values
         return [b for b in BoardType if boards & 1 << b.value]
-    
+
     @property
     def connected_boards(self) -> List[BoardType]:
         """Get a list of the connected boards, it is read once on startup"""

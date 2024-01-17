@@ -116,7 +116,8 @@ class ListRecipes(UserView):
         recipe_filter.only_available = self._cb_available.isChecked()
         recipe_filter.show_alcoholic = self._cb_alcoholic.isChecked()
         recipe_filter.show_non_acloholic = not self._cb_alcoholic.isChecked()
-        recipes = self.window.recipes.get_filtered(recipe_filter, self.barbot_.ports, self.barbot_.config)
+        recipes = self.window.recipes.get_filtered( \
+            recipe_filter, self.barbot_.ports, self.barbot_.config)
 
         self._clear_recipe_list_container()
         for recipe in recipes:

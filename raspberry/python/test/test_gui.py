@@ -1,3 +1,4 @@
+# pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 import os
 import time
 import threading
@@ -75,9 +76,7 @@ class TestGui:
     def test_order_recipe(self, main_window):
         # OrderRecipe needs a recipe, so we load one
         recipe = load_recipe_from_file(recipes_path, "Anti.yaml")
-
-        if recipe is None:
-            raise Exception("Could not load recipe")
+        assert recipe is not None, "Could not load recipe"
         main_window.set_view(OrderRecipe(main_window, recipe))
 
     def test_views(self, main_window):
