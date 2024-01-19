@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import NamedTuple, List
 from enum import Enum, auto
+from functools import total_ordering
 import logging
 import bluetooth
 
@@ -50,7 +51,7 @@ class ResponseTypes(Enum):
     STATUS = auto()
     COMM_ERROR = auto()
     TIMEOUT = auto()
-
+@total_ordering
 @dataclass
 class FirmwareVersion:
     """Firmware version handling"""
@@ -59,27 +60,16 @@ class FirmwareVersion:
     patch: int
 
     def __eq__(self, other):
-        if self.major != other.major:
-            return False
-        if self.minor != other.minor:
-            return False
-        if self.patch != other.patch:
-            return False
-        return True
+        return self._to_int() == other._to_int()
+
+    def __ge__(self, other):
+        return self._to_int() > other._to_int()
+
+    def _to_int(self):
+        return self.major * 10000 + self.minor * 100 + self.patch
 
     def __str__(self):
         return f"v{self.major}.{self.minor}.{self.patch}"
-
-    def is_at_least(self, major:int, minor:int = 0, patch:int = 0):
-        """Check if this firmware version is at least the given version"""
-        if self.major != major:
-            # major version differs
-            return self.major > major
-        if self.minor != minor:
-            # major is the same but minor version differs
-            return self.minor > minor
-        # major and minor are the same, so let the patch version decide
-        return self.patch >= patch
 
 def decode_firmware_version(version: int) -> FirmwareVersion:
     """Decode a firmware version string comming from the mainboard"""
@@ -252,7 +242,7 @@ class Mainboard:
     def supports_is_idle_command(self):
         """Get whether the mainboard supports the command 'IsIdle'"""
         return self.firmware_version is not None \
-                and self.firmware_version.is_at_least(FirmwareVersion(4, 4, 0))
+                and self.firmware_version >= FirmwareVersion(4, 4, 0)
 
     def read_non_status_message(self) -> RawResponse:
         """Read a response message.

@@ -142,7 +142,7 @@ class TestRecipe(unittest.TestCase):
         self.temp_path = mkdtemp()
         self.test_recipe = Recipe()
         self.test_recipe.name = "Test Recipe"
-        self.test_recipe.created = datetime.fromisocalendar(1990, 12, 5)
+        self.test_recipe.created = datetime(1990, 12, 5)
         self.test_recipe.post_instruction = 'post'
         self.test_recipe.pre_instruction = 'pre'
         self.test_recipe.items = [
@@ -201,14 +201,15 @@ class TestCommunication(unittest.TestCase):
         self.assertRaises(Exception, decode_firmware_version, "something")
 
     def test_firmware_version_comparison(self):
-        self.assertTrue(FirmwareVersion(2, 0, 0).is_at_least(1))
-        self.assertTrue(FirmwareVersion(2, 0, 0).is_at_least(1, 1, 1))
-        self.assertTrue(FirmwareVersion(2, 0, 0).is_at_least(1, 3, 3))
-        self.assertFalse(FirmwareVersion(1, 1, 1).is_at_least(2))
-        self.assertFalse(FirmwareVersion(1, 5, 5).is_at_least(2))
-        self.assertFalse(FirmwareVersion(1, 5, 5).is_at_least(1, 6))
-        self.assertFalse(FirmwareVersion(1, 5, 5).is_at_least(1, 5, 6))
-        self.assertFalse(FirmwareVersion(0, 0, 0).is_at_least(4))
+        assert FirmwareVersion(2, 0, 0) == FirmwareVersion(2, 0, 0)
+        assert FirmwareVersion(2, 0, 0) > FirmwareVersion(1, 0, 0)
+        assert FirmwareVersion(2, 0, 0) >= FirmwareVersion(1, 1, 1)
+        assert FirmwareVersion(2, 0, 0) >= FirmwareVersion(1, 3, 3)
+        assert FirmwareVersion(1, 1, 1) < FirmwareVersion(2, 0, 0)
+        assert FirmwareVersion(1, 5, 5) < FirmwareVersion(2, 0, 0)
+        assert FirmwareVersion(1, 5, 5) < FirmwareVersion(1, 6, 0)
+        assert FirmwareVersion(1, 5, 5) <= FirmwareVersion(1, 5, 6)
+        assert FirmwareVersion(0, 0, 0) <= FirmwareVersion(4, 0, 0)
 
     def test_mainboard(self):
         connection_mockup = MaiboardConnectionMockup()

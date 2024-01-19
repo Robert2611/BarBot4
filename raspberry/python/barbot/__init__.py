@@ -10,6 +10,8 @@ from .config import BarBotConfig, IngredientType, PortConfiguration
 from .communication import Mainboard, CommunicationResult, BoardType, ResponseTypes
 from .communication import ErrorType as CommError
 
+MIN_IDLE_TIME_SEC = 0.1
+
 def run_command(cmd_str):
     """Run a linux command discarding all its output
     :param cmd_str: Command to be executed
@@ -228,7 +230,20 @@ class BarBot():
     def _do_idle(self):
         """Perform idle task"""
         # read status message
-        self._mainboard.read_message()
+        start_time = time.time()
+        if self._mainboard.supports_is_idle_command:
+            result = self._mainboard.get("IsIdle")
+            if not result.was_successfull or len(result.return_parameters) == 1:
+                if result.return_parameters[0] != "1":
+                    logging.warn("'IsIdle' returned false")
+            else:
+                logging.warn("'IsIdle' command failed")
+        else:
+            self._mainboard.read_message()
+        time_diff = time.time() - start_time
+        if time_diff < MIN_IDLE_TIME_SEC:
+            time.sleep(MIN_IDLE_TIME_SEC - time_diff)
+            
         if not self._mainboard.is_connected:
             self._set_state(BarBotState.CONNECTING)
         if len(self._idle_tasks) > 0:
@@ -301,6 +316,7 @@ class BarBot():
     def set_user_input(self, value: UserInputType):
         """Set the answer of the user to a message."""
         self._user_input = value
+        logging.debug("User input: %s", value.name)
 
     def abort_mixing(self):
         """Abort an ongoing mixing process"""
@@ -376,12 +392,14 @@ class BarBot():
 
     def _go_to_idle(self):
         """Go to idle state of the barbot, reset the user message and home the hardware"""
+        logging.debug("Go to idle")
         self._set_message(UserMessageType.NONE)
         self._set_state(BarBotState.IDLE)
         #reset current values
         self._current_mixing_options = None
         self._current_recipe_item = None
         self._mainboard.set("SetLED", 3)
+        self._mainboard.set("PlatformLED", 0)
         # first move to what is supposed to be zero, then home
         self._mainboard.do("Move", 0)
         self._mainboard.do("Home")
