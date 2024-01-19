@@ -210,7 +210,7 @@ class BarBot():
         while not self._abort:
             # reset abort flag
             self._abort_mixing = False
-            # call self._do function
+            # call self._do_<state> function
             func = getattr(self, self._get_state_function_name(self._state))
             func()
             if self._state_changed:
@@ -243,6 +243,9 @@ class BarBot():
             self._config.mac_address = res
             self._config.save()
             self._set_state(BarBotState.CONNECTING)
+        else:
+            # nothing found, lets try again later
+            time.sleep(1)
 
     def _do_connecting(self):
         """Connect to a barbot with the mac address defined in the config"""
@@ -515,11 +518,11 @@ class BarBot():
             progress += 1
             self._set_mixing_progress(progress)
 
-        #mising is done
+        # mixing is done
         self._set_message(UserMessageType.MIXING_DONE_REMOVE_GLAS)
         self._mainboard.set("PlatformLED", 2)
         self._mainboard.set("SetLED", 4)
-        # show message and led for some seconds
+        # show message and LED for some seconds
         time.sleep(4)
         self._mainboard.set("PlatformLED", 0)
         self._parties.current_party.add_order(self._current_mixing_options.recipe)

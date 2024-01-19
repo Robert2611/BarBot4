@@ -247,6 +247,12 @@ class Mainboard:
     def firmware_version(self):
         """Get the firmware version, only valid after connecting!"""
         return self._firmware_version
+    
+    @property
+    def supports_is_idle_command(self):
+        """Get whether the mainboard supports the command 'IsIdle'"""
+        return self.firmware_version is not None \
+                and self.firmware_version.is_at_least(FirmwareVersion(4, 4, 0))
 
     def read_non_status_message(self) -> RawResponse:
         """Read a response message.
@@ -268,7 +274,7 @@ class Mainboard:
         response = self.get("GetFirmwareVersion")
         if response.was_successfull and len(response.return_parameters) > 0:
             self._firmware_version = decode_firmware_version(int(response.return_parameters[0]))
-            logging.info("Fimrware version is: %s", self._firmware_version)
+            logging.info("Firmware version is: %s", self._firmware_version)
         else:
             self._firmware_version = FirmwareVersion(0, 0, 0)
             logging.warning("Could not read firmware version, probably legacy")

@@ -32,8 +32,8 @@ class UserView(View):
         content_wrapper.setLayout(QtWidgets.QGridLayout())
         set_no_spacing(content_wrapper.layout())
 
-        self.__add_scroller_and_content_to(content_wrapper)
         self.__add_fixed_content_to(content_wrapper)
+        self.__add_scroller_and_content_to(content_wrapper)
 
     def __add_scroller_and_content_to(self, content_wrapper):
         scroller = QtWidgets.QScrollArea()
@@ -90,6 +90,7 @@ class ListRecipes(UserView):
         self._add_filter_alcoholic()
         self._add_filter_available()
         self._add_recipe_list_container()
+        self._add_dummy_widget_to_content()
 
         self._update_recipe_list()
 
