@@ -45,11 +45,11 @@ class BoardType(Enum):
 
 class LEDMode(Enum):
     """Must match LEDController.h in mainboard"""
-    OFF = 0,
-    CONTINOUS = 1,
-    BLINK = 2,
-    RAINBOW = 3,
-    POSITION_WATERFALL = 4,
+    OFF = 0
+    CONTINOUS = 1
+    BLINK = 2
+    RAINBOW = 3
+    POSITION_WATERFALL = 4
     DRAFT_POSITION = 5
 
 class PlatformLEDMode(Enum):
@@ -357,7 +357,7 @@ class Mainboard:
             if result.was_successfull:
                 # at success, exit the loop
                 break
-            logging.warning("try_do, failed attempt: %s", result.error.name)
+            logging.warning("try_do with '%s', failed attempt: %s", command, result.error.name)
             retries_left -= 1
 
         # at success or when no retries are left
@@ -379,7 +379,7 @@ class Mainboard:
             if result.was_successfull:
                 # at success, exit the loop
                 break
-            logging.warning("try_do, failed attempt: %s", result.error.name)
+            logging.warning("try_set with '%s', failed attempt: %s", command, result.error.name)
             retries_left -= 1
 
         # at success or when no retries are left
@@ -404,7 +404,7 @@ class Mainboard:
                     result.error = ErrorType.NO_RESULT_SENT
                 else:
                     break
-            logging.warning("try_do, failed attempt: %s", result.error.name)
+            logging.warning("try_get with '%s', failed attempt: %s", command, result.error.name)
             retries_left -= 1
 
         # at success or when no retries are left
@@ -422,7 +422,8 @@ class Mainboard:
             line = command
             for p in parameters:
                 line += " " + str(p)
-            logging.debug(">%s", line)
+            if command != "IsIdle":
+                logging.debug(">%s", line)
             try:
                 self._connection.send(line)
                 return True
@@ -439,8 +440,8 @@ class Mainboard:
         if line == "":
             return RawResponse(ResponseTypes.COMM_ERROR, "empty line read")
         tokens = line.split()
-        # Do not repeat "STATUS IDLE" over and over again
-        if len(tokens) >= 2 and tokens[0] == "STATUS" and tokens[1] == "IDLE":
+        # Do not repeat status messages over and over again
+        if self._is_status_message(tokens) or self._is_is_idle_message(tokens):
             if not self._last_message_was_status_idle:
                 logging.debug("<%s", line)
                 self._last_message_was_status_idle = True
@@ -459,3 +460,9 @@ class Mainboard:
                     return RawResponse(ResponseTypes.COMM_ERROR, "wrong format")
                 return RawResponse(ResponseTypes[tokens[0]], tokens[1], tokens[2:])
         return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")
+
+    def _is_status_message(self, tokens):
+        return len(tokens) >= 2 and tokens[0] == "STATUS" and tokens[1] == "IDLE"
+
+    def _is_is_idle_message(self, tokens):
+        return len(tokens) >= 0 and tokens[0] == "ACK" and tokens[1] == "IsIdle"

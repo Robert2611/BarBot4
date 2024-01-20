@@ -233,7 +233,7 @@ class BarBot():
         start_time = time.time()
         if self._mainboard.supports_is_idle_command:
             result = self._mainboard.get("IsIdle")
-            if not result.was_successfull or len(result.return_parameters) == 1:
+            if result.was_successfull and len(result.return_parameters) == 1:
                 if result.return_parameters[0] != "1":
                     logging.warn("'IsIdle' returned false")
             else:
@@ -305,7 +305,7 @@ class BarBot():
             if not self._wait_for_user_input():
                 return
         self._set_message(UserMessageType.NONE)
-        self._mainboard.set("SetLED", LEDMode.RAINBOW)
+        self._mainboard.set("SetLED", LEDMode.RAINBOW.value)
         self._mainboard.set("SetSpeed", self._config.max_speed)
         self._mainboard.set("SetAccel", self._config.max_accel)
         self._mainboard.set("SetPumpPower", self._config.pump_power)
@@ -398,8 +398,8 @@ class BarBot():
         #reset current values
         self._current_mixing_options = None
         self._current_recipe_item = None
-        self._mainboard.set("SetLED", LEDMode.RAINBOW)
-        self._mainboard.set("PlatformLED", PlatformLEDMode.OFF)
+        self._mainboard.set("SetLED", LEDMode.RAINBOW.value)
+        self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
         self._mainboard.do("Home")
 
     def _has_glas(self):
@@ -486,7 +486,7 @@ class BarBot():
         self._reset_user_input()
         # wait for the glas
         if not self._has_glas():
-            self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK)
+            self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
             # wait for glas or user abort
             def glas_present_or_user_input():
                 if self._has_glas():
@@ -502,11 +502,11 @@ class BarBot():
             if self._user_input != UserInputType.UNDEFINED:
                 return
 
-        self._mainboard.set("PlatformLED", PlatformLEDMode.ROTATE)
+        self._mainboard.set("PlatformLED", PlatformLEDMode.ROTATE.value)
         # wait for the user to take the hands off the glas
         time.sleep(1)
-        self._mainboard.set("PlatformLED", PlatformLEDMode.CHASE)
-        self._mainboard.set("SetLED", LEDMode.DRAFT_POSITION)
+        self._mainboard.set("PlatformLED", PlatformLEDMode.CHASE.value)
+        self._mainboard.set("SetLED", LEDMode.DRAFT_POSITION.value)
         self._reset_user_input()
         for item in self._current_mixing_options.recipe.items:
             # user aborted
@@ -536,11 +536,11 @@ class BarBot():
 
         # mixing is done
         self._set_message(UserMessageType.MIXING_DONE_REMOVE_GLAS)
-        self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK)
-        self._mainboard.set("SetLED", LEDMode.POSITION_WATERFALL)
+        self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
+        self._mainboard.set("SetLED", LEDMode.POSITION_WATERFALL.value)
         # show message and LED for some seconds
         time.sleep(4)
-        self._mainboard.set("PlatformLED", PlatformLEDMode.OFF)
+        self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
         self._parties.current_party.add_order(self._current_mixing_options.recipe)
         self._set_message(UserMessageType.NONE)
         if self.on_mixing_finished is not None:
