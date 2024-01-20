@@ -400,6 +400,8 @@ class BarBot():
         self._current_recipe_item = None
         self._mainboard.set("SetLED", LEDMode.RAINBOW.value)
         self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
+        # move to where zero should be, if no motor steps were skipped
+        self._mainboard.do("Move", 0)
         self._mainboard.do("Home")
 
     def _has_glas(self):
