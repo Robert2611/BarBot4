@@ -15,6 +15,7 @@ class ErrorType(Enum):
 
     NONE = 0
 
+    # generated error codes are above 100, so we don't interfere with the mainboard codes 
     COMM_ERROR = 101
     SEND_FAILED = 102
     NO_RESULT_SENT = 103
@@ -41,6 +42,24 @@ class BoardType(Enum):
     STRAW = 0x03
     CRUSHER = 0x04
     SUGAR = 0x05
+
+class LEDMode(Enum):
+    """Must match LEDController.h in mainboard"""
+    OFF = 0,
+    CONTINOUS = 1,
+    BLINK = 2,
+    RAINBOW = 3,
+    POSITION_WATERFALL = 4,
+    DRAFT_POSITION = 5
+
+class PlatformLEDMode(Enum):
+    """Must match BALANCE_LED_TYPE_<name> in 'shared.h'"""
+    OFF = 0
+    CONTINOUS = 1
+    BLINK = 2
+    ROTATE = 3
+    PULSING = 4
+    CHASE = 5
 
 class ResponseTypes(Enum):
     """Types of messages that can be received from the mainboard"""
