@@ -1,16 +1,10 @@
 #include "StateMachine.h"
 
-StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, CrusherBoard *_crusher, SugarBoard *_sugar_board, MCP23X17 *_mcp, BluetoothSerial *_bt)
+StateMachine::StateMachine(BalanceBoard *_balance, MixerBoard *_mixer, StrawBoard *_straw_board, CrusherBoard *_crusher, SugarBoard *_sugar_board, MCP23X17 *_mcp, BluetoothSerial *_bt):
+balance(_balance), mixer(_mixer), straw_board(_straw_board), crusher(_crusher), mcp(_mcp), bt(_bt), sugar_board(_sugar_board)
 {
-	this->balance = _balance;
-	this->mixer = _mixer;
-	this->straw_board = _straw_board;
-	this->crusher = _crusher;
-	this->mcp = _mcp;
-	this->bt = _bt;
-	this->sugar_board = _sugar_board;
 	startup = true;
-	status = BarBotStatus_t::Idle;
+	state = BarBotState_t::Idle;
 	current_action_start_millis = 0;
 
 	stepper = new AccelStepper(AccelStepper::DRIVER, PIN_PLATFORM_MOTOR_STEP, PIN_PLATFORM_MOTOR_DIR);
@@ -48,31 +42,31 @@ void StateMachine::begin()
 void StateMachine::update()
 {
 	bool transmit_successfull;
-	switch (status)
+	switch (state)
 	{
-	case BarBotStatus_t::Idle:
+	case BarBotState_t::Idle:
 		// we do not check for any errors here!
 		balance->update();
 		//reset the abort flag on idle
 		abort = false;
 		break;
 
-	case BarBotStatus_t::Error:
-	case BarBotStatus_t::ErrorIngredientEmpty:
-	case BarBotStatus_t::ErrorI2C:
-	case BarBotStatus_t::ErrorStrawsEmpty:
-	case BarBotStatus_t::ErrorGlasRemoved:
-	case BarBotStatus_t::ErrorCommunicationToBalance:
-	case BarBotStatus_t::ErrorMixingFailed:
-	case BarBotStatus_t::ErrorCrusherCoverOpen:
-	case BarBotStatus_t::ErrorCrusherTimeout:
-	case BarBotStatus_t::ErrorCommandAborted:
-	case BarBotStatus_t::ErrorSugarDispenserTimeout:
+	case BarBotState_t::Error:
+	case BarBotState_t::ErrorIngredientEmpty:
+	case BarBotState_t::ErrorI2C:
+	case BarBotState_t::ErrorStrawsEmpty:
+	case BarBotState_t::ErrorGlasRemoved:
+	case BarBotState_t::ErrorCommunicationToBalance:
+	case BarBotState_t::ErrorMixingFailed:
+	case BarBotState_t::ErrorCrusherCoverOpen:
+	case BarBotState_t::ErrorCrusherTimeout:
+	case BarBotState_t::ErrorCommandAborted:
+	case BarBotState_t::ErrorSugarDispenserTimeout:
 		//nothing to do here
 		break;
 
 	/** HOMING START **/
-	case BarBotStatus_t::HomingRough:
+	case BarBotState_t::HomingRough:
 		if (!is_homed())
 		{
 			stepper->run();
@@ -83,11 +77,11 @@ void StateMachine::update()
 			stepper->setCurrentPosition(0);
 			stepper->setSpeed(PLATFORM_MOTOR_HOMING_SPEED * PLATFORM_MOTOR_MICROSTEPS);
 			set_target_position(100);
-			set_status(BarBotStatus_t::HomingFine);
+			set_state(BarBotState_t::HomingFine);
 		}
 		break;
 
-	case BarBotStatus_t::HomingFine:
+	case BarBotState_t::HomingFine:
 		//move to fulls step position, so pos = 0 is full step!
 		if ((current_microstep % PLATFORM_MOTOR_MICROSTEPS != 0) || is_homed())
 		{
@@ -99,7 +93,7 @@ void StateMachine::update()
 			stepper->setCurrentPosition(0);
 			stepper->setSpeed(0);
 			set_target_position(0);
-			set_status(BarBotStatus_t::Idle);
+			set_state(BarBotState_t::Idle);
 			if (startup)
 				startup = false;
 		}
@@ -107,41 +101,41 @@ void StateMachine::update()
 
 		/** HOMING END **/
 
-	case BarBotStatus_t::AbortMovement:
+	case BarBotState_t::AbortMovement:
 		if (stepper->currentPosition() == stepper->targetPosition())
-			set_status(BarBotStatus_t::ErrorCommandAborted);
+			set_state(BarBotState_t::ErrorCommandAborted);
 		else
 			stepper->run();
 		break;
 
-	case BarBotStatus_t::MoveToPos:
+	case BarBotState_t::MoveToPos:
 		if (abort)
 		{
 			//decelerrate until stop
 			stepper->stop();
-			set_status(BarBotStatus_t::AbortMovement);
+			set_state(BarBotState_t::AbortMovement);
 		}
 		else if (stepper->currentPosition() == stepper->targetPosition())
-			set_status(BarBotStatus_t::Idle);
+			set_state(BarBotState_t::Idle);
 		else
 			stepper->run();
 		break;
 
-	case BarBotStatus_t::Delay:
+	case BarBotState_t::Delay:
 		if (abort)
-			set_status(BarBotStatus_t::ErrorCommandAborted);
+			set_state(BarBotState_t::ErrorCommandAborted);
 		else if (millis() > (unsigned long)(current_action_start_millis + delay_time))
-			set_status(BarBotStatus_t::Idle);
+			set_state(BarBotState_t::Idle);
 		break;
 
-	case BarBotStatus_t::MoveToDraft:
-	case BarBotStatus_t::MoveToCrusher:
-	case BarBotStatus_t::MoveToSugarDispenser:
+	case BarBotState_t::MoveToDraft:
+	case BarBotState_t::MoveToCrusher:
+	case BarBotState_t::MoveToSugarDispenser:
 		if (abort)
 		{
 			//decelerrate until stop
 			stepper->stop();
-			set_status(BarBotStatus_t::AbortMovement);
+			set_state(BarBotState_t::AbortMovement);
 		}
 		else if (stepper->currentPosition() == stepper->targetPosition())
 		{
@@ -155,53 +149,53 @@ void StateMachine::update()
 				{
 					draft_timeout_last_check_millis = millis();
 					draft_timeout_last_weight = balance->getWeight();
-					if (status == BarBotStatus_t::MoveToDraft)
+					if (state == BarBotState_t::MoveToDraft)
 					{
 						start_pump(pump_index, (pump_power_percent * 1024) / 100);
-						set_status(BarBotStatus_t::Drafting);
+						set_state(BarBotState_t::Drafting);
 					}
-					else if (status == BarBotStatus_t::MoveToCrusher)
+					else if (state == BarBotState_t::MoveToCrusher)
 					{
 						if (crusher->StartCrushing())
-							set_status(BarBotStatus_t::CrushingIce);
+							set_state(BarBotState_t::CrushingIce);
 						else
-							set_status(BarBotStatus_t::ErrorI2C);
+							set_state(BarBotState_t::ErrorI2C);
 					}
-					else if (status == BarBotStatus_t::MoveToSugarDispenser)
+					else if (state == BarBotState_t::MoveToSugarDispenser)
 					{
 						if (sugar_board->StartDispensing())
-							set_status(BarBotStatus_t::DispensingSugar);
+							set_state(BarBotState_t::DispensingSugar);
 						else
-							set_status(BarBotStatus_t::ErrorI2C);
+							set_state(BarBotState_t::ErrorI2C);
 					}
 				}
 				else
-					set_status(BarBotStatus_t::ErrorGlasRemoved);
+					set_state(BarBotState_t::ErrorGlasRemoved);
 			}
 			else if (res == Balance_CommunicationError)
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 			else if (res == Balance_Timeout)
-				set_status(BarBotStatus_t::ErrorCommunicationToBalance);
+				set_state(BarBotState_t::ErrorCommunicationToBalance);
 		}
 		else
 			stepper->run();
 		break;
 
-	case BarBotStatus_t::Drafting:
-	case BarBotStatus_t::CrushingIce:
-	case BarBotStatus_t::DispensingSugar:
+	case BarBotState_t::Drafting:
+	case BarBotState_t::CrushingIce:
+	case BarBotState_t::DispensingSugar:
 	{
 		//new data avaiable?
 		BalanceUpdateResult_t res = balance->update();
 		if (abort)
 		{
-			if (status == BarBotStatus_t::CrushingIce)
+			if (state == BarBotState_t::CrushingIce)
 				crusher->StartCrushing();
-			else if (status == BarBotStatus_t::DispensingSugar)
+			else if (state == BarBotState_t::DispensingSugar)
 				sugar_board->StopDispensing();
 			else
 				stop_pumps();
-			set_status(BarBotStatus_t::ErrorCommandAborted);
+			set_state(BarBotState_t::ErrorCommandAborted);
 		}
 		else if (res == Balance_DataRead)
 		{
@@ -209,34 +203,34 @@ void StateMachine::update()
 			if (balance->getWeight() > target_draft_weight)
 			{
 				//success
-				if (status == BarBotStatus_t::Drafting)
+				if (state == BarBotState_t::Drafting)
 				{
 					stop_pumps();
-					set_status(BarBotStatus_t::Idle);
+					set_state(BarBotState_t::Idle);
 				}
-				else if (status == BarBotStatus_t::CrushingIce)
+				else if (state == BarBotState_t::CrushingIce)
 				{
 					if (crusher->StopCrushing())
-						set_status(BarBotStatus_t::Idle);
+						set_state(BarBotState_t::Idle);
 					else
-						set_status(BarBotStatus_t::ErrorI2C);
+						set_state(BarBotState_t::ErrorI2C);
 				}
-				else if (status == BarBotStatus_t::DispensingSugar)
+				else if (state == BarBotState_t::DispensingSugar)
 				{
 					if (sugar_board->StopDispensing())
-						set_status(BarBotStatus_t::Idle);
+						set_state(BarBotState_t::Idle);
 					else
-						set_status(BarBotStatus_t::ErrorI2C);
+						set_state(BarBotState_t::ErrorI2C);
 				}
 			}
 			//Empty error for drafting
-			else if ((status == BarBotStatus_t::Drafting) && (millis() > draft_timeout_last_check_millis + DRAFT_TIMEOUT_MILLIS))
+			else if ((state == BarBotState_t::Drafting) && (millis() > draft_timeout_last_check_millis + DRAFT_TIMEOUT_MILLIS))
 			{
 				if (balance->getWeight() < draft_timeout_last_weight + DRAFT_TIMEOUT_WEIGHT)
 				{
 					//error
 					stop_pumps();
-					set_status(BarBotStatus_t::ErrorIngredientEmpty);
+					set_state(BarBotState_t::ErrorIngredientEmpty);
 				}
 				else
 				{
@@ -246,15 +240,15 @@ void StateMachine::update()
 				}
 			}
 			//Empty error for ice, the constants are different here since crusing is slower
-			else if ((status == BarBotStatus_t::CrushingIce) && (millis() > draft_timeout_last_check_millis + ICE_TIMEOUT_MILLIS))
+			else if ((state == BarBotState_t::CrushingIce) && (millis() > draft_timeout_last_check_millis + ICE_TIMEOUT_MILLIS))
 			{
 				if (balance->getWeight() < draft_timeout_last_weight + ICE_TIMEOUT_WEIGHT)
 				{
 					//error
 					if (crusher->StopCrushing())
-						set_status(BarBotStatus_t::ErrorIngredientEmpty);
+						set_state(BarBotState_t::ErrorIngredientEmpty);
 					else
-						set_status(BarBotStatus_t::ErrorI2C);
+						set_state(BarBotState_t::ErrorI2C);
 				}
 				else
 				{
@@ -264,15 +258,15 @@ void StateMachine::update()
 				}
 			}
 			//Empty error for sugar, the constants are different here again
-			else if ((status == BarBotStatus_t::DispensingSugar) && (millis() > draft_timeout_last_check_millis + SUGAR_TIMEOUT_MILLIS))
+			else if ((state == BarBotState_t::DispensingSugar) && (millis() > draft_timeout_last_check_millis + SUGAR_TIMEOUT_MILLIS))
 			{
 				if (balance->getWeight() < draft_timeout_last_weight + SUGAR_TIMEOUT_WEIGHT)
 				{
 					//error
 					if (sugar_board->StopDispensing())
-						set_status(BarBotStatus_t::ErrorIngredientEmpty);
+						set_state(BarBotState_t::ErrorIngredientEmpty);
 					else
-						set_status(BarBotStatus_t::ErrorI2C);
+						set_state(BarBotState_t::ErrorI2C);
 				}
 				else
 				{
@@ -285,113 +279,113 @@ void StateMachine::update()
 		//forward i2c error
 		else if (res == Balance_CommunicationError)
 		{
-			if (status == BarBotStatus_t::CrushingIce)
+			if (state == BarBotState_t::CrushingIce)
 				//since we are allready in a communication error, there is no need to handle errors here
 				crusher->StopCrushing();
 			else
 				stop_pumps();
-			set_status(BarBotStatus_t::ErrorI2C);
+			set_state(BarBotState_t::ErrorI2C);
 		}
 		//forward timeout
 		else if (res == Balance_Timeout)
 		{
-			if (status == BarBotStatus_t::CrushingIce)
+			if (state == BarBotState_t::CrushingIce)
 				//since we are allready in a communication error, there is no need to handle errors here
 				crusher->StopCrushing();
 			else
 				stop_pumps();
-			set_status(BarBotStatus_t::ErrorCommunicationToBalance);
+			set_state(BarBotState_t::ErrorCommunicationToBalance);
 		}
 		//else just wait
 
 		//check if crusher is doing okay
-		if ((status == BarBotStatus_t::CrushingIce) && (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD))
+		if ((state == BarBotState_t::CrushingIce) && (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD))
 		{
 			byte crusher_error;
 			transmit_successfull = crusher->GetError(&crusher_error);
 			if (!transmit_successfull)
 			{
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 			}
 			//if an error accurs the crusher will stop on its own, so no need to call crusher->StopCrushing()
 			else if (CRUSHER_ERROR_COVER_OPEN == crusher_error)
 			{
-				set_status(BarBotStatus_t::ErrorCrusherCoverOpen);
+				set_state(BarBotState_t::ErrorCrusherCoverOpen);
 			}
 			else if (CRUSHER_ERROR_TIMEOUT == crusher_error)
 			{
-				set_status(BarBotStatus_t::ErrorCrusherTimeout);
+				set_state(BarBotState_t::ErrorCrusherTimeout);
 			}
 			child_last_check_millis = millis();
 		}
 
 		//check if sugar dispenser is doing okay
-		if ((status == BarBotStatus_t::DispensingSugar) && (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD))
+		if ((state == BarBotState_t::DispensingSugar) && (millis() > child_last_check_millis + CHILD_UPDATE_PERIOD))
 		{
 			byte sugar_error;
 			transmit_successfull = crusher->GetError(&sugar_error);
 			if (!transmit_successfull)
 			{
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 			}
 			else if (SUGAR_ERROR_TIMEOUT == sugar_error)
 			{
-				set_status(BarBotStatus_t::ErrorSugarDispenserTimeout);
+				set_state(BarBotState_t::ErrorSugarDispenserTimeout);
 			}
 			child_last_check_millis = millis();
 		}
 	}
 	break;
 
-	case BarBotStatus_t::MoveToClean:
+	case BarBotState_t::MoveToClean:
 		if (abort)
 		{
 			//decelerrate until stop
 			stepper->stop();
-			set_status(BarBotStatus_t::AbortMovement);
+			set_state(BarBotState_t::AbortMovement);
 		}
 		else if (stepper->currentPosition() == stepper->targetPosition())
 		{
 			current_action_start_millis = millis();
 			start_pump(pump_index, (pump_power_percent * 1024) / 100);
-			set_status(BarBotStatus_t::Cleaning);
+			set_state(BarBotState_t::Cleaning);
 		}
 		else
 			stepper->run();
 		break;
 
-	case BarBotStatus_t::Cleaning:
+	case BarBotState_t::Cleaning:
 		if (abort)
 		{
 			stop_pumps();
-			set_status(BarBotStatus_t::ErrorCommandAborted);
+			set_state(BarBotState_t::ErrorCommandAborted);
 		}
 		else if (millis() > current_action_start_millis + current_action_duration)
 		{
 			stop_pumps();
-			set_status(BarBotStatus_t::Idle);
+			set_state(BarBotState_t::Idle);
 		}
 		break;
 
-	case BarBotStatus_t::MoveToMixer:
+	case BarBotState_t::MoveToMixer:
 		if (abort)
 		{
 			//decelerrate until stop
 			stepper->stop();
-			set_status(BarBotStatus_t::AbortMovement);
+			set_state(BarBotState_t::AbortMovement);
 		}
 		else if (stepper->currentPosition() == stepper->targetPosition())
-			set_status(BarBotStatus_t::Mixing);
+			set_state(BarBotState_t::Mixing);
 		else
 			stepper->run();
 		break;
 
-	case BarBotStatus_t::Mixing:
+	case BarBotState_t::Mixing:
 		// abort before mixing started
 		if (abort && !mixer_start_sent)
 		{
 			//nothing happend yet so we can just abort
-			set_status(BarBotStatus_t::ErrorCommandAborted);
+			set_state(BarBotState_t::ErrorCommandAborted);
 			break;
 		}
 		if (!mixer_start_sent)
@@ -400,7 +394,7 @@ void StateMachine::update()
 			transmit_successfull = mixer->StartMixing(mixing_seconds);
 			if (!transmit_successfull)
 			{
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 				break;
 			}
 			current_action_start_millis = millis();
@@ -414,7 +408,7 @@ void StateMachine::update()
 			transmit_successfull = mixer->IsMixing(&is_mixing);
 			if (!transmit_successfull)
 			{
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 				break;
 			}
 			if (!is_mixing)
@@ -423,13 +417,13 @@ void StateMachine::update()
 				transmit_successfull = mixer->WasSuccessfull(&dispense_successfull);
 				if (!transmit_successfull)
 				{
-					set_status(BarBotStatus_t::ErrorI2C);
+					set_state(BarBotState_t::ErrorI2C);
 					break;
 				}
 				if (dispense_successfull)
-					set_status(BarBotStatus_t::ErrorMixingFailed);
+					set_state(BarBotState_t::ErrorMixingFailed);
 				else
-					set_status(BarBotStatus_t::Idle);
+					set_state(BarBotState_t::Idle);
 			}
 			else
 				child_last_check_millis = millis();
@@ -437,31 +431,31 @@ void StateMachine::update()
 		}
 		break;
 
-	case BarBotStatus_t::SetBalanceLED:
+	case BarBotState_t::SetBalanceLED:
 		if (balance->setLEDType(balance_LED_type))
-			set_status(BarBotStatus_t::Idle);
+			set_state(BarBotState_t::Idle);
 		else
-			set_status(BarBotStatus_t::ErrorI2C);
+			set_state(BarBotState_t::ErrorI2C);
 		break;
 
-	case BarBotStatus_t::PingAll:
+	case BarBotState_t::PingAll:
 		ping_result = 0;
 		for (uint8_t address = 0; address < WIREPROTOCOL_MAX_BOARDS; address++)
 		{
 			if (WireProtocol::ping(address))
 				ping_result |= 1 << address;
 		}
-		set_status(BarBotStatus_t::Idle);
+		set_state(BarBotState_t::Idle);
 		break;
 
-	case BarBotStatus_t::DispenseStraw:
+	case BarBotState_t::DispenseStraw:
 		if (!dispense_straw_sent)
 		{
 			//tell the board to start the dispensing
 			transmit_successfull = straw_board->StartDispense();
 			if (!transmit_successfull)
 			{
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 				break;
 			}
 			current_action_start_millis = millis();
@@ -475,18 +469,18 @@ void StateMachine::update()
 			transmit_successfull = straw_board->IsDispensing(&is_dispensing);
 			if (!transmit_successfull)
 			{
-				set_status(BarBotStatus_t::ErrorI2C);
+				set_state(BarBotState_t::ErrorI2C);
 			}
 			else if (!is_dispensing)
 			{
 				bool dispense_successfull;
 				transmit_successfull = straw_board->WasSuccessfull(&dispense_successfull);
 				if (!transmit_successfull)
-					set_status(BarBotStatus_t::ErrorI2C);
+					set_state(BarBotState_t::ErrorI2C);
 				else if (!dispense_successfull)
-					set_status(BarBotStatus_t::ErrorStrawsEmpty);
+					set_state(BarBotState_t::ErrorStrawsEmpty);
 				else
-					set_status(BarBotStatus_t::Idle);
+					set_state(BarBotState_t::Idle);
 			}
 			else
 				child_last_check_millis = millis();
@@ -543,7 +537,7 @@ void StateMachine::start_clean(int _pump_index, unsigned long _draft_time_millis
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
 
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToClean);
+	set_state(BarBotState_t::MoveToClean);
 }
 
 void StateMachine::start_homing()
@@ -551,7 +545,7 @@ void StateMachine::start_homing()
 	current_microstep %= PLATFORM_MOTOR_MICROSTEPS;
 	set_target_position(-2000);
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::HomingRough);
+	set_state(BarBotState_t::HomingRough);
 }
 
 void StateMachine::start_draft(int _pump_index, float draft_weight)
@@ -562,7 +556,7 @@ void StateMachine::start_draft(int _pump_index, float draft_weight)
 	set_target_position(FIRST_PUMP_POSITION + PUMP_DISTANCE * _pump_index);
 
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToDraft);
+	set_state(BarBotState_t::MoveToDraft);
 }
 
 void StateMachine::start_crushing(float ice_weight)
@@ -572,7 +566,7 @@ void StateMachine::start_crushing(float ice_weight)
 	set_target_position(CRUSHER_POSITION);
 
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToCrusher);
+	set_state(BarBotState_t::MoveToCrusher);
 }
 
 void StateMachine::start_dispensing_sugar(float sugar_weight)
@@ -582,7 +576,7 @@ void StateMachine::start_dispensing_sugar(float sugar_weight)
 	set_target_position(SUGAR_POSITION);
 
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToSugarDispenser);
+	set_state(BarBotState_t::MoveToSugarDispenser);
 }
 
 void StateMachine::start_mixing(long seconds)
@@ -592,7 +586,7 @@ void StateMachine::start_mixing(long seconds)
 	mixer_start_sent = false;
 	set_target_position(MIXING_POSITION);
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToMixer);
+	set_state(BarBotState_t::MoveToMixer);
 }
 
 void StateMachine::start_delay(long duration)
@@ -600,54 +594,54 @@ void StateMachine::start_delay(long duration)
 	current_action_start_millis = millis();
 	delay_time = duration;
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::Delay);
+	set_state(BarBotState_t::Delay);
 }
 
 void StateMachine::start_moveto(long position_in_mm)
 {
 	set_target_position(position_in_mm);
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::MoveToPos);
+	set_state(BarBotState_t::MoveToPos);
 }
 
 void StateMachine::start_set_balance_LED(byte type)
 {
 	balance_LED_type = type;
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::SetBalanceLED);
+	set_state(BarBotState_t::SetBalanceLED);
 }
 
 void StateMachine::start_ping_all()
 {
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::PingAll);
+	set_state(BarBotState_t::PingAll);
 }
 
 void StateMachine::start_dispense_straw()
 {
 	dispense_straw_sent = false;
 	//status has to be set last to avoid multi core problems
-	set_status(BarBotStatus_t::DispenseStraw);
+	set_state(BarBotState_t::DispenseStraw);
 }
 
 ///endregion: actions ///
 
 ///region: setters ///
-void StateMachine::set_status(BarBotStatus_t new_status)
+void StateMachine::set_state(BarBotState_t new_status)
 {
-	if (new_status != status)
+	if (new_status != state)
 	{
-		status = new_status;
+		state = new_status;
 		if (onStatusChanged != NULL)
-			onStatusChanged(status);
+			onStatusChanged(state);
 	}
 }
 
 void StateMachine::reset_error()
 {
-	if (status > BarBotStatus_t::Error)
+	if (state > BarBotState_t::Error)
 	{
-		set_status(BarBotStatus_t::Idle);
+		set_state(BarBotState_t::Idle);
 	}
 }
 
@@ -721,4 +715,9 @@ void StateMachine::stop_pumps()
 void StateMachine::request_abort()
 {
 	abort = true;
+}
+
+BarBotState_t StateMachine::get_state()
+{
+	return state;
 }

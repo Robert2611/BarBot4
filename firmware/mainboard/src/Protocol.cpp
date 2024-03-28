@@ -128,7 +128,9 @@ void Protocol::onCommand(const char *command, int param_c, char **param_v)
         {
             long result;
             //start command using the passed function
-            bool success = cmd->command_start(param_c, param_v, &result);
+            bool success = true;
+            if(cmd->command_start != nullptr)
+                success = cmd->command_start(param_c, param_v, &result);
             //start command ran sucessfully
             if (success)
             {

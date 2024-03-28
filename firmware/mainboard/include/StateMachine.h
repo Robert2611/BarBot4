@@ -14,7 +14,7 @@
 #include "esp_bt_device.h"
 #include "BluetoothSerial.h"
 
-enum BarBotStatus_t
+enum BarBotState_t
 {
 	Idle,
 	HomingRough,
@@ -51,7 +51,7 @@ enum BarBotStatus_t
 
 extern "C"
 {
-	typedef void (*BarBotStatusChangedHandler)(BarBotStatus_t);
+	typedef void (*BarBotStatusChangedHandler)(BarBotState_t);
 };
 
 class StateMachine
@@ -60,7 +60,6 @@ public:
 	StateMachine(BalanceBoard *, MixerBoard *, StrawBoard *, CrusherBoard *, SugarBoard *, MCP23X17 *, BluetoothSerial *);
 	void begin();
 
-	BarBotStatus_t status;
 	byte pump_index;
 
 	BarBotStatusChangedHandler onStatusChanged;
@@ -88,12 +87,14 @@ public:
 	bool is_started();
 	float target_position_in_mm();
 	void request_abort();
+	BarBotState_t get_state();
 
 private:
+	BarBotState_t state;
 	bool is_homed();
 	void start_pump(int pump_index, uint32_t power_pwm);
 	void stop_pumps();
-	void set_status(BarBotStatus_t new_status);
+	void set_state(BarBotState_t new_status);
 	void set_target_position(long pos_in_mm);
 	long mm_to_steps(float mm);
 	void init_mcp();
