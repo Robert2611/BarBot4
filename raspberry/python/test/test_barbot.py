@@ -1,5 +1,6 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 import unittest
+from unittest.mock import MagicMock
 import os
 from tempfile import mkdtemp
 from datetime import datetime
@@ -211,7 +212,7 @@ class TestCommunication(unittest.TestCase):
         assert FirmwareVersion(1, 5, 5) <= FirmwareVersion(1, 5, 6)
         assert FirmwareVersion(0, 0, 0) <= FirmwareVersion(4, 0, 0)
 
-    def test_mainboard(self):
+    def test_mainboard_commands(self):
         connection_mockup = MaiboardConnectionMockup()
         mainboard = Mainboard(connection_mockup)
         for command_name, command_data in connection_mockup.commands.items():
@@ -226,4 +227,62 @@ class TestCommunication(unittest.TestCase):
             assert result.was_successfull
             if command_type == "GET":
                 assert len(result.return_parameters) == 1
-        
+
+    def test_mainboard_command_do(self):
+        command = "TESTCOMMAND"
+        params = ["1", "2", "3"]
+        attrs = {
+            "read_line.side_effect" : [
+                f"ACK {command}",
+                f"STATUS {command}",
+                f"STATUS {command}",
+                f"DONE {command}"
+                ],
+            "is_connected" : True
+        }
+        connection_mockup = MagicMock()
+        connection_mockup.configure_mock(**attrs)
+        mainboard = Mainboard(connection_mockup)
+
+        result = mainboard.do(command, *params)
+        assert result.was_successfull
+        connection_mockup.send.assert_called_once_with(f"{command} {' '.join(params)}")
+
+    def test_mainboard_command_get(self):
+        command = "TESTCOMMAND"
+        params = ["testparam", "2", "3"]
+        return_value = 4
+        attrs = {
+            "read_line.side_effect" : [
+                f"ACK {command} {return_value}",
+                f"NAK {command}",
+                ],
+            "is_connected" : True
+        }
+        connection_mockup = MagicMock()
+        connection_mockup.configure_mock(**attrs)
+        mainboard = Mainboard(connection_mockup)
+
+        #normal response
+        result = mainboard.set(command, *params)
+        assert result.was_successfull
+        assert result.return_parameters == [str(return_value)]
+        connection_mockup.send.assert_called_once_with(f"{command} {' '.join(params)}")
+
+
+    def test_mainboard_command_set(self):
+        command = "TESTCOMMAND"
+        params = ["testparam", "2", "3"]
+        attrs = {
+            "read_line.side_effect" : [
+                f"ACK {command}"
+                ],
+            "is_connected" : True
+        }
+        connection_mockup = MagicMock()
+        connection_mockup.configure_mock(**attrs)
+        mainboard = Mainboard(connection_mockup)
+
+        result = mainboard.set(command, *params)
+        assert result.was_successfull
+        connection_mockup.send.assert_called_once_with(f"{command} {' '.join(params)}")
