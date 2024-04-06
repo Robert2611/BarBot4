@@ -1,11 +1,12 @@
 """Barbot configuration """
-import os
-import sys
-import yaml
+from io import TextIOWrapper
 import logging
-from enum import Enum
-from typing import Dict, List
+import os
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Union
+
+import yaml
 
 data_directory = os.path.expanduser('~/.barbot/')
 __version_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"../../version.txt")
@@ -50,7 +51,7 @@ class Ingredient():
             return DENSITY_SPIRIT
         else:
             # no info, so just assume water
-            self.density = DENSITY_WATER
+            return DENSITY_WATER
 
 
 Stir = Ingredient('ruehren',        'Rühren',               IngredientType.STIRR,   0xDDE3E1D3   )
@@ -90,15 +91,14 @@ def get_ingredient_by_identifier(identifier: str):
             return ingredient
     return None
 
-
 class PortConfiguration:
     """Manages the relation between the ports and the connected ingredients"""
-    def __init__(self):
+    def __init__(self, load_on_init : bool = True):
         self._filepath = os.path.join(data_directory, 'ports.yaml')
         self._list: dict[int, Ingredient]= {i: None for i in range(PORT_COUNT)}
         # if loading failed save the default value to file
-        if not self.load():
-            logging.warn("Port configuration not fould, write default.")
+        if load_on_init and not self.load():
+            logging.warning("Port configuration not fould, write default.")
             self.save()
 
     def update(self, new_ports:Dict[int, Ingredient]):
@@ -122,39 +122,54 @@ class PortConfiguration:
                 return port
         return None
 
-    def save(self):
+    def save(self, output_stream : TextIOWrapper = None):
         """ Save the current port configuration
         :return: True if saving was successfull, False otherwise
         """
+        #prepare data
+        data = {}
+        for port, ingredient in self._list.items():
+            if ingredient is not None:
+                data[port] = ingredient.identifier
+            else:
+                data[port] = None
+        yaml_data = yaml.dump(data, None, default_flow_style=False)
+        #write text
+        result = True
         try:
-            with open(self._filepath, 'w', encoding="utf-8") as outfile:
-                data = {}
-                for port, ingredient in self._list.items():
-                    if ingredient is not None:
-                        data[port] = ingredient.identifier
-                    else:
-                        data[port] = None
-                yaml.dump(data, outfile, default_flow_style=False)
-                return True
+            if output_stream is not None:
+                output_stream.write(yaml_data)
+            else:
+                with open(self._filepath, 'w', encoding="utf-8") as file:
+                    file.write(yaml_data)
         except OSError:
-            return False
+            result = False
+        return result
 
-    def load(self):
+    def load(self, input_stream : TextIOWrapper = None):
         """ Load the current port configuration
         :return: True if loading was successfull, False otherwise
         """
+        #load data
+        result = True
+        data : dict[int, str]
         try:
-            with open(self._filepath, 'r', encoding="utf-8") as file:
-                data:dict[int, str] = yaml.load(file, Loader=yaml.FullLoader)
-                self._list = {}
-                for port, identifier in data.items():
-                    if identifier is None or identifier == "":
-                        self._list[port] = None
-                    else:
-                        self._list[port] = get_ingredient_by_identifier(identifier)
-                return True
+            if input_stream is not None:
+                data = yaml.load(input_stream, Loader=yaml.FullLoader)
+            else:
+                with open(self._filepath, 'r', encoding="utf-8") as file:
+                    data = yaml.load(file, Loader=yaml.FullLoader)
         except OSError:
-            return False
+            result = False
+        #parse data
+        if result is True:
+            self._list = {}
+            for port, identifier in data.items():
+                if identifier is None or identifier == "":
+                    self._list[port] = None
+                else:
+                    self._list[port] = get_ingredient_by_identifier(identifier)
+        return result
 
     @property
     def connected_ingredients(self) -> List[Ingredient]:
@@ -182,13 +197,13 @@ class BarBotConfig:
     straw_dispenser_connected:bool = False
     sugar_dispenser_connected:bool = False
     sugar_per_unit:int = 4
-    
-    def __init__(self):
+
+    def __init__(self, load_on_init : bool = True):
         self._filename = os.path.join(data_directory, "config.yaml")
         cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
         self._fields = [field for field, type in cls_annotations.items()]
-        if not self.load():
-            logging.warn("Config not fould, write default.")
+        if load_on_init is True and not self.load():
+            logging.warning("Config not fould, write default.")
             self.save()
 
     def is_ingredient_available(self, ports: PortConfiguration, ingredient_:Ingredient):
@@ -199,7 +214,7 @@ class BarBotConfig:
         if ingredient_.type == IngredientType.SUGAR:
             return self.sugar_dispenser_connected
         return ingredient_ in ports.connected_ingredients
-    
+
     def get_ingredient_list(self, ports: PortConfiguration, only_available = False, only_normal = False, only_weighed = False) -> List[Ingredient]:
         """Get list of ingredients
         :param only_available: If set to true,
@@ -222,11 +237,22 @@ class BarBotConfig:
             filtered.append(ingredient)
         return filtered
 
-    def save(self):
+    def save(self, output_stream : TextIOWrapper = None):
         """Save the current config values to the hard drive"""
-        values = { field : getattr(self, field) for field in self._fields }
-        with open(self._filename, 'w', encoding="utf-8") as configfile:
-            yaml.dump(values, configfile)
+        #prepare data
+        data = { field : getattr(self, field) for field in self._fields }
+        yaml_data = yaml.dump(data, None, default_flow_style=False)
+        #write text
+        result = True
+        try:
+            if output_stream is not None:
+                output_stream.write(yaml_data)
+            else:
+                with open(self._filename, 'w', encoding="utf-8") as file:
+                    file.write(yaml_data)
+        except OSError:
+            result = False
+        return result
 
     @property
     def is_mac_address_valid(self):
@@ -235,19 +261,28 @@ class BarBotConfig:
             return False
         return len(self.mac_address.strip()) == 17
 
-    def load(self):
+    def load(self, input_stream : TextIOWrapper = None):
         """Load the config from file"""
-        # load config if it exists
-        if not os.path.isfile(self._filename):
-            return False
-        with open(self._filename, 'r', encoding="utf-8") as configfile:
-            data = yaml.safe_load(configfile)
-        # update fields with values from
-        if data is not None:
-            for field in self._fields:
-                if field in data.keys():
-                    setattr(self, field, data[field])
-        return True
+        #load data
+        result = True
+        data : dict[int, str]
+        try:
+            if input_stream is not None:
+                data = yaml.load(input_stream, Loader=yaml.FullLoader)
+            else:
+                with open(self._filename, 'r', encoding="utf-8") as configfile:
+                    data = yaml.safe_load(configfile)
+        except OSError:
+            result = False
+
+        #update config
+        if result is True:
+            # update fields with values from
+            if data is not None:
+                for field in self._fields:
+                    if field in data.keys():
+                        setattr(self, field, data[field])
+        return result
 
 
 def _get_version():

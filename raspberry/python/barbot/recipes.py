@@ -54,27 +54,34 @@ class Recipe:
         # fixed recipes cannot be modified
         if self.is_fixed:
             return False
+        filename = self.name + ".yaml"
+        filepath = os.path.join(folder, filename)
+        data = self.to_yaml()
+        result = True
         try:
-            filename = self.name + ".yaml"
-            filepath = os.path.join(folder, filename)
-            data = {}
-            data["created"] = self.created
-            data["pre_instruction"] = self.pre_instruction
-            data["post_instruction"] = self.post_instruction
-            data["items"] = []
-            for item in self.items:
-                if item.ingredient is None:
-                    continue
-                data_item = {}
-                data_item["ingredient"] = item.ingredient.identifier
-                data_item["amount"] = item.amount
-                data["items"].append(data_item)
             with open(filepath, 'w', encoding="utf-8") as file:
-                data = yaml.dump(data, file)
-            return True
+                file.write(data)
         except OSError as ex:
             logging.warning("Error in recipe save: %s", ex)
-            return False
+            result = False
+        return result
+
+    def to_yaml(self):
+        """Get the yaml representation of this recipe"""
+        data = {}
+        data["created"] = self.created
+        data["pre_instruction"] = self.pre_instruction
+        data["post_instruction"] = self.post_instruction
+        data["items"] = []
+        for item in self.items:
+            if item.ingredient is None:
+                continue
+            data_item = {}
+            data_item["ingredient"] = item.ingredient.identifier
+            data_item["amount"] = item.amount
+            data["items"].append(data_item)
+        yaml_data = yaml.dump(data, None)
+        return yaml_data
 
     def equal_to(self, recipe):
         """Determine whether this recipe has the given entries
@@ -126,6 +133,48 @@ class Recipe:
             item_copy = RecipeItem(item.ingredient, item.amount)
             recipe.items.append(item_copy)
         return recipe
+
+def load_recipe_from_yaml(yaml_string : str, name : str) -> Recipe:
+    """Load a recipe from its yaml representation, the name is not part of the yaml, so it has to be provided separately"""
+    # load yaml
+    data = yaml.safe_load(yaml_string)
+
+    # create recipe
+    r = Recipe()
+    r.created = data["created"]
+    r.name = name
+    if "pre_instruction" in data.keys():
+        r.pre_instruction = data["pre_instruction"]
+    if "post_instruction" in data.keys():
+        r.post_instruction = data["post_instruction"]
+    r.items = []
+    for item_data in data["items"]:
+        # all errors are handled by the try catch
+        ingredient = get_ingredient_by_identifier(item_data["ingredient"])
+        item = RecipeItem(ingredient, item_data["amount"])
+        r.items.append(item)
+    return r
+
+def load_recipe_from_file(folder: str, filename: str) -> Recipe:
+    """Load a recipe from a file
+    
+        :param folder: Parent folder of the file
+        :param filename: Name of the file to load, should be "*.yaml"
+    """
+    yaml_data = None
+    try:
+        filepath = os.path.join(folder, filename)
+        with open(filepath, 'r', encoding="utf-8") as file:
+            yaml_data = file.read()
+    except OSError as ex:
+        logging.warning("Error in recipe load: %s", ex)
+        return None
+
+    # do not include '.yaml'
+    name = os.path.splitext(filename)[0]
+
+    recipe = load_recipe_from_yaml(yaml_data, name)
+    return recipe
 
 class RecipeCollection():
     """Collection holding all recipes"""
@@ -196,35 +245,6 @@ class RecipeCollection():
         :param recipe: The recipe to add"""
         recipe.save()
         self._recipes.append(recipe)
-
-def load_recipe_from_file(folder: str, filename: str) -> Recipe:
-    """Load a recipe from a file
-    
-        :param folder: Parent folder of the file
-        :param filename: Name of the file to load, should be "*.yaml"
-    """
-    r = Recipe()
-    try:
-        filepath = os.path.join(folder, filename)
-        with open(filepath, 'r', encoding="utf-8") as file:
-            data = yaml.safe_load(file)
-        # do not include '.yaml'
-        r.name = filename[:-5]
-        r.created = data["created"]
-        if "pre_instruction" in data.keys():
-            r.pre_instruction = data["pre_instruction"]
-        if "post_instruction" in data.keys():
-            r.post_instruction = data["post_instruction"]
-        r.items = []
-        for item_data in data["items"]:
-            # all errors are handled by the try catch
-            ingredient = get_ingredient_by_identifier(item_data["ingredient"])
-            item = RecipeItem(ingredient, item_data["amount"])
-            r.items.append(item)
-        return r
-    except OSError as ex:
-        logging.warning("Error in recipe load: %s", ex)
-        return None
 
 class OrderItem(NamedTuple):
     """Items of an order, it is like a recipe item but the ingredient is a string"""

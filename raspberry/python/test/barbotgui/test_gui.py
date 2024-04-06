@@ -4,7 +4,7 @@ import time
 import threading
 import pytest
 from barbot import PortConfiguration, BarBotConfig, BarBot, Mainboard
-from barbot.recipes import RecipeCollection, load_recipe_from_file
+from barbot.recipes import RecipeCollection
 from barbot.communication import BoardType
 from barbot.mockup import MaiboardConnectionMockup
 from barbotgui.main_window import MainWindow
@@ -13,7 +13,6 @@ from barbotgui.userviews import SingleIngredient, Statistics, OrderRecipe
 from barbotgui.adminviews import AdminLogin, BalanceCalibration, Overview
 from barbotgui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
 
-recipes_path = os.path.join(os.path.dirname(__file__), "..", "..", "data", "recipes")
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists
 os.makedirs(temp_path, exist_ok=True)
@@ -21,7 +20,11 @@ os.makedirs(temp_path, exist_ok=True)
 class TestGui:
     @pytest.fixture
     def mainboard_connection_mockup(self) -> MaiboardConnectionMockup:
-        return MaiboardConnectionMockup()
+        result = MaiboardConnectionMockup()
+        result.duration_DO = 0.5
+        result.duration_SET = 0.1
+        result.duration_GET = 0.1
+        return result
 
     @pytest.fixture
     def main_window(self, qtbot, mainboard_connection_mockup):
@@ -58,7 +61,7 @@ class TestGui:
             time.sleep(1)
         assert "Draft" in mainboard_connection_mockup.command_history
 
-    def test_admin_views(self, main_window):
+    def test_admin_views(self, main_window:MainWindow):
         admin_views = [
             AdminLogin,
             BalanceCalibration,
@@ -73,13 +76,12 @@ class TestGui:
             main_window.set_view(view(main_window))
             time.sleep(0.2)
 
-    def test_order_recipe(self, main_window):
-        # OrderRecipe needs a recipe, so we load one
-        recipe = load_recipe_from_file(recipes_path, "Anti.yaml")
-        assert recipe is not None, "Could not load recipe"
+    def test_order_recipe(self, main_window:MainWindow):
+        # take the first recipe from the list
+        recipe = main_window.recipes._recipes[0]
         main_window.set_view(OrderRecipe(main_window, recipe))
 
-    def test_views(self, main_window):
+    def test_views(self, main_window:MainWindow):
         views = [
             ListRecipes,
             RecipeNewOrEdit,
