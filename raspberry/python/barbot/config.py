@@ -77,7 +77,10 @@ _ingredients = [
     Ingredient('sirup vanille',     'Vanille Sirup',        IngredientType.OTHER,   0x99D2A615    ),
     Ingredient('saft maracuja',     'Maracujasaft',         IngredientType.JUICE,   0xAA0CC73     ),
     Ingredient('sirup zucker',      'Zuckersirup',          IngredientType.SIRUP,   0xDDE3E1D3    ),
-    Ingredient('sirup maracuja',    'Maracujasirup',        IngredientType.JUICE,   0xDD0CC73     ),
+    Ingredient('sirup maracuja',    'Maracujasirup',        IngredientType.SIRUP,   0xDD0CC73     ),
+    Ingredient('sirup pfirsich',    'Pfirsichsirup',        IngredientType.SIRUP,   0xDD0CC73     ),
+    Ingredient('saft cranberry',    'Cranberrysaft',        IngredientType.JUICE,   0x88911111    ),
+    Ingredient('pfirsich likoer',   'Pfirsichlikör',        IngredientType.SPIRIT,  0x44FAAB23    ),
 
     Stir,
     Sugar
