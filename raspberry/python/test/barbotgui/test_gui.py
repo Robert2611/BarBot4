@@ -3,6 +3,8 @@ import os
 import time
 import threading
 import pytest
+from pytestqt.qtbot import QtBot
+
 from barbot import PortConfiguration, BarBotConfig, BarBot, Mainboard
 from barbot.recipes import RecipeCollection
 from barbot.communication import BoardType
@@ -27,7 +29,7 @@ class TestGui:
         return result
 
     @pytest.fixture
-    def main_window(self, qtbot, mainboard_connection_mockup):
+    def main_window(self, qtbot : QtBot, mainboard_connection_mockup):
         ports = PortConfiguration()
         config = BarBotConfig()
         mainboard = Mainboard(mainboard_connection_mockup)
@@ -38,11 +40,11 @@ class TestGui:
         recipe_collection.load()
         bar_bot_thread = threading.Thread(target=bot.run)
         bar_bot_thread.start()
+        while bot.is_busy:
+            time.sleep(1)
         window = MainWindow(bot, recipe_collection)
         window.show()
         qtbot.addWidget(window)
-        while window.barbot_.is_busy:
-            time.sleep(1)
         yield window
         bot.abort()
         bar_bot_thread.join(2)
@@ -61,7 +63,7 @@ class TestGui:
             time.sleep(1)
         assert "Draft" in mainboard_connection_mockup.command_history
 
-    def test_admin_views(self, main_window:MainWindow):
+    def test_admin_views(self, main_window:MainWindow, qtbot : QtBot):
         admin_views = [
             AdminLogin,
             BalanceCalibration,
@@ -72,16 +74,18 @@ class TestGui:
             RemoveRecipe
         ]
         for view in admin_views:
-            print(f"testing: {view}")
-            main_window.set_view(view(main_window))
-            time.sleep(0.2)
+            view_instance = view(main_window)
+            main_window.set_view(view_instance)
+            qtbot.wait(200)
 
-    def test_order_recipe(self, main_window:MainWindow):
+    def test_order_recipe(self, main_window:MainWindow, qtbot : QtBot):
+        qtbot.wait(200)
         # take the first recipe from the list
         recipe = main_window.recipes._recipes[0]
         main_window.set_view(OrderRecipe(main_window, recipe))
+        qtbot.wait(200)
 
-    def test_views(self, main_window:MainWindow):
+    def test_views(self, main_window:MainWindow, qtbot : QtBot):
         views = [
             ListRecipes,
             RecipeNewOrEdit,
@@ -91,4 +95,4 @@ class TestGui:
         ]
         for view in views:
             main_window.set_view(view(main_window))
-            time.sleep(0.2)
+            qtbot.wait(200)
