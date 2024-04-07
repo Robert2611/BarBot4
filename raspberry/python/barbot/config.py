@@ -98,7 +98,7 @@ class PortConfiguration:
         self._list: dict[int, Ingredient]= {i: None for i in range(PORT_COUNT)}
         # if loading failed save the default value to file
         if not self.load():
-            logging.warn("Port configuration not fould, write default.")
+            logging.warning("Port configuration not fould, write default.")
             self.save()
 
     def update(self, new_ports:Dict[int, Ingredient]):
@@ -182,13 +182,13 @@ class BarBotConfig:
     straw_dispenser_connected:bool = False
     sugar_dispenser_connected:bool = False
     sugar_per_unit:int = 4
-    
+
     def __init__(self):
         self._filename = os.path.join(data_directory, "config.yaml")
         cls_annotations = BarBotConfig.__dict__.get('__annotations__', {})
         self._fields = [field for field, type in cls_annotations.items()]
         if not self.load():
-            logging.warn("Config not fould, write default.")
+            logging.warning("Config not fould, write default.")
             self.save()
 
     def is_ingredient_available(self, ports: PortConfiguration, ingredient_:Ingredient):
@@ -199,7 +199,7 @@ class BarBotConfig:
         if ingredient_.type == IngredientType.SUGAR:
             return self.sugar_dispenser_connected
         return ingredient_ in ports.connected_ingredients
-    
+
     def get_ingredient_list(self, ports: PortConfiguration, only_available = False, only_normal = False, only_weighed = False) -> List[Ingredient]:
         """Get list of ingredients
         :param only_available: If set to true,

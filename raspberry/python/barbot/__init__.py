@@ -235,9 +235,9 @@ class BarBot():
             result = self._mainboard.get("IsIdle")
             if result.was_successfull and len(result.return_parameters) == 1:
                 if result.return_parameters[0] != "1":
-                    logging.warn("'IsIdle' returned false")
+                    logging.warning("'IsIdle' returned false")
             else:
-                logging.warn("'IsIdle' command failed")
+                logging.warning("'IsIdle' command failed")
         else:
             self._mainboard.read_message()
         time_diff = time.time() - start_time
