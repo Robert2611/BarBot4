@@ -147,7 +147,6 @@ class MainboardConnection(ABC):
     def send(self, line:str):
         """Send a line to the minboard"""
 
-
 class MainboardConnectionBluetooth(MainboardConnection):
     """Implementation of the MaimboardConnection using bluetooth"""
     def __init__(self):
@@ -256,7 +255,7 @@ class Mainboard:
     def firmware_version(self):
         """Get the firmware version, only valid after connecting!"""
         return self._firmware_version
-    
+
     @property
     def supports_is_idle_command(self):
         """Get whether the mainboard supports the command 'IsIdle'"""
@@ -462,7 +461,7 @@ class Mainboard:
         return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")
 
     def _is_status_message(self, tokens):
-        return len(tokens) >= 2 and tokens[0] == "STATUS" and tokens[1] == "IDLE"
+        return tokens == ["STATUS", "IDLE"]
 
     def _is_is_idle_message(self, tokens):
-        return len(tokens) >= 0 and tokens[0] == "ACK" and tokens[1] == "IsIdle"
+        return tokens == ["ACK", "IsIdle"]
