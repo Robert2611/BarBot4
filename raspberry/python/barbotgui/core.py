@@ -256,7 +256,7 @@ class BusyView(View):
             if ingredient.type == IngredientType.SUGAR:
                 message_string = f"{ingredient.name} ist leer. Bitte nachfüllen."
             else:
-                ports = self.barbot_.config.ports
+                ports = self.barbot_.ports
                 position = ports.port_of_ingredient(ingredient) + 1
                 message_string = f"Die Zutat '{ingredient.name}'"
                 message_string += f" auf Position {position} ist leer.\n"

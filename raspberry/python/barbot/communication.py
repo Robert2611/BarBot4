@@ -35,6 +35,9 @@ class ErrorType(Enum):
     COMMAND_ABORTED = 41
     SUGAR_DISPENSER_TIMEOUT = 42
 
+def is_mainboard_error(error:ErrorType):
+    return error.value < ErrorType.COMM_ERROR.value
+
 class BoardType(Enum):
     """board addresses must match 'shared.h'"""
     BALANCE = 0x01
@@ -353,7 +356,7 @@ class Mainboard:
                         break
                     if message.message_type != ResponseTypes.STATUS:
                         result.error = ErrorType.WRONG_ANSWER
-            if result.was_successfull:
+            if result.was_successfull or is_mainboard_error(result.error):
                 # at success, exit the loop
                 break
             logging.warning("try_do with '%s', failed attempt: %s", command, result.error.name)
@@ -464,4 +467,4 @@ class Mainboard:
         return tokens == ["STATUS", "IDLE"]
 
     def _is_is_idle_message(self, tokens):
-        return tokens == ["ACK", "IsIdle"]
+        return tokens == ["ACK", "IsIdle", "1"]

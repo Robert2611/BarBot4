@@ -451,19 +451,18 @@ class BarBot():
             if result.error == CommError.INGREDIENT_EMPTY:
                 # ingredient is empty
                 # safe how much is left to draft
-                if result.return_parameters > 0:
+                if len(result.return_parameters) > 0:
                     weight = int(result.return_parameters[0])
                 else:
                     weight = 0
                     logging.warning("No remaining weight received")
                 self._set_message(UserMessageType.INGREDIENT_EMPTY)
-                self._user_input = None
                 # wait for user input
                 if not self._wait_for_user_input():
                     return False
                 # remove the message
                 self._set_message(UserMessageType.NONE)
-                if not self._user_input:
+                if self._user_input != UserInputType.YES:
                     return False
                 # repeat the loop
 
@@ -484,10 +483,10 @@ class BarBot():
         progress = 0
         self._set_mixing_progress(progress)
 
-        self._set_message(UserMessageType.PLACE_GLAS)
-        self._reset_user_input()
         # wait for the glas
         if not self._has_glas():
+            self._set_message(UserMessageType.PLACE_GLAS)
+            self._reset_user_input()
             self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
             # wait for glas or user abort
             def glas_present_or_user_input():
@@ -603,7 +602,7 @@ class BarBot():
                     return False
                 # remove the message
                 self._set_message(UserMessageType.NONE)
-                if not self._user_input:
+                if self._user_input != UserInputType.YES:
                     return False
                 # repeat the loop
 
@@ -615,7 +614,7 @@ class BarBot():
                     return False
                 # remove the message
                 self._set_message(UserMessageType.NONE)
-                if not self._user_input:
+                if self._user_input != UserInputType.YES:
                     return False
                 # repeat the loop
 
