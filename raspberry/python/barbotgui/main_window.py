@@ -91,7 +91,6 @@ class MainWindow(BarBotWindow):
 
     def header_clicked(self, _):
         """Handle the header click"""
-        self._show_message_splash("test")
         if not self._admin_button_active:
             self._admin_button_active = True
             # reset the admin button after one second
