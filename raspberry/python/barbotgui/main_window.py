@@ -12,6 +12,8 @@ from barbotgui.controls import Keyboard, Numpad, set_no_spacing
 from barbotgui.adminviews import AdminLogin
 from barbotgui.userviews import ListRecipes, OrderRecipe
 
+SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
+
 class MainWindow(BarBotWindow):
     """Main window for the barbot"""
     def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
@@ -89,6 +91,7 @@ class MainWindow(BarBotWindow):
 
     def header_clicked(self, _):
         """Handle the header click"""
+        self._show_message_splash("test")
         if not self._admin_button_active:
             self._admin_button_active = True
             # reset the admin button after one second
@@ -159,14 +162,15 @@ class MainWindow(BarBotWindow):
     def _show_message_splash(self, message):
         """Show a spash sceen with a given message.
         :param message: The message"""
-        splash = QtWidgets.QSplashScreen()
-        splash.showMessage(message, alignment=QtCore.Qt.AlignCenter)
-        splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint |
-                              QtCore.Qt.FramelessWindowHint)
+        splash = QtWidgets.QLabel(message)
+        splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
         splash.setProperty("class", "Splash")
         splash.setStyleSheet(self.styles)
-        path = os.path.join(css_path(), "splash.png")
-        splash.setPixmap(Qt.QPixmap(path))
         splash.show()
-        QtCore.QTimer.singleShot(
-            1000, lambda s=splash, window=self: s.finish(window))
+        # center on screen
+        splash.move(QtWidgets.QApplication.desktop().screen().rect().center() - splash.rect().center())
+        
+        # close the splash after some time
+        def _close_message_splash():
+            splash.close()
+        QtCore.QTimer.singleShot(int(1000 * SPLASH_MESSAGE_DURATION_IN_SECONDS), _close_message_splash)
