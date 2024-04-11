@@ -158,6 +158,17 @@ class BarBot():
     def state(self):
         """Get the current state of the barbot"""
         return self._state
+    
+    def _delay_and_keep_communicating(self, seconds):
+        """Delay the state machine but keep checking the idle state to handle the communication"""
+        start_time = time.time()
+        while time.time() - start_time > seconds:
+            time_at_send = time.time()
+            self._mainboard.get("IsIdle")
+            self._mainboard.read_message()
+            time_diff = time.time() - time_at_send
+            if time_diff < MIN_IDLE_TIME_SEC:
+                time.sleep(MIN_IDLE_TIME_SEC - time_diff)
 
     def _reset_user_input(self):
         """Reset the user input to UserInput.UNDEFINED"""
@@ -373,7 +384,7 @@ class BarBot():
         :returns: True if the wait was successfull, False on abort
         """
         while not self._abort and not condition():
-            time.sleep(0.1)
+            self._mainboard.read_message()
         return not self._abort
 
     def _wait_for_user_input(self):
@@ -382,7 +393,7 @@ class BarBot():
         self._reset_user_input()
         logging.debug("Wait for user input")
         while not self._abort and self._user_input == UserInputType.UNDEFINED:
-            time.sleep(0.1)
+            self._mainboard.read_message()
         if self._abort:
             logging.warning("Waiting aborted")
             return False
@@ -451,19 +462,18 @@ class BarBot():
             if result.error == CommError.INGREDIENT_EMPTY:
                 # ingredient is empty
                 # safe how much is left to draft
-                if result.return_parameters > 0:
+                if len(result.return_parameters) > 0:
                     weight = int(result.return_parameters[0])
                 else:
                     weight = 0
                     logging.warning("No remaining weight received")
                 self._set_message(UserMessageType.INGREDIENT_EMPTY)
-                self._user_input = None
                 # wait for user input
                 if not self._wait_for_user_input():
                     return False
                 # remove the message
                 self._set_message(UserMessageType.NONE)
-                if not self._user_input:
+                if self._user_input != UserInputType.YES:
                     return False
                 # repeat the loop
 
@@ -484,10 +494,10 @@ class BarBot():
         progress = 0
         self._set_mixing_progress(progress)
 
-        self._set_message(UserMessageType.PLACE_GLAS)
-        self._reset_user_input()
         # wait for the glas
         if not self._has_glas():
+            self._set_message(UserMessageType.PLACE_GLAS)
+            self._reset_user_input()
             self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
             # wait for glas or user abort
             def glas_present_or_user_input():
@@ -506,7 +516,7 @@ class BarBot():
 
         self._mainboard.set("PlatformLED", PlatformLEDMode.ROTATE.value)
         # wait for the user to take the hands off the glas
-        time.sleep(1)
+        self._delay_and_keep_communicating(1)
         self._mainboard.set("PlatformLED", PlatformLEDMode.CHASE.value)
         self._mainboard.set("SetLED", LEDMode.DRAFT_POSITION.value)
         self._reset_user_input()
@@ -541,7 +551,7 @@ class BarBot():
         self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
         self._mainboard.set("SetLED", LEDMode.POSITION_WATERFALL.value)
         # show message and LED for some seconds
-        time.sleep(4)
+        self._delay_and_keep_communicating(4)
         self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
         self._parties.current_party.add_order(self._current_mixing_options.recipe)
         self._set_message(UserMessageType.NONE)
@@ -566,7 +576,7 @@ class BarBot():
             logging.error("Error while drafting: '%s'", result.error.name)
             if result.error == CommError.INGREDIENT_EMPTY:
                 # ice is empty, save how much is left
-                if result.return_parameters > 0:
+                if len(result.return_parameters) > 0:
                     ice_to_add = int(result.return_parameters[0])
                 else:
                     ice_to_add = 0
@@ -603,7 +613,7 @@ class BarBot():
                     return False
                 # remove the message
                 self._set_message(UserMessageType.NONE)
-                if not self._user_input:
+                if self._user_input != UserInputType.YES:
                     return False
                 # repeat the loop
 
@@ -615,7 +625,7 @@ class BarBot():
                     return False
                 # remove the message
                 self._set_message(UserMessageType.NONE)
-                if not self._user_input:
+                if self._user_input != UserInputType.YES:
                     return False
                 # repeat the loop
 

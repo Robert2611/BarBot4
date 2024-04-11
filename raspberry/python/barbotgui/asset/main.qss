@@ -139,6 +139,12 @@ QScrollBar::add-line, QScrollBar::sub-line{
 
 .Splash{
     font-size: 20px;
+    background-color: #333333;
+    max-width: 300px;
+    padding: 20px;
+    border-style: solid;
+    border-color: #CCCCCC;
+    border-width: 10px;
 }
 
 QComboBox, QLineEdit, QComboBox QListView{

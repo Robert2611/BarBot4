@@ -151,6 +151,9 @@ def load_recipe_from_yaml(yaml_string : str, name : str) -> Recipe:
     for item_data in data["items"]:
         # all errors are handled by the try catch
         ingredient = get_ingredient_by_identifier(item_data["ingredient"])
+        if ingredient is None:
+            logging.error("Empty ingredient in recipe '%s', raw value is '%s'", name, item_data["ingredient"])
+            return None
         item = RecipeItem(ingredient, item_data["amount"])
         r.items.append(item)
     return r
