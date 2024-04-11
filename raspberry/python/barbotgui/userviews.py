@@ -3,11 +3,11 @@ from enum import Enum, auto
 from PyQt5 import QtWidgets, QtCore
 
 from barbot import MixingOptions
-from barbot.recipes import RecipeItem, Recipe, Party
+from barbot.recipes import PartyStatistics, RecipeItem, Recipe, Party
 from barbot.config import IngredientType, Stir as StirIngredient
 
 from barbotgui.core import BarBotWindow, View, qt_icon_from_file_name
-from barbotgui.controls import GlasFilling, GlasIndicator, BarChart, set_no_spacing
+from barbotgui.controls import BarChartRow, GlasFilling, GlasIndicator, BarChart, set_no_spacing
 
 
 class UserView(View):
@@ -293,13 +293,13 @@ class RecipeNewOrEdit(UserView):
         label = QtWidgets.QLabel("Nachher:")
         wrapper.layout().addRow(label, self._post_instruction_widget)
 
-    def _open_keyboard_for_name_widget(self):
+    def _open_keyboard_for_name_widget(self, _):
         self.window.open_keyboard(self._name_widget)
 
-    def _open_keyboard_for_pre_instruction(self):
+    def _open_keyboard_for_pre_instruction(self, _):
         self.window.open_keyboard(self._pre_instruction_widget)
 
-    def _open_keyboard_for_post_instruction_widget(self):
+    def _open_keyboard_for_post_instruction_widget(self, _):
         self.window.open_keyboard(self._post_instruction_widget)
 
     def _add_ingredients(self, max_count):
@@ -616,7 +616,7 @@ class Statistics(UserView):
         self._statistics_widget = self._create_statistics_widget(statistics)
         self._statistics_container.layout().addWidget(self._statistics_widget)
 
-    def _create_statistics_widget(self, statistics):
+    def _create_statistics_widget(self, statistics : PartyStatistics):
         container = QtWidgets.QWidget()
         container.setLayout(QtWidgets.QVBoxLayout())
 
@@ -624,7 +624,11 @@ class Statistics(UserView):
         label = QtWidgets.QLabel(f"Bestellte Cocktails ({statistics.total_cocktails})")
         container.layout().addWidget(label)
         # ordered cocktails by name
-        data = statistics.cocktail_count.items()
+        data = [
+            BarChartRow(name, count)
+            for name, count
+            in statistics.cocktail_count.items()
+        ]
         chart = BarChart(data)
         container.layout().addWidget(chart)
 
@@ -634,7 +638,7 @@ class Statistics(UserView):
         container.layout().addWidget(label)
         # ingrediends
         data = [
-            (ingr, amount / 100.0)
+            BarChartRow(ingr, amount / 100.0)
             for ingr, amount
             in statistics.ingredients_amount.items()
         ]
@@ -646,7 +650,7 @@ class Statistics(UserView):
         container.layout().addWidget(label)
         # cocktails vs. time chart
         data = [
-            (f"{dt.hour} bis {dt.hour+1} Uhr", count)
+            BarChartRow(f"{dt.hour} bis {dt.hour+1} Uhr", count)
             for dt, count
             in statistics.cocktails_by_time.items()
         ]
