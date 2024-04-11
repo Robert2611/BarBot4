@@ -38,9 +38,6 @@ sudo systemctl start hciuart
 
 # Check if we are on a raspbian system
 if [[ $(cat /etc/os-release|grep -i "pretty") = *"aspbian"* ]]; then
-	#make touch rotate executable
-	sudo chmod +x "$INSTALL_FOLDER/touch_rotate.sh"
-
 	#add gui to x-servers startup if not yet so
 	X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
 	#create path if not exist
