@@ -186,11 +186,11 @@ class MainboardConnectionBluetooth(MainboardConnection):
             # we received a new line character
             if data[-1:] == b'\n':
                 break
-        decoded_data = data.decode('utf-8')
+        decoded_data:str = data.decode('utf-8')
         # only take the last part of the message
-        lines = decoded_data.split('\n')
+        lines = decoded_data.replace('\r','').split('\n')
         if len(lines) > 2:
-            logging.warning("read_line: More than one line in buffer!")
+            logging.warning("read_line: More than one line in buffer! Received: '%s'", repr(decoded_data))
         return lines[-2]
 
     def read_line(self) -> str:
@@ -425,7 +425,7 @@ class Mainboard:
             for p in parameters:
                 line += " " + str(p)
             if command != "IsIdle":
-                logging.debug(">%s", line)
+                logging.debug("-> '%s'", line)
             try:
                 self._connection.send(line)
                 return True
@@ -443,14 +443,11 @@ class Mainboard:
             return RawResponse(ResponseTypes.COMM_ERROR, "empty line read")
         tokens = line.split()
         # Do not repeat status messages over and over again
-        if self._is_status_message(tokens) or self._is_is_idle_message(tokens):
-            if not self._last_message_was_status_idle:
-                logging.debug("<%s", line)
-                self._last_message_was_status_idle = True
-        else:
-            if self._last_message_was_status_idle:
-                self._last_message_was_status_idle = False
-            logging.debug("<%s", line)
+        is_idle_message = self._is_status_message(tokens) or self._is_is_idle_message(tokens)
+        do_logging = not is_idle_message or not self._last_message_was_status_idle
+        if do_logging:
+            logging.debug("<- '%s'", line)
+        self._last_message_was_status_idle = is_idle_message
 
         # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
         # find message type
