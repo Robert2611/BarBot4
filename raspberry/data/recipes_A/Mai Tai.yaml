@@ -1,17 +1,19 @@
 created: 2024-04-07 13:29:00
 post_instruction: ""
 items:
-- amount: 5.0
+- amount: 4.0
   ingredient: rum braun
 - amount: 2.0
-  ingredient: rum weiss
-- amount: 2.0
   ingredient: tripple sec
-- amount: 2.0
+- amount: 8.0
   ingredient: saft ananas
 - amount: 2.0
   ingredient: saft limette
-- amount: 2.0
+- amount: 3.0
   ingredient: sirup mandel
+- amount: 4.0
+  ingredient: saft orange
+- amount: 1.0
+  ingredient: saft zitrone
 - amount: 2
   ingredient: ruehren

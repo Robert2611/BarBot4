@@ -3,7 +3,6 @@ This is a set of cocktails that can be made with the following ingredients:
 * saft ananas
 * saft zitrone
 * saft limette
-* saft cranberry
 * tequila
 * rum braun
 * rum weiss

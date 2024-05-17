@@ -1,17 +1,17 @@
 created: 2024-04-07 13:29:00
 post_instruction: ''
 items:
-- amount: 2.0
-  ingredient: saft zitrone
 - amount: 7.0
   ingredient: saft orange
-- amount: 7.0
+- amount: 8.0
   ingredient: saft ananas
-- amount: 5.0
+- amount: 3.0
   ingredient: rum braun
 - amount: 2.0
   ingredient: sirup grenadine
-- amount: 2.0
+- amount: 3.0
   ingredient: tripple sec  
+- amount: 1.0
+  ingredient: saft limette
 - amount: 2.0
   ingredient: ruehren
