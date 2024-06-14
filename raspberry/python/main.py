@@ -71,7 +71,7 @@ def sigint_handler(*_):
 signal.signal(signal.SIGINT, sigint_handler)
 
 # hook for unhandled exceptions
-def handle_exception(exc_type : type[BaseException], exc_value : BaseException, exc_traceback : TracebackType):
+def handle_exception(exc_type, exc_value, exc_traceback):
     """Log exception to log and also to separate exceptiopn file"""
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
@@ -83,7 +83,6 @@ def handle_exception(exc_type : type[BaseException], exc_value : BaseException, 
         f.write("\n".join(tesrt))
         f.write('\n')
         f.write(str(psutil.virtual_memory()))
-    
 sys.excepthook = handle_exception
 
 # show gui and join the threads
