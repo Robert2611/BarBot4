@@ -7,6 +7,7 @@ import threading
 import signal
 import os
 from datetime import datetime
+from types import TracebackType
 import psutil
 
 from PyQt5 import QtWidgets
@@ -61,6 +62,7 @@ bar_bot_thread.start()
 
 app = None
 
+# handle interrupt signal
 def sigint_handler(*_):
     """Close the gui on interrupt signal"""
     logging.info("SIGINT received!")
@@ -68,26 +70,35 @@ def sigint_handler(*_):
         app.quit()
 signal.signal(signal.SIGINT, sigint_handler)
 
-# show gui and join the threads
-try:
-    app = QtWidgets.QApplication(sys.argv)
-    form = MainWindow(bot, recipe_collection)
-    form.show()
-    # Let the interpreter run periodically to handle signals.
-    timer = QTimer()
-    timer.start(500)
-    timer.timeout.connect(lambda: None)
-    # start the qt app
-    app.exec_()
-    # tell the statemachine to stop
-    bot.abort()
-    bar_bot_thread.join()
-except Exception as e:
-    logging.error(traceback.format_exc())
+# hook for unhandled exceptions
+def handle_exception(exc_type : type[BaseException], exc_value : BaseException, exc_traceback : TracebackType):
+    """Log exception to log and also to separate exceptiopn file"""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    #logging.error(traceback.format_exc())
     with open(exception_file_path, 'a', encoding="utf-8") as f:
-        f.write(traceback.format_exc())
+        tesrt = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        f.write("\n".join(tesrt))
         f.write('\n')
         f.write(str(psutil.virtual_memory()))
+    
+sys.excepthook = handle_exception
+
+# show gui and join the threads
+app = QtWidgets.QApplication(sys.argv)
+form = MainWindow(bot, recipe_collection)
+form.show()
+# Let the interpreter run periodically to handle signals.
+timer = QTimer()
+timer.start(500)
+timer.timeout.connect(lambda: None)
+# start the qt app
+app.exec_()
+# tell the statemachine to stop
+bot.abort()
+bar_bot_thread.join()
 
 logging.info("-------------------------")
 logging.info(">>>>>>BarBot closed<<<<<<")
