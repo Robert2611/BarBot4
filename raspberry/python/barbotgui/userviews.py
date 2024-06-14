@@ -680,6 +680,7 @@ class OrderRecipe(UserView):
         self._add_title_to_fixed_content("Cocktail mischen")
         self._add_centered_content_to_content()
         self._add_cocktail_name_to_centered_content()
+        self._add_special_ingredient_buttons()
         if recipe.pre_instruction:
             self._add_pre_instruction_to_centered_content()
         self._add_order_and_cancel_button_to_centered_content()
