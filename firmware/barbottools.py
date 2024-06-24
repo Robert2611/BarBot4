@@ -2,7 +2,8 @@
 import re
 import os
 import sys
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
+from typing import Any
+from PyQt5 import QtWidgets, QtCore
 
 # Get python directory
 parent_dir = os.path.dirname(os.path.realpath(__file__))
@@ -18,9 +19,9 @@ import logging
 
 def get_commands():
     pattern = re.compile(
-        """protocol\.add(?P<type>Do|Set|Get)Command\(\s*     #function call and type
-        \"(?P<name>[^\"]*)\"                                 #string parameter aka name
-        ([^\"]*if\s*\(param_c\s==\s(?P<count>\d+))?          #parameters
+        """protocol\\.add(?P<type>Do|Set|Get)Command\\(\\s*    #function call and type
+        \\"(?P<name>[^\\"]*)\"                                 #string parameter aka name
+        ([^\\"]*if\\s*\\(param_c\\s==\\s(?P<count>\\d+))?      #parameters
         """, re.DOTALL | re.VERBOSE)
     script_dir = os.path.dirname(__file__)
     with open(os.path.join(script_dir, "mainboard/src/main.cpp"), "r", encoding="utf-8") as f:
@@ -49,7 +50,7 @@ def get_errors():
             elif line.startswith("}"):
                 break
             elif index is None:
-                match = re.search("Error\s=\s(?P<index>\d+)", line)
+                match = re.search("Error\\s=\\s(?P<index>\\d+)", line)
                 if match:
                     index = int(match.group("index"))
             else:
@@ -60,14 +61,13 @@ def get_errors():
 
     return errors
 
-
-def print_commands_by_type(commands, type):
+def print_commands_by_type(commands: list[dict[str, Any]], command_type: str):
     for command in commands:
-        if command["type"] == type:
+        if command["type"] == command_type:
             command_str = "-" + command["name"]
             if command["count"] > 0:
                 for i in range(command["count"]):
-                    command_str += " p{0}".format(i+1)
+                    command_str += f" p{i+1}"
             print(command_str)
 
 
@@ -88,8 +88,9 @@ class ProtocolThread(threading.Thread):
     abort = False
     mac_address: str
 
-    def __init__(self):
+    def __init__(self, mainboard : communication.Mainboard):
         threading.Thread.__init__(self)
+        self._mainboard = mainboard
         self._next_command = None
 
     def run_next(self, command):
@@ -97,41 +98,41 @@ class ProtocolThread(threading.Thread):
 
     def run(self):
         while not self.abort:
-            if not communication.is_connected:
-                communication.connect(self.mac_address)
-                if not communication.is_connected:
+            if not self._mainboard.is_connected:
+                self._mainboard.connect(self.mac_address)
+                if not self._mainboard.is_connected:
                     # only try connecting every 500ms
                     time.sleep(0.5)
             else:
-                m = communication.read_message()
+                m = self._mainboard.read_message()
                 if m is not None and self._next_command is not None:
                     if self._next_command["type"] == "Do":
                         if len(self._next_command["parameters"]) == 0:
-                            communication.try_do(self._next_command["name"])
+                            self._mainboard.do(self._next_command["name"])
                         elif len(self._next_command["parameters"]) == 1:
-                            communication.try_do(
+                            self._mainboard.do(
                                 self._next_command["name"], self._next_command["parameters"][0])
                         elif len(self._next_command["parameters"]) == 2:
-                            communication.try_do(
+                            self._mainboard.do(
                                 self._next_command["name"], self._next_command["parameters"][0], self._next_command["parameters"][1])
                     elif self._next_command["type"] == "Set":
-                        communication.try_set(
+                        self._mainboard.set(
                             self._next_command["name"], self._next_command["parameters"][0])
                     elif self._next_command["type"] == "Get":
-                        communication.try_get(self._next_command["name"])
+                        self._mainboard.get(self._next_command["name"])
                     # reset command
                     self._next_command = None
 
 
 class GuiLoggerQt(QtCore.QObject):
-    new_entry_signal = QtCore.pyqtSignal(str)
+    new_ensignal = QtCore.pyqtSignal(str)
 
 
 class GuiLogger(logging.Handler):
     qt: GuiLoggerQt = GuiLoggerQt()
 
     def emit(self, record):
-        self.qt.new_entry_signal.emit(self.format(record)+"\n")
+        self.qt.new_ensignal.emit(self.format(record)+"\n")
 
 
 class ToolsWindow(QtWidgets.QMainWindow):
@@ -139,7 +140,7 @@ class ToolsWindow(QtWidgets.QMainWindow):
 
     def __init__(self, protocol_thread: ProtocolThread):
         super().__init__()
-        communication_thread = protocol_thread
+        self._communication_thread = protocol_thread
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
         self.center.setLayout(QtWidgets.QHBoxLayout())
@@ -150,14 +151,15 @@ class ToolsWindow(QtWidgets.QMainWindow):
 
         # commands
         container = QtWidgets.QWidget()
-        container.setLayout(QtWidgets.QGridLayout())
+        container_layout = QtWidgets.QGridLayout()
+        container.setLayout(container_layout)
         self.center.layout().addWidget(container)
         self.commands = get_commands()
         row = 0
         for command in self.commands:
             column = 0
             label = QtWidgets.QLabel(command["name"])
-            container.layout().addWidget(label, row, column)
+            container_layout.addWidget(label, row, column)
             column += 1
             command["parameter_widgets"] = []
             for _ in range(command["count"]):
@@ -165,13 +167,13 @@ class ToolsWindow(QtWidgets.QMainWindow):
                 pw.setMaximum(1000)
                 pw.setMinimum(0)
                 pw.setValue(100)
-                container.layout().addWidget(pw, row, column)
+                container_layout.addWidget(pw, row, column)
                 command["parameter_widgets"].append(pw)
                 column += 1
             button = QtWidgets.QPushButton("Los")
             button.clicked.connect(
                 lambda checked, cmd=command: self.send_command(cmd))
-            container.layout().addWidget(button, row, 10)
+            container_layout.addWidget(button, row, 10)
             row += 1
 
         # right panel
@@ -185,13 +187,13 @@ class ToolsWindow(QtWidgets.QMainWindow):
         # abort
         self.btn_abort = QtWidgets.QPushButton("Abort")
         self.btn_abort.clicked.connect(
-            lambda checked: communication.send_abort())
+            lambda checked: protocol_thread._mainboard.send_abort())
         container.layout().addWidget(self.btn_abort)
 
     def send_command(self, command):
         parameters = [str(pw.value()) for pw in command["parameter_widgets"]]
         command["parameters"] = parameters if parameters is not None else None
-        protocol_thread.run_next(command)
+        self._communication_thread.run_next(command)
 
     def log_add_line(self, line):
         # only show 100 lines
@@ -203,24 +205,25 @@ class ToolsWindow(QtWidgets.QMainWindow):
         scrollbar = self.log_widget.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
         if "ERROR" in line:
-            m = re.search(
-                "ERROR (?P<command>.+) (?P<id>\d+) (?P<parameter>-?\d+)", line)
-            error_id = int(m.group("id"))
-            errors = get_errors()
-            if error_id in errors.keys():
-                error = errors[error_id]
+            m = re.search("ERROR (?P<command>.+) (?P<id>\\d+) (?P<parameter>-?\\d+)", line)
+            if m is None:
+                error_text = "Could not parse error"
             else:
-                error = "Unkown error %i".format(error_id)
-            self.errors_widget.setText(error)
+                error_id = int(m.group("id"))
+                error_names = get_errors()
+                error_text = error_names.get(error_id, f"Unkown error {error_id}")
+            self.errors_widget.setText(error_text)
 
 
 if __name__ == '__main__':
     try:
+        con = communication.MainboardConnectionBluetooth()
+        mainboard = communication.Mainboard(con)
         print("Searching for bar_bot...")
-        mac_address = communication.find_bar_bot()
+        mac_address = mainboard.find_bar_bot()
         print(f"Connecting to '{mac_address}'")
         # create protocol thread
-        protocol_thread = ProtocolThread()
+        protocol_thread = ProtocolThread(mainboard)
         protocol_thread.mac_address = mac_address
         protocol_thread.start()
         app = QtWidgets.QApplication(sys.argv)
@@ -234,8 +237,7 @@ if __name__ == '__main__':
         logging.getLogger().addHandler(gui_logger)
         # create window
         window = ToolsWindow(protocol_thread)
-        gui_logger.qt.new_entry_signal.connect(
-            lambda line: window.log_add_line(line))
+        gui_logger.qt.new_ensignal.connect(window.log_add_line)
         window.show()
         app.exec_()
         protocol_thread.abort = True

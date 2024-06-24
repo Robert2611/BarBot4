@@ -74,7 +74,8 @@ class MaiboardConnectionMockup(MainboardConnection):
     def read_line(self) -> str:
         if self._current_command is None:
             return "STATUS IDLE"
-        self.time_since_last_command_sent = time.time() - self._last_received_time
+        if self._last_received_time is not None:
+            self.time_since_last_command_sent = time.time() - self._last_received_time
         if self._current_command_type == "DO":
             return self._handle_DO_command()
         elif self._current_command_type == "GET":

@@ -3,7 +3,8 @@ import os
 import platform
 import sys
 from typing import Optional
-from PyQt5 import QtWidgets, Qt, QtCore
+from venv import logger
+from PyQt5 import QtWidgets, QtCore, QtGui
 from barbot import BarBot, UserMessageType, BarBotState, run_command
 from barbot.config import Ingredient, IngredientType
 from barbot.recipes import RecipeCollection, RecipeFilter
@@ -36,12 +37,12 @@ def css_path() -> str:
     return os.path.join(script_dir, "asset")
 
 
-def qt_icon_from_file_name(file_name) -> Qt.QIcon:
+def qt_icon_from_file_name(file_name) -> QtGui.QIcon:
     """Get a QtIcon from containing an image located at a given path.
     :param file_name: Path to the image file"""
     script_dir = os.path.dirname(__file__)
     path = os.path.join(script_dir, "asset", file_name)
-    return Qt.QIcon(path)
+    return QtGui.QIcon(path)
 
 class BarBotWindow(QtWidgets.QMainWindow):
     """Main window of the barbot, this is the entry point for the barbot gui"""
@@ -86,7 +87,7 @@ class BarBotWindow(QtWidgets.QMainWindow):
                 widget.setCurrentIndex(i)
         return widget
 
-    def combobox_ingredients(self, selected_ingredient: Ingredient=None, only_available = False, \
+    def combobox_ingredients(self, selected_ingredient: Optional[Ingredient]=None, only_available = False, \
                                     only_normal = False, only_weighed = False):
         """Create a combobox with options for ingredients selected by the filter parameters 
         
@@ -120,7 +121,7 @@ class View(QtWidgets.QWidget):
         self._is_idle_view = is_idle_view
 
     @property
-    def is_idle_view(self):
+    def is_idle_view(self) -> bool:
         """Get whether the view is an idle view"""
         return self._is_idle_view
 
@@ -137,36 +138,36 @@ class View(QtWidgets.QWidget):
     @staticmethod
     def set_system_view(container: QtWidgets.QWidget):
         """Get the systems view widget."""
-        if container.layout() is None:
-            container.setLayout(QtWidgets.QVBoxLayout())
+        container_layout = QtWidgets.QVBoxLayout()
+        container.setLayout(container_layout)
 
         label = QtWidgets.QLabel("Software")
-        container.layout().addWidget(label)
+        container_layout.addWidget(label)
         # reopen software
         button = QtWidgets.QPushButton("Neu Starten")
         button.clicked.connect(restart_barbot)
-        container.layout().addWidget(button)
+        container_layout.addWidget(button)
 
         # close software
         button = QtWidgets.QPushButton("Schließen")
         button.clicked.connect(QtWidgets.QApplication.instance().quit)
-        container.layout().addWidget(button)
+        container_layout.addWidget(button)
 
         label = QtWidgets.QLabel("PI")
-        container.layout().addWidget(label)
+        container_layout.addWidget(label)
 
         # shutdown
         button = QtWidgets.QPushButton("Herunterfahren")
         button.clicked.connect(lambda: run_command("sudo shutdown now"))
-        container.layout().addWidget(button)
+        container_layout.addWidget(button)
 
         # reboot
         button = QtWidgets.QPushButton("Neu Starten")
         button.clicked.connect(lambda: run_command("sudo reboot"))
-        container.layout().addWidget(button)
+        container_layout.addWidget(button)
 
         # dummy
-        container.layout().addWidget(QtWidgets.QWidget(), 1)
+        container_layout.addWidget(QtWidgets.QWidget(), 1)
 
 class SystemBusyView(View):
     """View to access system (eg. restart) when the mainboard is busy"""
@@ -190,18 +191,21 @@ class BusyView(View):
     def __init__(self, window: BarBotWindow):
         super().__init__(window, is_idle_view=False)
 
-        self._message = None
+        self._message_widget = None
 
-        self.setLayout(QtWidgets.QGridLayout())
-        set_no_spacing(self.layout())
+        grid_layout = QtWidgets.QGridLayout()
+        self.setLayout(grid_layout)
+        set_no_spacing(grid_layout)
 
         centered = QtWidgets.QFrame()
         centered.setLayout(QtWidgets.QVBoxLayout())
         centered.setProperty("class", "CenteredContent")
-        self.layout().addWidget(centered, 0, 0, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        grid_layout.addWidget(centered, 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
 
         self._title_label = QtWidgets.QLabel("")
-        self._title_label.setAlignment(QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._title_label.setProperty("class", "Headline")
         centered.layout().addWidget(self._title_label)
 
@@ -218,13 +222,13 @@ class BusyView(View):
 
         self.update_message(None)
 
-    def update_message(self, message:str = None):
+    def update_message(self, message:Optional[UserMessageType] = None):
         """Update the message shown to the user"""
         if message is None:
             message = UserMessageType.NONE
         # delete old message
-        if self._message is not None:
-            self._message.setParent(None)
+        if self._message_widget is not None:
+            self._message_widget.setParent(None) # type: ignore
 
         # if message is none show the content again
         if message == UserMessageType.NONE:
@@ -233,16 +237,16 @@ class BusyView(View):
             self._title_label.setVisible(True)
             return
 
-        self._message = QtWidgets.QWidget()
-        self._message.setLayout(QtWidgets.QVBoxLayout())
-        self._message_container.layout().addWidget(self._message)
+        self._message_widget = QtWidgets.QWidget()
+        self._message_widget.setLayout(QtWidgets.QVBoxLayout())
+        self._message_container.layout().addWidget(self._message_widget)
 
         message_label = QtWidgets.QLabel()
-        self._message.layout().addWidget(message_label)
+        self._message_widget.layout().addWidget(message_label)
 
         buttons_container = QtWidgets.QWidget()
         buttons_container.setLayout(QtWidgets.QHBoxLayout())
-        self._message.layout().addWidget(buttons_container)
+        self._message_widget.layout().addWidget(buttons_container)
 
         def add_button(text, result:UserInputType):
             button = QtWidgets.QPushButton(text)
@@ -252,19 +256,25 @@ class BusyView(View):
             buttons_container.layout().addWidget(button)
 
         if message == UserMessageType.INGREDIENT_EMPTY:
-            ingredient = self.barbot_.current_recipe_item.ingredient
-            if ingredient.type == IngredientType.SUGAR:
-                message_string = f"{ingredient.name} ist leer. Bitte nachfüllen."
-            else:
-                ports = self.barbot_.ports
-                position = ports.port_of_ingredient(ingredient) + 1
-                message_string = f"Die Zutat '{ingredient.name}'"
-                message_string += f" auf Position {position} ist leer.\n"
-                message_string += "Bitte neue Flasche anschließen."
-            message_label.setText(message_string)
+            if self.barbot_.current_recipe_item is not None:
+                ingredient = self.barbot_.current_recipe_item.ingredient
+                if ingredient.type == IngredientType.SUGAR:
+                    message_string = f"{ingredient.name} ist leer. Bitte nachfüllen."
+                else:
+                    ports = self.barbot_.ports
+                    position = ports.port_of_ingredient(ingredient)
+                    if position is not None:
+                        position += 1
+                    message_string = f"Die Zutat '{ingredient.name}'"
+                    message_string += f" auf Position {position} ist leer.\n"
+                    message_string += "Bitte neue Flasche anschließen."
+                message_label.setText(message_string)
 
-            add_button("Cocktail\nabbrechen", UserInputType.NO)
-            add_button("Erneut\nversuchen", UserInputType.YES)
+                add_button("Cocktail\nabbrechen", UserInputType.NO)
+                add_button("Erneut\nversuchen", UserInputType.YES)
+            else:
+                logger.error("No current_recipe_item found while showing INGREDIENT_EMPTY message.")
+                self.barbot_.set_user_input(UserInputType.NO)
 
         elif message == UserMessageType.PLACE_GLAS:
             message_label.setText("Bitte ein Glas auf die Plattform stellen.")
@@ -278,10 +288,10 @@ class BusyView(View):
                 options = self.barbot_.current_mixing_options
                 if options is not None and options.recipe.post_instruction:
                     label = QtWidgets.QLabel("Zusätzliche Informationen:")
-                    self._message.layout().addWidget(label)
+                    self._message_widget.layout().addWidget(label)
 
                     instruction = QtWidgets.QLabel(options.recipe.post_instruction)
-                    self._message.layout().addWidget(instruction)
+                    self._message_widget.layout().addWidget(instruction)
                 elif options is not None:
                     text = "Der Cocktail ist fertig gemischt.\n" + \
                         "Du kannst ihn von der Platform nehmen."
@@ -413,7 +423,8 @@ class BusyView(View):
 
             # ingredients
             recipe_items_list = QtWidgets.QWidget()
-            recipe_items_list.setLayout(QtWidgets.QGridLayout())
+            grid_layout = QtWidgets.QGridLayout()
+            recipe_items_list.setLayout(grid_layout)
             recipe_items_list.setProperty("class", "IngredientToDoList")
             self._content_container.layout().addWidget(recipe_items_list)
             self.recipe_list_widgets = []
@@ -422,8 +433,8 @@ class BusyView(View):
             def add_widget(name):
                 widget_item = QtWidgets.QLabel()
                 self.recipe_list_widgets.append(widget_item)
-                recipe_items_list.layout().addWidget(widget_item, self._row_index, 0)
-                recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), self._row_index, 1)
+                grid_layout.addWidget(widget_item, self._row_index, 0)
+                grid_layout.addWidget(QtWidgets.QLabel(name), self._row_index, 1)
                 self._row_index += 1
 
             options = self.barbot_.current_mixing_options

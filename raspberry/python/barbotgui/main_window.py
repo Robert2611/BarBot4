@@ -1,8 +1,9 @@
 """The main window of the barbot gui"""
 import logging
+from typing import Optional
 import os
 
-from PyQt5 import QtWidgets, Qt, QtCore
+from PyQt5 import QtWidgets, QtCore
 
 from barbot import BarBot
 from barbot.recipes import RecipeCollection
@@ -19,9 +20,9 @@ class MainWindow(BarBotWindow):
     def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
         super().__init__(barbot_, recipes)
 
-        self._current_view : View = None
-        self._last_idle_view : View = None
-        self._keyboard: Keyboard = None
+        self._current_view : Optional[View] = None
+        self._last_idle_view : Optional[View] = None
+        self._keyboard: Optional[Keyboard] = None
         self._timer: QtCore.QTimer
         self._admin_button_active : bool = False
 
@@ -35,7 +36,7 @@ class MainWindow(BarBotWindow):
         self.styles = self.styles.replace("#iconpath#", css_path().replace("\\", "/"))
         self.setStyleSheet(self.styles)
 
-        self.mousePressEvent = lambda _: self.close_keyboard()
+        self.mousePressEvent = lambda a0: self.close_keyboard()
 
         # forward status changed
         self._barbot_state_trigger.connect(self.update_view)
@@ -53,29 +54,32 @@ class MainWindow(BarBotWindow):
         self._show_message_trigger.connect(self._show_message_splash)
 
         # remove borders and title bar
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.center.setLayout(QtWidgets.QVBoxLayout())
-        set_no_spacing(self.center.layout())
+        # pylint: disable-next=no-member
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
+        center_layout = QtWidgets.QVBoxLayout()
+        self.center.setLayout(center_layout)
+        set_no_spacing(center_layout)
 
         # header
         header = QtWidgets.QWidget()
         header.setLayout(QtWidgets.QGridLayout())
         header.setProperty("class", "BarBotHeader")
         header.mousePressEvent = self.header_clicked
-        self.center.layout().addWidget(header, 0)
+        center_layout.addWidget(header, 0)
 
         # content
         self._content_wrapper = QtWidgets.QWidget()
         self._content_wrapper.setLayout(QtWidgets.QGridLayout())
         set_no_spacing(self._content_wrapper.layout())
-        self.center.layout().addWidget(self._content_wrapper, 1)
+        center_layout.addWidget(self._content_wrapper, 1)
 
         self.update_view()
         self.setFixedSize(480, 800)
         # show fullscreen on raspberry
         if is_raspberry():
             self.showFullScreen()
-            self.setCursor(QtCore.Qt.BlankCursor)
+            # pylint: disable-next=no-member
+            self.setCursor(QtCore.Qt.CursorShape.BlankCursor)
         else:
             self.show()
 
@@ -89,7 +93,8 @@ class MainWindow(BarBotWindow):
         if self._current_view is not None and isinstance(self._current_view, BusyView):
             self._current_view.update_message(message)
 
-    def header_clicked(self, _):
+    # pylint: disable-next=unused-argument
+    def header_clicked(self, a0):
         """Handle the header click"""
         if not self._admin_button_active:
             self._admin_button_active = True
@@ -134,15 +139,15 @@ class MainWindow(BarBotWindow):
         # remove existing item from window
         if self._current_view is not None:
             # switch from idle to busy?
-            if self._current_view.is_idle_view and not view.is_idle_view:
+            if self._current_view.is_idle_view and view is not None and not view.is_idle_view:
                 # just remove it from the visuals
-                self._current_view.setParent(None)
+                self._current_view.setParent(None) # type: ignore
             else:
                 # delete the view
                 self._current_view.deleteLater()
         self._current_view = view
         # save the last used idle view
-        if view.is_idle_view:
+        if view is not None and view.is_idle_view:
             self._last_idle_view = view
         self._content_wrapper.layout().addWidget(self._current_view)
 
@@ -162,13 +167,15 @@ class MainWindow(BarBotWindow):
         """Show a spash sceen with a given message.
         :param message: The message"""
         splash = QtWidgets.QLabel(message)
-        splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
+        # pylint: disable-next=no-member
+        window_flags = QtCore.Qt.WindowType.WindowStaysOnTopHint | QtCore.Qt.WindowType.FramelessWindowHint
+        splash.setWindowFlags(window_flags) # type: ignore
         splash.setProperty("class", "Splash")
         splash.setStyleSheet(self.styles)
         splash.show()
         # center on screen
         splash.move(QtWidgets.QApplication.desktop().screen().rect().center() - splash.rect().center())
-        
+
         # close the splash after some time
         def _close_message_splash():
             splash.close()

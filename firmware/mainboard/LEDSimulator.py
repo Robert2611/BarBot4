@@ -1,17 +1,16 @@
-import matplotlib.pyplot as plt
-import numpy as np
 
-from matplotlib.widgets import Button, Slider
 from enum import Enum, auto
 import colorsys
 
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button, Slider
+
 class LED_Type(Enum):
-    Waterfall = auto(),
-    Rainbow = auto(),
-    Draft = auto()
-    
-    
-selected_LED_Type = LED_Type.Draft
+    WATERFALL = auto(),
+    RAINBOW = auto(),
+    DRAFT = auto()
+
+selected_LED_Type = LED_Type.DRAFT
 
 PIXEL_COUNT = 60
 X = range(PIXEL_COUNT)
@@ -19,24 +18,24 @@ X = range(PIXEL_COUNT)
 # The parametrized function to be plotted
 def get_colors(frame, position):
     colors = []
-    if selected_LED_Type == LED_Type.Waterfall:
+    if selected_LED_Type == LED_Type.WATERFALL:
         platform_position = position
         period = 10
         frame %= period
         for i in X:
             dist = (abs(i - platform_position) + frame) % period
-            if (dist > (period - 1) / 2):
+            if dist > (period - 1) / 2:
                 dist = period - dist
             brightness = max(1 - dist / 3.0, 0.0)
             colors.append((0, 0, brightness * brightness))
-            
-    elif selected_LED_Type == LED_Type.Rainbow:
+
+    elif selected_LED_Type == LED_Type.RAINBOW:
         frame %= PIXEL_COUNT
         for i in X:
             pos = (i + frame) % PIXEL_COUNT
             colors.append(colorsys.hsv_to_rgb(float(pos) / (PIXEL_COUNT - 1), 1.0, 0.8))
-            
-    elif selected_LED_Type == LED_Type.Draft:
+
+    elif selected_LED_Type == LED_Type.DRAFT:
         period = 20
         draft_position = position
         frame %= period
@@ -48,7 +47,7 @@ def get_colors(frame, position):
             if abs(i - draft_position) <= 2:
                 brightness = 0.999
             colors.append((0, brightness * brightness, 0))
-            
+
     #print([g for r,g,b in colors])
     return colors
 
@@ -66,7 +65,7 @@ ax.set_xlabel('Pixels')
 fig.subplots_adjust(left=0.25, bottom=0.25)
 
 # Make a horizontal slider to control the time.
-axfreq = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+axfreq = fig.add_axes((0.25, 0.1, 0.65, 0.03))
 frame_slider = Slider(
     ax=axfreq,
     label='frame',
@@ -77,7 +76,7 @@ frame_slider = Slider(
 )
 
 # Make a vertically oriented slider to control the position
-axamp = fig.add_axes([0.1, 0.25, 0.0225, 0.63])
+axamp = fig.add_axes((0.1, 0.25, 0.0225, 0.63))
 pos_slider = Slider(
     ax=axamp,
     label="position",
@@ -89,7 +88,7 @@ pos_slider = Slider(
 )
 
 # The function to be called anytime a slider's value changes
-def update(val):
+def update(_):
     figure.set_facecolors( get_colors(frame_slider.val, pos_slider.val))
     fig.canvas.draw_idle()
 
@@ -99,9 +98,9 @@ frame_slider.on_changed(update)
 pos_slider.on_changed(update)
 
 # Create a `matplotlib.widgets.Button` to reset the sliders to initial values.
-resetax = fig.add_axes([0.8, 0.025, 0.1, 0.04])
+resetax = fig.add_axes((0.8, 0.025, 0.1, 0.04))
 button = Button(resetax, 'Reset', hovercolor='0.975')
-def reset(event):
+def reset(_):
     frame_slider.reset()
     pos_slider.reset()
 button.on_clicked(reset)

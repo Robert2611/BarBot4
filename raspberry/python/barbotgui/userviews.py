@@ -1,5 +1,6 @@
 """All views that are openly accessible"""
 from enum import Enum, auto
+from typing import Optional
 from PyQt5 import QtWidgets, QtCore
 
 from barbot import MixingOptions
@@ -21,14 +22,15 @@ class UserView(View):
             ["Nachschlag", SingleIngredient],
             ["Statistik", Statistics],
         ]
-        self.setLayout(QtWidgets.QVBoxLayout())
-        set_no_spacing(self.layout())
+        box_layout = QtWidgets.QVBoxLayout()
+        self.setLayout(box_layout)
+        set_no_spacing(box_layout)
 
         self.__add_header()
         self.__add_navigation()
 
         content_wrapper = QtWidgets.QWidget()
-        self.layout().addWidget(content_wrapper, 1)
+        box_layout.addWidget(content_wrapper, 1)
         content_wrapper.setLayout(QtWidgets.QGridLayout())
         set_no_spacing(content_wrapper.layout())
 
@@ -39,12 +41,14 @@ class UserView(View):
         scroller = QtWidgets.QScrollArea()
         scroller.setProperty("class", "ContentScroller")
         scroller.setWidgetResizable(True)
-        scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        # pylint: disable-next=no-member
+        scroller.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         content_wrapper.layout().addWidget(scroller)
 
         QtWidgets.QScroller.grabGesture(
             scroller.viewport(),
-            QtWidgets.QScroller.LeftMouseButtonGesture
+            # pylint: disable-next=no-member
+            QtWidgets.QScroller.ScrollerGestureType.LeftMouseButtonGesture
         )
 
         self._content = QtWidgets.QWidget()
@@ -62,23 +66,30 @@ class UserView(View):
     def __add_navigation(self):
         self.navigation = QtWidgets.QWidget()
         self.layout().addWidget(self.navigation)
-        self.navigation.setLayout(QtWidgets.QHBoxLayout())
+        navigation_layout = QtWidgets.QHBoxLayout()
+        self.navigation.setLayout(navigation_layout)
 
         for text, _class in self.navigation_items:
             button = QtWidgets.QPushButton(text)
             def btn_click(_, c=_class):
                 return self.window.set_view(c(self.window))
             button.clicked.connect(btn_click)
-            self.navigation.layout().addWidget(button, 1)
+            navigation_layout.addWidget(button, 1)
 
     def _add_title_to_fixed_content(self, title_name):
         title = QtWidgets.QLabel(title_name)
         title.setProperty("class", "Headline")
-        self._fixed_content.layout().setAlignment(title, QtCore.Qt.AlignTop)
+        # pylint: disable-next=no-member
+        self._fixed_content.layout().setAlignment(title, QtCore.Qt.AlignmentFlag.AlignTop)
         self._fixed_content.layout().addWidget(title)
 
     def _add_dummy_widget_to_content(self):
-        self._content.layout().addWidget(QtWidgets.QWidget(), 1)
+        layout = self._content.layout()
+        if layout is QtWidgets.QBoxLayout:
+            # we can only make the widget stretch, if it is a QBoxLayout
+            layout.addWidget(QtWidgets.QWidget(), 1)
+        else:
+            layout.addWidget(QtWidgets.QWidget())
 
 class ListRecipes(UserView):
     """List of known recipes"""
@@ -108,9 +119,10 @@ class ListRecipes(UserView):
 
     def _add_recipe_list_container(self):
         self._recipe_list_container = QtWidgets.QWidget()
-        self._recipe_list_container.setLayout(QtWidgets.QVBoxLayout())
+        self._recipe_list_container_layout = QtWidgets.QVBoxLayout()
+        self._recipe_list_container.setLayout(self._recipe_list_container_layout)
         self._content.layout().addWidget(self._recipe_list_container)
-        set_no_spacing(self._recipe_list_container.layout())
+        set_no_spacing(self._recipe_list_container_layout)
 
     def _update_recipe_list(self):
         recipe_filter = self.window.recipe_filter
@@ -125,20 +137,21 @@ class ListRecipes(UserView):
             self._add_recipe_to_list_container(recipe)
 
         # dummy element
-        self._recipe_list_container.layout().addWidget(QtWidgets.QWidget(), 1)
+        self._recipe_list_container_layout.addWidget(QtWidgets.QWidget(), 1)
 
     def _clear_recipe_list_container(self):
-        while self._recipe_list_container.layout().count():
-            item = self._recipe_list_container.layout().takeAt(0)
+        while self._recipe_list_container_layout.count():
+            item = self._recipe_list_container_layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
-                widget.setParent(None)
+                # pylint: disable-next=no-member
+                widget.setParent(None) # type: ignore
 
     def _add_recipe_to_list_container(self, recipe):
         # box to hold the recipe
         recipe_widget = QtWidgets.QWidget()
         recipe_widget.setLayout(QtWidgets.QHBoxLayout())
-        self._recipe_list_container.layout().addWidget(recipe_widget)
+        self._recipe_list_container_layout.addWidget(recipe_widget)
 
         self._add_left_column_to_recipe_widget(recipe_widget, recipe)
         self._add_right_column_to_recipe_widget(recipe_widget, recipe)
@@ -146,13 +159,15 @@ class ListRecipes(UserView):
     def _add_left_column_to_recipe_widget(self, recipe_widget, recipe):
         # container
         left_column = QtWidgets.QWidget()
-        left_column.setLayout(QtWidgets.QVBoxLayout())
+        left_column_layout = QtWidgets.QVBoxLayout()
+        left_column.setLayout(left_column_layout)
         recipe_widget.layout().addWidget(left_column)
 
         # title with buttons
         recipe_title_container = QtWidgets.QWidget()
-        recipe_title_container.setLayout(QtWidgets.QHBoxLayout())
-        left_column.layout().addWidget(recipe_title_container)
+        recipe_title_container_layout = QtWidgets.QHBoxLayout()
+        recipe_title_container.setLayout(recipe_title_container_layout)
+        left_column_layout.addWidget(recipe_title_container)
 
         # edit button
         if not recipe.is_fixed:
@@ -161,17 +176,17 @@ class ListRecipes(UserView):
             edit_button.setProperty("class", "BtnEdit")
             edit_button.clicked.connect(
                 lambda checked, r=recipe: self._open_edit(r))
-            recipe_title_container.layout().addWidget(edit_button, 0)
+            recipe_title_container_layout.addWidget(edit_button, 0)
 
         # title
         recipe_title = QtWidgets.QLabel(recipe.name)
         recipe_title.setProperty("class", "RecipeTitle")
-        recipe_title_container.layout().addWidget(recipe_title, 1)
+        recipe_title_container_layout.addWidget(recipe_title, 1)
 
         # items container for holding the recipe items
         recipe_items_container = QtWidgets.QWidget()
         recipe_items_container.setLayout(QtWidgets.QVBoxLayout())
-        left_column.layout().addWidget(recipe_items_container, 1)
+        left_column_layout.addWidget(recipe_items_container, 1)
 
         # add items
         item: RecipeItem
@@ -188,7 +203,8 @@ class ListRecipes(UserView):
     def _add_right_column_to_recipe_widget(self, recipe_widget, recipe):
         # container
         right_column = QtWidgets.QWidget()
-        right_column.setLayout(QtWidgets.QVBoxLayout())
+        right_column_layout = QtWidgets.QVBoxLayout()
+        right_column.setLayout(right_column_layout)
         recipe_widget.layout().addWidget(right_column)
 
         fillings = []
@@ -198,14 +214,15 @@ class ListRecipes(UserView):
                 filling = GlasFilling(item.ingredient.color, relative)
                 fillings.append(filling)
         indicator = GlasIndicator(fillings)
-        right_column.layout().addWidget(indicator)
-        right_column.layout().setAlignment(indicator, QtCore.Qt.AlignRight)
+        right_column_layout.addWidget(indicator)
+        # pylint: disable-next=no-member
+        right_column_layout.setAlignment(indicator, QtCore.Qt.AlignmentFlag.AlignRight)
 
         # instruction
         if recipe.post_instruction:
             instruction = QtWidgets.QLabel(recipe.post_instruction)
             instruction.setWordWrap(True)
-            right_column.layout().addWidget(instruction)
+            right_column_layout.addWidget(instruction)
 
         # order button
         if recipe.is_available(self.barbot_.ports, self.barbot_.config):
@@ -214,8 +231,9 @@ class ListRecipes(UserView):
             order_button.setProperty("class", "BtnOrder")
             order_button.clicked.connect(
                 lambda _, r=recipe: self._order(r))
-            right_column.layout().addWidget(order_button, 0)
-            right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
+            right_column_layout.addWidget(order_button, 0)
+            # pylint: disable-next=no-member
+            right_column_layout.setAlignment(order_button, QtCore.Qt.AlignmentFlag.AlignRight)
 
     def _open_edit(self, recipe: Recipe):
         self.window.set_view(RecipeNewOrEdit(self.window, recipe))
@@ -233,18 +251,21 @@ class ListRecipes(UserView):
 
 class RecipeNewOrEdit(UserView):
     """View for editing existing recpies and creating new ones"""
-    def __init__(self, window: BarBotWindow, recipe: Recipe = None):
+    def __init__(self, window: BarBotWindow, recipe: Optional[Recipe] = None):
         super().__init__(window)
 
         if recipe is None:
-            self._init_new_recipe()
+            self._recipe = Recipe()
+            self._original_recipe = None
         else:
-            self._init_recipe(recipe)
+            self._original_recipe = recipe
+            self._recipe = recipe.copy()
 
-        self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._content_layout = QtWidgets.QVBoxLayout()
+        self._content.setLayout(self._content_layout)
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
-        title = "Neues Rezept" if self._is_new_cocktail else "Rezept bearbeiten"
+        title = "Neues Rezept" if self._original_recipe is None else "Rezept bearbeiten"
         self._add_title_to_fixed_content(title)
 
         self._add_name_and_instruction()
@@ -255,35 +276,26 @@ class RecipeNewOrEdit(UserView):
 
         self._update_view()
 
-    def _init_new_recipe(self):
-        self._recipe = Recipe()
-        self._original_recipe = None
-        self._is_new_cocktail = True
-
-    def _init_recipe(self, recipe):
-        self._original_recipe = recipe
-        self._recipe = recipe.copy()
-        self._is_new_cocktail = False
-
     def _add_name_and_instruction(self):
         # wrapper for name and instruction
         wrapper = QtWidgets.QWidget()
-        wrapper.setLayout(QtWidgets.QFormLayout())
-        wrapper.layout().setContentsMargins(0, 0, 0, 0)
-        self._content.layout().addWidget(wrapper)
+        form_layout = QtWidgets.QFormLayout()
+        wrapper.setLayout(form_layout)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        self._content_layout.addWidget(wrapper)
 
         # name
         self._name_widget = QtWidgets.QLineEdit(self._recipe.name)
         self._name_widget.mousePressEvent = self._open_keyboard_for_name_widget
         label = QtWidgets.QLabel("Name:")
-        wrapper.layout().addRow(label, self._name_widget)
+        form_layout.addRow(label, self._name_widget)
 
         # pre instruction
         self._pre_instruction_widget = QtWidgets.QLineEdit()
         self._pre_instruction_widget.setText(self._recipe.pre_instruction)
         self._pre_instruction_widget.mousePressEvent = self._open_keyboard_for_pre_instruction
         label = QtWidgets.QLabel("Vorher:")
-        wrapper.layout().addRow(label, self._pre_instruction_widget)
+        form_layout.addRow(label, self._pre_instruction_widget)
 
         # post instruction
         widget  = QtWidgets.QLineEdit()
@@ -291,22 +303,26 @@ class RecipeNewOrEdit(UserView):
         widget.mousePressEvent = self._open_keyboard_for_post_instruction_widget
         self._post_instruction_widget = widget
         label = QtWidgets.QLabel("Nachher:")
-        wrapper.layout().addRow(label, self._post_instruction_widget)
+        form_layout.addRow(label, self._post_instruction_widget)
 
-    def _open_keyboard_for_name_widget(self, _):
+    # pylint: disable-next=unused-argument
+    def _open_keyboard_for_name_widget(self, a0):
         self.window.open_keyboard(self._name_widget)
 
-    def _open_keyboard_for_pre_instruction(self, _):
+    # pylint: disable-next=unused-argument
+    def _open_keyboard_for_pre_instruction(self, a0):
         self.window.open_keyboard(self._pre_instruction_widget)
 
-    def _open_keyboard_for_post_instruction_widget(self, _):
+    # pylint: disable-next=unused-argument
+    def _open_keyboard_for_post_instruction_widget(self, a0):
         self.window.open_keyboard(self._post_instruction_widget)
 
     def _add_ingredients(self, max_count):
-        self._content.layout().addWidget(QtWidgets.QLabel("Zutaten:"))
+        self._content_layout.addWidget(QtWidgets.QLabel("Zutaten:"))
         ingredients_container = QtWidgets.QWidget()
-        ingredients_container.setLayout(QtWidgets.QGridLayout())
-        self._content.layout().addWidget(ingredients_container, 1)
+        ingredients_container_layout = QtWidgets.QGridLayout()
+        ingredients_container.setLayout(ingredients_container_layout)
+        self._content_layout.addWidget(ingredients_container, 1)
         # fill grid
         self._ingredient_widgets = []
         for i in range(max_count):
@@ -320,14 +336,14 @@ class RecipeNewOrEdit(UserView):
             # add ingredient name
             ingredient_widget = self.window.combobox_ingredients(selected_ingredient)
             ingredient_widget.currentIndexChanged.connect(self._update_view)
-            ingredients_container.layout().addWidget(ingredient_widget, i, 0)
+            ingredients_container_layout.addWidget(ingredient_widget, i, 0)
             # add ingredient amount
             amount_widget = self.window.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(self._update_view)
             if(i >= len(self._recipe.items) \
                or self._recipe.items[i].ingredient.type == IngredientType.STIRR):
                 amount_widget.setVisible(False)
-            ingredients_container.layout().addWidget(amount_widget, i, 1)
+            ingredients_container_layout.addWidget(amount_widget, i, 1)
 
             # safe references for later
             self._ingredient_widgets.append([ingredient_widget, amount_widget])
@@ -336,7 +352,7 @@ class RecipeNewOrEdit(UserView):
         # row for label and button
         row = QtWidgets.QWidget()
         row.setLayout(QtWidgets.QHBoxLayout())
-        self._content.layout().addWidget(row)
+        self._content_layout.addWidget(row)
         # label
         self._filling_label = QtWidgets.QLabel()
         row.layout().addWidget(self._filling_label)
@@ -344,7 +360,8 @@ class RecipeNewOrEdit(UserView):
         button = QtWidgets.QPushButton("Speichern")
         button.clicked.connect(self._save)
         row.layout().addWidget(button)
-        row.layout().setAlignment(button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        row.layout().setAlignment(button, QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _get_cocktail_size(self):
         size = 0
@@ -387,7 +404,7 @@ class RecipeNewOrEdit(UserView):
         if self._recipe.name is None or self._recipe.name == "":
             self.window.show_message("Bitte einen Namen eingeben")
             return
-        if self._is_new_cocktail or self._recipe.name != self._original_recipe.name:
+        if self._original_recipe is None or self._recipe.name != self._original_recipe.name:
             # name changed or new recipe
             names = [
                 recipe.name
@@ -425,7 +442,7 @@ class RecipeNewOrEdit(UserView):
             self.window.show_message("Rezept wurde nicht verändert")
             return
         # save copy or new recipe
-        if not self._is_new_cocktail:
+        if self._original_recipe is not None:
             self.window.recipes.remove(self._original_recipe)
         self.window.recipes.add(self._recipe)
         if self._is_new_cocktail:
@@ -477,7 +494,8 @@ class SingleIngredient(UserView):
         panel.setProperty("class", "CenterPanel")
         panel.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(panel)
-        self._content.layout().setAlignment(panel, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._content.layout().setAlignment(panel, QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # ingredient selector
         self._ingredient_widget = self.window.combobox_ingredients(
@@ -505,7 +523,8 @@ class SingleIngredient(UserView):
             lambda: self._start(self.ActionType.STIR)
         )
         self._content.layout().addWidget(stir_button)
-        self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._content.layout().setAlignment(stir_button, QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _add_straw_button(self):
         icon = qt_icon_from_file_name("straw.png")
@@ -515,7 +534,8 @@ class SingleIngredient(UserView):
             lambda: self._start(self.ActionType.STRAW)
         )
         self._content.layout().addWidget(straw_button)
-        self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._content.layout().setAlignment(straw_button, QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _add_crusher_button(self):
         icon = qt_icon_from_file_name("ice.png")
@@ -525,7 +545,8 @@ class SingleIngredient(UserView):
             lambda: self._start(self.ActionType.ICE)
         )
         self._content.layout().addWidget(ice_button)
-        self._content.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._content.layout().setAlignment(ice_button, QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _start(self, action_type: ActionType):
         if self.barbot_.is_busy:
@@ -662,19 +683,21 @@ class Statistics(UserView):
     def _remove_old_statistics_widget(self):
         if self._statistics_widget is not None:
             # setting the parent of the previos content to None will destroy it
-            self._statistics_widget.setParent(None)
+            # pylint: disable-next=no-member
+            self._statistics_widget.setParent(None) # type: ignore
             self._statistics_widget = None
 
 class OrderRecipe(UserView):
     """Shown when the order button is clicked for a recipe"""
-    def __init__(self, window: BarBotWindow, recipe: Recipe = None):
+    def __init__(self, window: BarBotWindow, recipe: Recipe):
         super().__init__(window)
 
         self._recipe = recipe
         self._cb_ice = None
         self._cb_straw = None
 
-        self._content.setLayout(QtWidgets.QGridLayout())
+        self._content_layout = QtWidgets.QGridLayout()
+        self._content.setLayout(self._content_layout)
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
         self._add_title_to_fixed_content("Cocktail mischen")
@@ -708,7 +731,7 @@ class OrderRecipe(UserView):
         self._centered_content.layout().addWidget(label)
 
     def _add_pre_instruction_to_centered_content(self):
-        text = "Bitte Glas vorbereiten:\n" + self.recipe.pre_instruction
+        text = "Bitte Glas vorbereiten:\n" + self._recipe.pre_instruction
         label = QtWidgets.QLabel(text)
         self._centered_content.layout().addWidget(label)
 
@@ -716,7 +739,8 @@ class OrderRecipe(UserView):
         self._centered_content = QtWidgets.QWidget()
         self._centered_content.setLayout(QtWidgets.QVBoxLayout())
         self._centered_content.setProperty("class", "CenteredContent")
-        self._content.layout().addWidget(self._centered_content, 0, 0, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._content_layout.addWidget(self._centered_content, 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _add_special_ingredient_buttons(self):
         # container
@@ -738,7 +762,8 @@ class OrderRecipe(UserView):
         ice_button.setCheckable(True)
         ice_button.setProperty("class", "IconCheckButton")
         container.layout().addWidget(ice_button)
-        container.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        container.layout().setAlignment(ice_button, QtCore.Qt.AlignmentFlag.AlignCenter)
         self._cb_ice = ice_button
 
     def _add_straw_button_to(self, container):
@@ -747,7 +772,8 @@ class OrderRecipe(UserView):
         straw_button.setCheckable(True)
         straw_button.setProperty("class", "IconCheckButton")
         container.layout().addWidget(straw_button)
-        container.layout().setAlignment(straw_button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        container.layout().setAlignment(straw_button, QtCore.Qt.AlignmentFlag.AlignCenter)
         self._cb_straw = straw_button
 
     def _order(self):

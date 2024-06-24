@@ -1,7 +1,8 @@
 """Recipes"""
 import os
 import logging
-from typing import NamedTuple, List, Dict
+from collections import Counter
+from typing import Any, NamedTuple, List, Dict, Optional, Union
 from dataclasses import dataclass
 from enum import Enum, auto
 from datetime import datetime, timedelta
@@ -134,7 +135,7 @@ class Recipe:
             recipe.items.append(item_copy)
         return recipe
 
-def load_recipe_from_yaml(yaml_string : str, name : str) -> Recipe:
+def load_recipe_from_yaml(yaml_string : str, name : str) -> Optional[Recipe]:
     """Load a recipe from its yaml representation, the name is not part of the yaml, so it has to be provided separately"""
     # load yaml
     data = yaml.safe_load(yaml_string)
@@ -158,7 +159,7 @@ def load_recipe_from_yaml(yaml_string : str, name : str) -> Recipe:
         r.items.append(item)
     return r
 
-def load_recipe_from_file(folder: str, filename: str) -> Recipe:
+def load_recipe_from_file(folder: str, filename: str) -> Optional[Recipe]:
     """Load a recipe from a file
     
         :param folder: Parent folder of the file
@@ -204,7 +205,7 @@ class RecipeCollection():
                 r.is_fixed = True
                 self._recipes.append(r)
 
-    def get_filtered(self, recipe_filter: RecipeFilter, ports: PortConfiguration, config : BarBotConfig) -> List[Recipe]:
+    def get_filtered(self, recipe_filter: Optional[RecipeFilter], ports: PortConfiguration, config : BarBotConfig) -> List[Recipe]:
         """Get a filtered list of recpies using the given filter"""
         # lazy loading
         if self._recipes is None:
@@ -252,7 +253,7 @@ class RecipeCollection():
 class OrderItem(NamedTuple):
     """Items of an order, it is like a recipe item but the ingredient is a string"""
     amount: int
-    ingredient: str
+    ingredient: Optional[str]
 
 class Order(NamedTuple):
     """Order of a recipe containing the recipe name and a copy of the recipe items"""
@@ -271,7 +272,7 @@ class PartyStatistics(NamedTuple):
     """Statistics for a party"""
     ingredients_amount: Dict[str, float]
     cocktail_count: Dict[str, int]
-    cocktails_by_time: Dict[str, int]
+    cocktails_by_time: Dict[datetime, int]
     total_cocktails: int
 
 class Party():
@@ -309,26 +310,22 @@ class Party():
 
     def get_statistics(self) -> PartyStatistics:
         """Calculate statistics for this party"""
-        ingredients_amount = {}
-        cocktail_count = {}
-        cocktails_by_time = {}
-        def _increase_entry(item: dict, key, increment=1):
-            if key in item.keys():
-                item[key] += increment
-            else:
-                item[key] = increment
+        ingredient_counter = Counter()
         for order in self.orders:
-            _increase_entry(cocktail_count, order.recipe)
-            hour = datetime(order.date.year, order.date.month, order.date.day, order.date.hour)
-            _increase_entry(cocktails_by_time, hour)
             for item in order.items:
                 ing = get_ingredient_by_identifier(item.ingredient)
-                if ing.type != IngredientType.STIRR:
-                    _increase_entry(ingredients_amount, ing.name, item.amount)
+                if ing is not None and ing.type != IngredientType.STIRR:
+                    ingredient_counter[ing.name] += item.amount
         return PartyStatistics(
-            ingredients_amount,
-            cocktail_count,
-            cocktails_by_time,
+            dict(ingredient_counter),
+            dict(Counter([
+                order.recipe
+                for order in self.orders
+            ])),
+            dict(Counter([
+                datetime(order.date.year, order.date.month, order.date.day, order.date.hour)
+                for order in self.orders
+            ])),
             len(self.orders)
         )
 
@@ -340,7 +337,6 @@ class PartyCollection(List[Party]):
         for party in all_parties:
             if len(party.orders) >= PARTY_MIN_ORDER_COUNT:
                 self.append(party)
-        self._current_party = None
         if len(self) > 0 and datetime.now() - self[-1].start <= PARTY_MAX_DURATION:
             self._current_party = self[-1]
         else:
@@ -348,7 +344,7 @@ class PartyCollection(List[Party]):
             self.append(self._current_party)
 
     @property
-    def current_party(self):
+    def current_party(self) -> Party:
         """Get the currently ongoing party"""
         return self._current_party
 

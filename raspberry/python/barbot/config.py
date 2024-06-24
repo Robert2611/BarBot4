@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Union
+from typing import Dict, List, Optional
 
 import yaml
 
@@ -87,7 +87,7 @@ _ingredients = [
     Sugar
 ]
 
-def get_ingredient_by_identifier(identifier: str):
+def get_ingredient_by_identifier(identifier: Optional[str]) -> Optional[Ingredient]:
     """Get an ingredient based on its identifier"""
     for ingredient in _ingredients:
         if identifier == ingredient.identifier:
@@ -98,7 +98,7 @@ class PortConfiguration:
     """Manages the relation between the ports and the connected ingredients"""
     def __init__(self, load_on_init : bool = True):
         self._filepath = os.path.join(data_directory, 'ports.yaml')
-        self._list: dict[int, Ingredient]= {i: None for i in range(PORT_COUNT)}
+        self._list: dict[int, Optional[Ingredient]]= {i: None for i in range(PORT_COUNT)}
         # if loading failed save the default value to file
         if load_on_init and not self.load():
             logging.warning("Port configuration not fould, write default.")
@@ -125,7 +125,7 @@ class PortConfiguration:
                 return port
         return None
 
-    def save(self, output_stream : TextIOWrapper = None):
+    def save(self, output_stream : Optional[TextIOWrapper] = None):
         """ Save the current port configuration
         :return: True if saving was successfull, False otherwise
         """
@@ -149,7 +149,7 @@ class PortConfiguration:
             result = False
         return result
 
-    def load(self, input_stream : TextIOWrapper = None):
+    def load(self, input_stream : Optional[TextIOWrapper] = None):
         """ Load the current port configuration
         :return: True if loading was successfull, False otherwise
         """
@@ -190,7 +190,7 @@ class BarBotConfig:
     admin_password:str = "0000"
     pump_power:int = 100
     pump_power_sirup:int = 255
-    balance_offset:int = -119.1
+    balance_offset:int = -119
     balance_calibration:int = -1040
     cleaning_time:int = 3000
     stirrer_connected:bool = True
@@ -240,7 +240,7 @@ class BarBotConfig:
             filtered.append(ingredient)
         return filtered
 
-    def save(self, output_stream : TextIOWrapper = None):
+    def save(self, output_stream : Optional[TextIOWrapper] = None):
         """Save the current config values to the hard drive"""
         #prepare data
         data = { field : getattr(self, field) for field in self._fields }
@@ -264,7 +264,7 @@ class BarBotConfig:
             return False
         return len(self.mac_address.strip()) == 17
 
-    def load(self, input_stream : TextIOWrapper = None):
+    def load(self, input_stream : Optional[TextIOWrapper] = None):
         """Load the config from file"""
         #load data
         result = True

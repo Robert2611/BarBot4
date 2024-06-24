@@ -1,10 +1,8 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 import unittest
-import os
 from datetime import datetime
 from barbot.config import get_ingredient_by_identifier
 from barbot.recipes import load_recipe_from_yaml, Recipe, RecipeItem
-import barbot.config
 
 class TestRecipe(unittest.TestCase):
     def setUp(self):
@@ -14,12 +12,12 @@ class TestRecipe(unittest.TestCase):
         self.test_recipe.post_instruction = 'post'
         self.test_recipe.pre_instruction = 'pre'
         self.test_recipe.items = [
-            RecipeItem(get_ingredient_by_identifier("saft zitrone"), 1),
-            RecipeItem(get_ingredient_by_identifier("saft orange"), 2),
-            RecipeItem(get_ingredient_by_identifier("saft ananas"), 3),
-            RecipeItem(get_ingredient_by_identifier("sirup grenadine"), 4),
-            RecipeItem(get_ingredient_by_identifier("ruehren"), 5),
-            RecipeItem(get_ingredient_by_identifier("zucker"), 6)
+            RecipeItem(get_ingredient_by_identifier("saft zitrone"), 1), # type: ignore
+            RecipeItem(get_ingredient_by_identifier("saft orange"), 2), # type: ignore
+            RecipeItem(get_ingredient_by_identifier("saft ananas"), 3), # type: ignore
+            RecipeItem(get_ingredient_by_identifier("sirup grenadine"), 4), # type: ignore
+            RecipeItem(get_ingredient_by_identifier("ruehren"), 5), # type: ignore
+            RecipeItem(get_ingredient_by_identifier("zucker"), 6) # type: ignore
         ]
 
     def get_test_data_yaml(self):

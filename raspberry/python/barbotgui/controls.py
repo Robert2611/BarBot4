@@ -1,12 +1,12 @@
 """Controls used by the barbot gui"""
-from typing import List
+from typing import List, Optional
 from dataclasses import dataclass
-from PyQt5 import QtWidgets, QtCore, QtGui, Qt
+from PyQt5 import QtWidgets, QtCore, QtGui
 
 def move_widget_to_bottom_of_screen(window: QtWidgets.QWidget):
     """Move a widget to the bottom of the screen"""
-    desktop = Qt.QApplication.desktop().availableGeometry()
-    desired = Qt.QRect(Qt.QPoint(0, 0), window.sizeHint())
+    desktop = QtWidgets.QApplication.desktop().availableGeometry()
+    desired = QtCore.QRect(QtCore.QPoint(0, 0), window.sizeHint())
     desired.moveBottomRight(desktop.bottomRight())
     desired.setLeft(desktop.left())
     window.setGeometry(desired)
@@ -27,7 +27,8 @@ class BarChart(QtWidgets.QWidget):
     """Bar chart with labels"""
     def __init__(self, rows: List[BarChartRow]):
         super().__init__()
-        self.setLayout(QtWidgets.QGridLayout())
+        self._grid_layout = QtWidgets.QGridLayout()
+        self.setLayout(self._grid_layout)
 
         self._names = [row.name for row in rows]
         self._values = [row.value for row in rows]
@@ -44,26 +45,27 @@ class BarChart(QtWidgets.QWidget):
     def _add_bar(self, row_index):
         bar_wrapper = QtWidgets.QWidget()
         bar_wrapper.setProperty("class", "BarChartWrapper")
-        bar_wrapper.setLayout(QtWidgets.QHBoxLayout())
-        set_no_spacing(bar_wrapper.layout())
-        self.layout().addWidget(bar_wrapper, row_index, 1)
+        wrapper_layout = QtWidgets.QHBoxLayout()
+        bar_wrapper.setLayout(wrapper_layout)
+        set_no_spacing(wrapper_layout)
+        self._grid_layout.addWidget(bar_wrapper, row_index, 1)
 
         # set width of bar as horizontal stretch
         w = int(self._values_relative[row_index] * 100)
         bar_widget = QtWidgets.QWidget()
         bar_widget.setProperty("class", "BarChartBar")
-        bar_wrapper.layout().addWidget(bar_widget, w)
+        wrapper_layout.addWidget(bar_widget, w)
 
         dummy = QtWidgets.QWidget()
-        bar_wrapper.layout().addWidget(dummy, 100 - w)
+        wrapper_layout.addWidget(dummy, 100 - w)
 
     def _add_name_label(self, row_index):
         label = QtWidgets.QLabel(self._names[row_index])
-        self.layout().addWidget(label, row_index, 0)
+        self._grid_layout.addWidget(label, row_index, 0)
 
     def _add_value_label(self, row_index):
         label = QtWidgets.QLabel(str(self._values[row_index]))
-        self.layout().addWidget(label, row_index, 2)
+        self._grid_layout.addWidget(label, row_index, 2)
 
 @dataclass
 class GlasFilling():
@@ -199,7 +201,7 @@ class Keyboard(QtWidgets.QWidget):
     """A keyboard used for touch input"""
     _is_widgets_created = False
     _is_shift = False
-    target: QtWidgets.QLineEdit = None
+    target: Optional[QtWidgets.QLineEdit] = None
 
     def __init__(self, target: QtWidgets.QLineEdit, style=None):
         super().__init__()
@@ -207,11 +209,11 @@ class Keyboard(QtWidgets.QWidget):
         self.target = target
 
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.setProperty("class", "Keyboard")
         if style is not None:
             self.setStyleSheet(style)
-        self.setCursor(QtCore.Qt.BlankCursor)
+        self.setCursor(QtCore.Qt.CursorShape.BlankCursor)
 
         self._number_keys = [
             ["1", "!"], ["2", "\""], ["3", "§"], ["4", "$"], ["5", "%"],
@@ -241,7 +243,7 @@ class Keyboard(QtWidgets.QWidget):
         #number keys
         for index, data in enumerate(self._number_keys):
             new_text = data[1] if self._is_shift else data[0]
-            self._numbers_row[index].setText()
+            self._numbers_row[index].setText(new_text)
         #letter keys
         for keys in self._letter_keys:
             for index, letter in enumerate(keys):
@@ -303,20 +305,17 @@ class Keyboard(QtWidgets.QWidget):
 
 class Numpad(QtWidgets.QWidget):
     """More simple version of a keyboard with only numbers"""
-    target: QtWidgets.QSpinBox = None
-    current_value: int = 0
-
     def __init__(self, target: QtWidgets.QSpinBox, style=None):
         super().__init__()
         self.target = target
         self.current_value = 0
 
         self.setLayout(QtWidgets.QVBoxLayout())
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.setProperty("class", "Keyboard")
         if style is not None:
             self.setStyleSheet(style)
-        self.setCursor(QtCore.Qt.BlankCursor)
+        self.setCursor(QtCore.Qt.CursorShape.BlankCursor)
 
         self._add_value_label()
         self._add_keypad()
@@ -331,27 +330,28 @@ class Numpad(QtWidgets.QWidget):
     def _add_keypad(self):
         # numpad
         numpad = QtWidgets.QWidget()
-        numpad.setLayout(QtWidgets.QGridLayout())
-        self.layout().setAlignment(numpad, QtCore.Qt.AlignCenter)
+        numpad_layout = QtWidgets.QGridLayout()
+        numpad.setLayout(numpad_layout)
+        self.layout().setAlignment(numpad, QtCore.Qt.AlignmentFlag.AlignCenter)
         for y in range(0, 3):
             for x in range(0, 3):
                 num = y * 3 + x + 1
                 button = QtWidgets.QPushButton(str(num))
                 button.clicked.connect(
                     lambda _, value=num: self._button_clicked(value))
-                numpad.layout().addWidget(button, y, x)
+                numpad_layout.addWidget(button, y, x)
         # Cancel
         button = QtWidgets.QPushButton("Abbrechen")
         button.clicked.connect(self.close)
-        numpad.layout().addWidget(button, 3, 0)
+        numpad_layout.addWidget(button, 3, 0)
         # zero
         button = QtWidgets.QPushButton("0")
         button.clicked.connect(lambda _: self._button_clicked(0))
-        numpad.layout().addWidget(button, 3, 1)
+        numpad_layout.addWidget(button, 3, 1)
         # enter
         button = QtWidgets.QPushButton("Ok")
         button.clicked.connect(self._apply_value_to_target)
-        numpad.layout().addWidget(button, 3, 2)
+        numpad_layout.addWidget(button, 3, 2)
         self.layout().addWidget(numpad)
 
     def _apply_value_to_target(self):

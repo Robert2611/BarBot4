@@ -15,7 +15,7 @@ class ErrorType(Enum):
 
     NONE = 0
 
-    # generated error codes are above 100, so we don't interfere with the mainboard codes 
+    # generated error codes are above 100, so we don't interfere with the mainboard codes
     COMM_ERROR = 101
     SEND_FAILED = 102
     NO_RESULT_SENT = 103
@@ -36,6 +36,7 @@ class ErrorType(Enum):
     SUGAR_DISPENSER_TIMEOUT = 42
 
 def is_mainboard_error(error:ErrorType):
+    """Returns whether a ErrorType is an error inside the mainboard firmware"""
     return error.value < ErrorType.COMM_ERROR.value
 
 class BoardType(Enum):
@@ -102,7 +103,7 @@ def decode_firmware_version(version: int) -> FirmwareVersion:
 
 class CommunicationResult():
     """Result of a command sent to the mainboard"""
-    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: List[str] = None):
+    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: List[str] | None = None):
         self.error: ErrorType = error
         self.return_parameters: List[str] = [] if return_parameters is None else return_parameters
 
@@ -153,11 +154,11 @@ class MainboardConnection(ABC):
 class MainboardConnectionBluetooth(MainboardConnection):
     """Implementation of the MaimboardConnection using bluetooth"""
     def __init__(self):
-        self._conn : bluetooth.BluetoothSocket = None
+        self._conn : bluetooth.BluetoothSocket | None = None
         self._is_connected = False
 
     @staticmethod
-    def find_bar_bot() -> str:
+    def find_bar_bot() -> str | None:
         """Find all bluetooth devices nearby that have 'Bar Bot' in their name.
         :returns: The mac address of the first found device that matches the name.
         """
@@ -176,7 +177,7 @@ class MainboardConnectionBluetooth(MainboardConnection):
         # make sure to read everything there is
         while True:
             # read up to 1024 bytes
-            received = self._conn.recv(1024)
+            received = self._conn.recv(1024) # type: ignore
             data += received
             # we actually received 1024 bytes
             if len(received) == 1024:
@@ -193,7 +194,7 @@ class MainboardConnectionBluetooth(MainboardConnection):
             logging.warning("read_line: More than one line in buffer! Received: '%s'", repr(decoded_data))
         return lines[-2]
 
-    def read_line(self) -> str:
+    def read_line(self) -> str | None:
         """Read the last line that was received on the manboard connection.
         This command is blocking!
         :returns: The last line received. None, if the mainboard is not connected."""
@@ -202,26 +203,26 @@ class MainboardConnectionBluetooth(MainboardConnection):
             return None
         try:
             line = self._read_line_unsave()
-        except bluetooth.btcommon.BluetoothError as e:
+        except bluetooth.btcommon.BluetoothError as e: # type: ignore
             self._is_connected = False
             logging.error("Read failed with BluetoothError:%s", e.args)
-            return RawResponse(ResponseTypes.COMM_ERROR, e)
+            return None
 
         return line
 
     def send(self, line : str):
-        self._conn.send(f"{line}\r".encode())
+        self._conn.send(f"{line}\r".encode()) # type: ignore
 
     def connect(self, identifier: str = ""):
         """Connect to a bluetooth device with the given mac address.
         :param mac_address: The mac address of the device to connect to."""
         mac_address = identifier
         if self._conn is not None:
-            self._conn.close()
+            self._conn.close() # type: ignore
         try:
             self._conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-            self._conn.connect((mac_address, 1))
-            self._conn.settimeout(CONNECTION_TIMEOUT)
+            self._conn.connect((mac_address, 1)) # type: ignore
+            self._conn.settimeout(CONNECTION_TIMEOUT) # type: ignore
             # read one line to make sure the mainboard has started
             self.read_line()
             self._is_connected = True
@@ -234,7 +235,7 @@ class MainboardConnectionBluetooth(MainboardConnection):
     def disconnect(self):
         """Disconnect from the mainboard by closing the bluetooth connection"""
         if self._conn is not None:
-            self._conn.close()
+            self._conn.close() # type: ignore
 
     @property
     def is_connected(self) -> bool:
@@ -330,7 +331,7 @@ class Mainboard:
             result.return_parameters = message.parameters
         return result
 
-    def do(self, command, *parameters:str) -> CommunicationResult:
+    def do(self, command: str, *parameters:str) -> CommunicationResult:
         """
         Send a DO command to the controller and wait for it to finish
         

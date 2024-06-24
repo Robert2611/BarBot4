@@ -37,9 +37,9 @@ pip3 install -r "$INSTALL_FOLDER/python/requirements.txt"
 sudo systemctl start hciuart
 
 # Check if we are on a raspbian system
-if [[ $(cat /etc/os-release|grep -i "pretty") = *"aspbian"* ]]; then
+if grep -q "NAME=\"Raspbian" /etc/os-release; then
 	#add gui to x-servers startup if not yet so
-	X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
+	X_AUTOSTART_PATH=~/.config/lxsession/LXDE-pi/
 	#create path if not exist
 	mkdir -p $X_AUTOSTART_PATH
 	X_AUTOSTART_FILE="$X_AUTOSTART_PATH/autostart"
@@ -54,7 +54,8 @@ point-rpi
 EOL
 
 	#create desktop shortcut and make it executable
-cat > ~/Desktop/barbot.desktop << EOL
+	DESKTOP_SHORTCUT=~/Desktop/barbot.desktop
+cat > $DESKTOP_SHORTCUT << EOL
 [Desktop Entry]
 Name=BarBot
 Comment=Starte BarBot

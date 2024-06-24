@@ -1,5 +1,5 @@
 """Views to be shown for admins"""
-from typing import Dict
+from typing import Dict, Optional
 from PyQt5 import QtWidgets, QtCore
 from barbot.communication import BoardType
 from barbot.config import version as barbot_version
@@ -13,7 +13,8 @@ class AdminView(UserView):
     def __init__(self, window:BarBotWindow):
         super().__init__(window)
 
-        self._content.setLayout(QtWidgets.QVBoxLayout())
+        self._content_layout = QtWidgets.QVBoxLayout()
+        self._content.setLayout(self._content_layout)
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
 
     def _add_back_button_to_fixed_content(self):
@@ -43,8 +44,10 @@ class AdminLogin(AdminView):
 
     def _add_numpad(self):
         numpad = QtWidgets.QWidget()
-        numpad.setLayout(QtWidgets.QGridLayout())
-        self._content.layout().setAlignment(numpad, QtCore.Qt.AlignCenter)
+        layout = QtWidgets.QGridLayout()
+        numpad.setLayout(layout)
+        # pylint: disable-next=no-member
+        self._content.layout().setAlignment(numpad, QtCore.Qt.AlignmentFlag.AlignCenter)
         for y in range(0, 3):
             for x in range(0, 3):
                 num = y * 3 + x + 1
@@ -52,24 +55,24 @@ class AdminLogin(AdminView):
                 button.setProperty("class", "NumpadButton")
                 button.clicked.connect(
                     lambda checked, value=num: self._numpad_button_clicked(value))
-                numpad.layout().addWidget(button, y, x)
+                layout.addWidget(button, y, x)
         # clear
         button = QtWidgets.QPushButton("Clear")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self._clear_password())
-        numpad.layout().addWidget(button, 3, 0)
+        layout.addWidget(button, 3, 0)
         # zero
         button = QtWidgets.QPushButton("0")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self._numpad_button_clicked(0))
-        numpad.layout().addWidget(button, 3, 1)
+        layout.addWidget(button, 3, 1)
         # enter
         button = QtWidgets.QPushButton("Enter")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self._check_password())
-        numpad.layout().addWidget(button, 3, 2)
+        layout.addWidget(button, 3, 2)
 
-        self._content.layout().addWidget(numpad, 1)
+        self._content_layout.addWidget(numpad, 1)
 
     def _update(self):
         self.password_widget.setText(
@@ -124,7 +127,8 @@ class Overview(AdminView):
 
     def _add_admin_navigation_by_items(self):
         self.admin_navigation = QtWidgets.QWidget()
-        self.admin_navigation.setLayout(QtWidgets.QGridLayout())
+        navigation_layout = QtWidgets.QGridLayout()
+        self.admin_navigation.setLayout(navigation_layout)
         self._content.layout().addWidget(self.admin_navigation)
 
         columns = 1
@@ -135,7 +139,7 @@ class Overview(AdminView):
             def btn_click(_, c=_class):
                 return self.window.set_view(c(self.window))
             button.clicked.connect(btn_click)
-            self.admin_navigation.layout().addWidget(button, row, column)
+            navigation_layout.addWidget(button, row, column)
             column += 1
             if column >= columns:
                 column = 0
@@ -154,7 +158,8 @@ class Overview(AdminView):
         # wrapper
         wrapper = QtWidgets.QWidget()
         wrapper.setProperty("class", "Boards")
-        wrapper.setLayout(QtWidgets.QGridLayout())
+        wrapper_layout = QtWidgets.QGridLayout()
+        wrapper.setLayout(wrapper_layout)
         self._content.layout().addWidget(wrapper)
         for board, icon in self.boards:
             connected = board in self.barbot_.connected_boards
@@ -163,24 +168,24 @@ class Overview(AdminView):
             button_board_icon = QtWidgets.QPushButton(icon, "")
             button_board_icon.setProperty("class", "IconPresenter")
             button_board_icon.setEnabled(connected)
-            wrapper.layout().addWidget(button_board_icon, row, 0, 1, 1)
+            wrapper_layout.addWidget(button_board_icon, row, 0, 1, 1)
             # connected / disconnected icon
             icon = qt_icon_from_file_name("plug-on.png" if connected else "plug-off.png")
             button = QtWidgets.QPushButton(icon, "")
             button.setProperty("class", "IconPresenter")
             button.setEnabled(connected)
-            wrapper.layout().addWidget(button, row, 1, 1, 1)
+            wrapper_layout.addWidget(button, row, 1, 1, 1)
 
             self._board_widgets[board] = [button_board_icon, button]
 
             if board == BoardType.BALANCE:
                 # weight label
                 self._weight_label = QtWidgets.QLabel()
-                wrapper.layout().addWidget(self._weight_label, row, 2, 1, 3)
+                wrapper_layout.addWidget(self._weight_label, row, 2, 1, 3)
             row += 1
         # dummy
-        wrapper.layout().addWidget(QtWidgets.QWidget(), 0, 0)
-        wrapper.layout().addWidget(QtWidgets.QWidget(), row, 0)
+        wrapper_layout.addWidget(QtWidgets.QWidget(), 0, 0)
+        wrapper_layout.addWidget(QtWidgets.QWidget(), row, 0)
 
     def _add_version_label(self):
         version_label = QtWidgets.QLabel(f"Version: {barbot_version}")
@@ -209,22 +214,24 @@ class Ports(AdminView):
 
     def _add_list_of_ports(self):
         table = QtWidgets.QWidget()
-        table.setLayout(QtWidgets.QGridLayout())
+        layout = QtWidgets.QGridLayout()
+        table.setLayout(layout)
         self._content.layout().addWidget(table)
         self._ingredient_widgets = {}
         for i in range(PORT_COUNT):
             label = QtWidgets.QLabel(f"Position {(i+1)}")
-            table.layout().addWidget(label, i, 0)
+            layout.addWidget(label, i, 0)
             ingredient = self.barbot_.ports.ingredient_at_port(i)
             cb_port = self.window.combobox_ingredients(ingredient, only_normal=True)
             self._ingredient_widgets[i] = cb_port
-            table.layout().addWidget(cb_port, i, 1)
+            layout.addWidget(cb_port, i, 1)
 
     def _add_save_button(self):
         button = QtWidgets.QPushButton("Speichern")
         button.clicked.connect(self._save)
         self._content.layout().addWidget(button)
-        self._content.layout().setAlignment(button, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        self._content.layout().setAlignment(button, QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _save(self):
         new_ports:Dict[int, Ingredient] = {}
@@ -272,14 +279,15 @@ class BalanceCalibration(AdminView):
 
     def _add_dialog_remove_glas(self):
         self._dialog_remove_glas = QtWidgets.QWidget()
-        self._dialog_remove_glas.setLayout(QtWidgets.QGridLayout())
+        dialog_layout = QtWidgets.QGridLayout()
+        self._dialog_remove_glas.setLayout(dialog_layout)
         self._dialog_remove_glas.setVisible(False)
-        self._content.layout().addWidget(self._dialog_remove_glas, 1)
+        self._content_layout.addWidget(self._dialog_remove_glas, 1)
 
         center_box = QtWidgets.QFrame()
         center_box.setLayout(QtWidgets.QVBoxLayout())
-        self._dialog_remove_glas.layout().addWidget(
-            center_box, 0, 0, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        dialog_layout.addWidget(center_box, 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
 
         label = QtWidgets.QLabel("Bitte alles von der Platform entfernen.")
         center_box.layout().addWidget(label)
@@ -298,14 +306,15 @@ class BalanceCalibration(AdminView):
 
     def _add_dialog_enter_weight(self):
         self._dialog_enter_weight = QtWidgets.QWidget()
-        self._dialog_enter_weight.setLayout(QtWidgets.QGridLayout())
+        layout = QtWidgets.QGridLayout()
+        self._dialog_enter_weight.setLayout(layout)
         self._dialog_enter_weight.setVisible(False)
-        self._content.layout().addWidget(self._dialog_enter_weight, 1)
+        self._content_layout.addWidget(self._dialog_enter_weight, 1)
 
         center_box = QtWidgets.QFrame()
         center_box.setLayout(QtWidgets.QVBoxLayout())
-        self._dialog_enter_weight.layout().addWidget(
-            center_box, 0, 0, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        layout.addWidget( center_box, 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
 
         label = QtWidgets.QLabel(
             "Bitte aktuelles Gewicht\nauf der Platorm angeben.")
@@ -321,7 +330,8 @@ class BalanceCalibration(AdminView):
 
         # numpad
         numpad = QtWidgets.QWidget()
-        numpad.setLayout(QtWidgets.QGridLayout())
+        numpad_layout = QtWidgets.QGridLayout()
+        numpad.setLayout(numpad_layout)
         for y in range(0, 3):
             for x in range(0, 3):
                 num = y * 3 + x + 1
@@ -329,23 +339,23 @@ class BalanceCalibration(AdminView):
                 button.setProperty("class", "NumpadButton")
                 button.clicked.connect(
                     lambda checked, value=num: self._numpad_button_clicked(value))
-                numpad.layout().addWidget(button, y, x)
+                numpad_layout.addWidget(button, y, x)
         # cancel
         button = QtWidgets.QPushButton("Abbrechen")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(
             lambda checked: self._show_dialog_calibration_buttons())
-        numpad.layout().addWidget(button, 3, 0)
+        numpad_layout.addWidget(button, 3, 0)
         # zero
         button = QtWidgets.QPushButton("0")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self._numpad_button_clicked(0))
-        numpad.layout().addWidget(button, 3, 1)
+        numpad_layout.addWidget(button, 3, 1)
         # enter
         button = QtWidgets.QPushButton("OK")
         button.setProperty("class", "NumpadButton")
         button.clicked.connect(lambda checked: self._calibrate())
-        numpad.layout().addWidget(button, 3, 2)
+        numpad_layout.addWidget(button, 3, 2)
 
         center_box.layout().addWidget(numpad)
 
@@ -359,7 +369,7 @@ class BalanceCalibration(AdminView):
     def _add_dialog_calibration_buttons(self):
         self._dialog_calibration_buttons = QtWidgets.QWidget()
         self._dialog_calibration_buttons.setLayout(QtWidgets.QGridLayout())
-        self._content.layout().addWidget(self._dialog_calibration_buttons, 1)
+        self._content_layout.addWidget(self._dialog_calibration_buttons, 1)
 
         # Tare
         button = QtWidgets.QPushButton("Tara")
@@ -449,7 +459,8 @@ class Cleaning(AdminView):
 
     def _add_button_grid_for_single_ports(self):
         grid = QtWidgets.QWidget()
-        grid.setLayout(QtWidgets.QGridLayout())
+        grid_layout = QtWidgets.QGridLayout()
+        grid.setLayout(grid_layout)
         self._content.layout().addWidget(grid)
         for column in range(6):
             for row in range(2):
@@ -457,14 +468,14 @@ class Cleaning(AdminView):
                 button = QtWidgets.QPushButton(str(port + 1))
                 button.clicked.connect(
                     lambda _, pid=port: self._clean_single(pid))
-                grid.layout().addWidget(button, row, column)
+                grid_layout.addWidget(button, row, column)
 
     def _clean_left(self):
-        data = range(0, 6)
+        data = list(range(0, 6))
         self.barbot_.start_cleaning_cycle(data)
 
     def _clean_right(self):
-        data = range(6, 12)
+        data = list(range(6, 12))
         self.barbot_.start_cleaning_cycle(data)
 
     def _clean_single(self, port):
@@ -512,7 +523,8 @@ class Settings(AdminView):
 
     def _add_form_defined_by_entries(self):
         form_widget = QtWidgets.QWidget()
-        form_widget.setLayout(QtWidgets.QGridLayout())
+        form_widget_layout = QtWidgets.QGridLayout()
+        form_widget.setLayout(form_widget_layout)
         self._content.layout().addWidget(form_widget)
         row = 0
         config = self.barbot_.config
@@ -525,7 +537,7 @@ class Settings(AdminView):
                 if "max" in entry:
                     edit_widget.setMaximum(entry["max"])
                 edit_widget.setValue(getattr(config, entry["setting"]))
-                edit_widget.enterEvent = lambda e, w=edit_widget: self.window.open_numpad(w)
+                edit_widget.enterEvent = lambda a0, w=edit_widget: self.window.open_numpad(w)
                 #TODO: Numpad only opens if focus is already on the element
             elif entry["type"] == bool:
                 edit_widget = QtWidgets.QCheckBox()
@@ -534,8 +546,8 @@ class Settings(AdminView):
                 edit_widget = QtWidgets.QLineEdit()
                 edit_widget.setText(getattr(config, entry["setting"]))
             entry["widget"] = edit_widget
-            form_widget.layout().addWidget(label, row, 0)
-            form_widget.layout().addWidget(edit_widget, row, 1)
+            form_widget_layout.addWidget(label, row, 0)
+            form_widget_layout.addWidget(edit_widget, row, 1)
             row += 1
 
     def _add_save_button(self):
@@ -573,7 +585,7 @@ class RemoveRecipe(AdminView):
         super().__init__(window)
 
         self._list = None
-        self._recipe:Recipe = None
+        self._recipe: Optional[Recipe] = None
 
         self._add_title_to_fixed_content("Rezepte löschen")
         self._add_back_button_to_fixed_content()
@@ -582,14 +594,15 @@ class RemoveRecipe(AdminView):
 
     def _add_confirmation_dialog(self):
         self._confirmation_dialog = QtWidgets.QWidget()
-        self._confirmation_dialog.setLayout(QtWidgets.QGridLayout())
+        dialog_layout = QtWidgets.QGridLayout()
+        self._confirmation_dialog.setLayout(dialog_layout)
         self._confirmation_dialog.setVisible(False)
-        self._content.layout().addWidget(self._confirmation_dialog, 1)
+        self._content_layout.addWidget(self._confirmation_dialog, 1)
 
         center_box = QtWidgets.QFrame()
         center_box.setLayout(QtWidgets.QVBoxLayout())
-        self._confirmation_dialog.layout().addWidget(
-            center_box, 0, 0, QtCore.Qt.AlignCenter)
+        # pylint: disable-next=no-member
+        dialog_layout.addWidget(center_box, 0, 0, QtCore.Qt.AlignmentFlag.AlignCenter)
 
         label = QtWidgets.QLabel("Wirklich löschen?")
         center_box.layout().addWidget(label)
@@ -608,40 +621,44 @@ class RemoveRecipe(AdminView):
 
     def _add_recipe_list(self):
         if self._list is not None:
-            self._list.setParent(None)
+            self._list.setParent(None) # type: ignore
 
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
-        self._content.layout().addWidget(self._list, 1)
+        self._content_layout.addWidget(self._list, 1)
         recipes = self.window.recipes.get_filtered(None, self.barbot_.ports, self.barbot_.config)
         for recipe in recipes:
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
-            recipe_box.setLayout(QtWidgets.QHBoxLayout())
+            box_layout = QtWidgets.QHBoxLayout()
+            recipe_box.setLayout(box_layout)
             self._list.layout().addWidget(recipe_box)
 
             # title
             recipe_title = QtWidgets.QLabel(recipe.name)
             recipe_title.setProperty("class", "RecipeTitle")
-            recipe_box.layout().addWidget(recipe_title, 1)
+            box_layout.addWidget(recipe_title, 1)
 
             # remove button
             icon = qt_icon_from_file_name("remove.png")
             remove_button = QtWidgets.QPushButton(icon, "")
             remove_button.clicked.connect(
                 lambda _, r=recipe: self._show_confirmation(r))
-            recipe_box.layout().addWidget(remove_button, 0)
+            box_layout.addWidget(remove_button, 0)
 
     def _show_confirmation(self, recipe: Recipe):
         self._recipe = recipe
-        self._list.setVisible(False)
+        if self._list is not None:
+            self._list.setVisible(False)
         self._confirmation_dialog.setVisible(True)
 
     def _hide_confirmation(self):
+        if self._list is not None:
+            self._list.setVisible(True)
         self._confirmation_dialog.setVisible(False)
-        self._list.setVisible(True)
 
     def _remove(self):
-        self.window.recipes.remove(self._recipe)
+        if self._recipe is not None:
+            self.window.recipes.remove(self._recipe)
         self._hide_confirmation()
         self._add_recipe_list()

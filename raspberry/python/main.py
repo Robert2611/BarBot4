@@ -7,7 +7,6 @@ import threading
 import signal
 import os
 from datetime import datetime
-from types import TracebackType
 import psutil
 
 from PyQt5 import QtWidgets
@@ -60,7 +59,6 @@ recipe_collection.load()
 bar_bot_thread = threading.Thread(target=bot.run)
 bar_bot_thread.start()
 
-app = None
 
 # handle interrupt signal
 def sigint_handler(*_):
