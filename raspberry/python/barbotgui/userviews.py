@@ -327,7 +327,7 @@ class RecipeNewOrEdit(UserView):
         self._ingredient_widgets = []
         for i in range(max_count):
             # get selected checkbox entry or default
-            if not self._is_new_cocktail and i < len(self._recipe.items):
+            if self._original_recipe is not None and i < len(self._recipe.items):
                 selected_amount = self._recipe.items[i].amount
                 selected_ingredient = self._recipe.items[i].ingredient
             else:
@@ -438,14 +438,14 @@ class RecipeNewOrEdit(UserView):
             else:
                 item = RecipeItem(ingredient, amount)
             self._recipe.items.append(item)
-        if not self._is_new_cocktail and self._recipe.equal_to(self._original_recipe):
+        if self._original_recipe is not None and self._recipe.equal_to(self._original_recipe):
             self.window.show_message("Rezept wurde nicht verändert")
             return
         # save copy or new recipe
         if self._original_recipe is not None:
             self.window.recipes.remove(self._original_recipe)
         self.window.recipes.add(self._recipe)
-        if self._is_new_cocktail:
+        if self._original_recipe is None:
             self._reload_with_message("Neues Rezept gespeichert")
         else:
             self._reload_with_message("Rezept gespeichert")
