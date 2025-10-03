@@ -4,13 +4,13 @@ import os
 
 from PyQt5 import QtWidgets, Qt, QtCore
 
-from logic import BarBot
-from logic.recipes import RecipeCollection
+from ..logic import BarBot
+from ..logic.recipes import RecipeCollection
 
-from gui.core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry
-from gui.controls import Keyboard, Numpad, set_no_spacing
-from gui.adminviews import AdminLogin
-from gui.userviews import ListRecipes, OrderRecipe
+from .core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry
+from .controls import Keyboard, Numpad, set_no_spacing
+from .adminviews import AdminLogin
+from .userviews import ListRecipes, OrderRecipe
 
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 
@@ -49,7 +49,7 @@ class MainWindow(BarBotWindow):
         self._mixing_progress_trigger.connect(self._busyview_set_progress)
         self._barbot.on_mixing_progress_changed = self._mixing_progress_trigger.emit
 
-        # make sure the message splash is created from gui thread
+        # make sure the message splash is created from  thread
         self._show_message_trigger.connect(self._show_message_splash)
 
         # remove borders and title bar

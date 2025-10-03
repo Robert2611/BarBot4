@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "barbot"
+version = "4.4.3"
+description = "BarBot4 Raspberry Pi Python application"
+authors = [{ name = "Robert2611" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Add your runtime dependencies here, e.g.:
+    "PyQt5>=5.15.0",
+    "pybluez @ git+https://github.com/pybluez/pybluez.git",
+    "pyyaml",
+    "psutil",
+]
+
+[project.scripts]
+barbot = "barbot.__main__:barbot"
+barbot-with-log = "barbot.__main__:barbot_with_log"
+barbot-demo = "barbot.__main__:barbot_demo"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-qt"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]

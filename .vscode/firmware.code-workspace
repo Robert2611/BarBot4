@@ -1,0 +1,50 @@
+{
+	"folders": [
+		{
+			"name": "All",
+			"path": ".."
+		},
+		{
+			"name": "FW shared",
+			"path": "../firmware/shared"
+		},
+		{
+			"name": "FW balance",
+			"path": "../firmware/balance"
+		},
+		{
+			"name": "FW crusher",
+			"path": "../firmware/crusher"
+		},
+		{
+			"name": "FW maiboard",
+			"path": "../firmware/maiboard"
+		},
+		{
+			"name": "FW mixer",
+			"path": "../firmware/mixer"
+		},
+		{
+			"name": "FW straw",
+			"path": "../firmware/straw"
+		},
+		{
+			"name": "FW sugar",
+			"path": "../firmware/sugar"
+		}
+	],
+	"settings": {},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Python: BarBotTools",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "./firmware/barbottools.py",
+				"console": "integratedTerminal"
+			},
+		],
+		"compounds": []
+	}
+}

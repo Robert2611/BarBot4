@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import logging
 import sys
 import traceback
@@ -13,91 +14,92 @@ import psutil
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QTimer
 
-from gui import MainWindow
+from .gui import MainWindow
 
-from logic import BarBot, Mainboard
-from logic.recipes import RecipeCollection
-from logic.config import log_directory, BarBotConfig, PortConfiguration
-from logic.communication import MainboardConnectionBluetooth
-from logic.mockup import MaiboardConnectionMockup
+from .logic import BarBot, Mainboard
+from .logic.recipes import RecipeCollection
+from .logic.config import log_directory, BarBotConfig, PortConfiguration
+from .logic.communication import MainboardConnectionBluetooth
+from .logic.mockup import MainboardConnectionMockup
 
-# cofigure logging
-exception_file_path = os.path.join(
-    log_directory,
-    datetime.now().strftime("#Exception %Y-%m-%d %H-%M-%S.txt")
-)
-log_file_path = os.path.join(
-    log_directory,
-    datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")
-)
-# for some reason the logger is already configured, so we have to remove the handler
-logging.getLogger().handlers.clear()
-logging.basicConfig(
-    filename=log_file_path,
-    filemode='w',
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s\t%(message)s'
-)
 
-# log to file and stdout
-if "-t" in sys.argv[1:]:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s\t%(message)s'))
-    logging.getLogger().addHandler(handler)
+def setup_logging(enable_log_to_stdout: bool):
+    exception_file_path = os.path.join(
+        log_directory,
+        datetime.now().strftime("#Exception %Y-%m-%d %H-%M-%S.txt")
+    )
+    log_file_path = os.path.join(
+        log_directory,
+        datetime.now().strftime("BarBot %Y-%m-%d %H-%M-%S.log")
+    )
+    logging.getLogger().handlers.clear()
+    logging.basicConfig(
+        filename=log_file_path,
+        filemode='w',
+        level=logging.DEBUG,
+        format='%(asctime)s %(levelname)s\t%(message)s'
+    )
+    if enable_log_to_stdout:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s\t%(message)s'))
+        logging.getLogger().addHandler(handler)
+    return log_file_path, exception_file_path
 
-logging.info("<<<<<<BarBot started>>>>>>")
-logging.info("--------------------------")
+def handle_exception_factory(exception_file_path):
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+        with open(exception_file_path, 'a', encoding="utf-8") as f:
+            traceback_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            f.write("\n".join(traceback_lines))
+            f.write('\n')
+            f.write(str(psutil.virtual_memory()))
+    return handle_exception
 
-is_demo = "-d" in sys.argv[1:]
-ports = PortConfiguration()
-config = BarBotConfig()
-mainboard = Mainboard(MaiboardConnectionMockup() if is_demo else MainboardConnectionBluetooth())
-bot = BarBot(config, ports, mainboard)
-recipe_collection = RecipeCollection()
-recipe_collection.load()
+def create_barbot(is_demo):
+    ports = PortConfiguration()
+    config = BarBotConfig()
+    mainboard = Mainboard(MainboardConnectionMockup() if is_demo else MainboardConnectionBluetooth())
+    bot = BarBot(config, ports, mainboard)
+    return bot
 
-# create statemachine
-bar_bot_thread = threading.Thread(target=bot.run)
-bar_bot_thread.start()
+def start_statemachine(bot):
+    bar_bot_thread = threading.Thread(target=bot.run)
+    bar_bot_thread.start()
+    return bar_bot_thread
 
-app = None
+def setup_sigint(app):
+    def sigint_handler(*_):
+        logging.info("SIGINT received!")
+        if app is not None:
+            app.quit()
+    signal.signal(signal.SIGINT, sigint_handler)
 
-# handle interrupt signal
-def sigint_handler(*_):
-    """Close the gui on interrupt signal"""
-    logging.info("SIGINT received!")
-    if app is not None:
-        app.quit()
-signal.signal(signal.SIGINT, sigint_handler)
+def run(is_demo: bool, enable_log_to_stdout: bool):
+    log_file_path, exception_file_path = setup_logging(enable_log_to_stdout)
+    logging.info("<<<<<<BarBot started>>>>>>")
+    logging.info("--------------------------")
 
-# hook for unhandled exceptions
-def handle_exception(exc_type, exc_value, exc_traceback):
-    """Log exception to log and also to separate exceptiopn file"""
-    if issubclass(exc_type, KeyboardInterrupt):
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-    logging.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-    #logging.error(traceback.format_exc())
-    with open(exception_file_path, 'a', encoding="utf-8") as f:
-        tesrt = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        f.write("\n".join(tesrt))
-        f.write('\n')
-        f.write(str(psutil.virtual_memory()))
-sys.excepthook = handle_exception
+    bot = create_barbot(is_demo)
+    bar_bot_thread = start_statemachine(bot)
+    
+    recipe_collection = RecipeCollection()
+    recipe_collection.load()
 
-# show gui and join the threads
-app = QtWidgets.QApplication(sys.argv)
-form = MainWindow(bot, recipe_collection)
-form.show()
-# Let the interpreter run periodically to handle signals.
-timer = QTimer()
-timer.start(500)
-timer.timeout.connect(lambda: None)
-# start the qt app
-app.exec_()
-# tell the statemachine to stop
-bot.abort()
-bar_bot_thread.join()
+    sys.excepthook = handle_exception_factory(exception_file_path)
 
-logging.info("-------------------------")
-logging.info(">>>>>>BarBot closed<<<<<<")
+    app = QtWidgets.QApplication(sys.argv)
+    setup_sigint(app)
+    form = MainWindow(bot, recipe_collection)
+    form.show()
+    timer = QTimer()
+    timer.start(500)
+    timer.timeout.connect(lambda: None)
+    app.exec_()
+    bot.abort()
+    bar_bot_thread.join()
+
+    logging.info("-------------------------")
+    logging.info(">>>>>>BarBot closed<<<<<<")

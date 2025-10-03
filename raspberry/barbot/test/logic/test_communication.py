@@ -1,8 +1,8 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 import unittest
 from unittest.mock import MagicMock
-from logic.communication import decode_firmware_version, FirmwareVersion, Mainboard
-from logic.mockup import MaiboardConnectionMockup
+from barbot.logic.communication import decode_firmware_version, FirmwareVersion, Mainboard
+from barbot.logic.mockup import MainboardConnectionMockup
 
 class TestCommunication(unittest.TestCase):
     def test_firmware_version_decoding(self):
@@ -23,7 +23,7 @@ class TestCommunication(unittest.TestCase):
         assert FirmwareVersion(0, 0, 0) <= FirmwareVersion(4, 0, 0)
 
     def test_mainboard_commands(self):
-        connection_mockup = MaiboardConnectionMockup()
+        connection_mockup = MainboardConnectionMockup()
         connection_mockup.duration_DO = 0.01
         connection_mockup.duration_SET = 0.01
         connection_mockup.duration_GET = 0.01

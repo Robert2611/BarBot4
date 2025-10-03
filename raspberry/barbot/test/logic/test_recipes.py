@@ -2,9 +2,9 @@
 import unittest
 import os
 from datetime import datetime
-from logic.config import get_ingredient_by_identifier
-from logic.recipes import load_recipe_from_yaml, Recipe, RecipeItem
-import logic.config
+from barbot.logic.config import get_ingredient_by_identifier
+from barbot.logic.recipes import load_recipe_from_yaml, Recipe, RecipeItem
+import barbot.logic.config
 
 class TestRecipe(unittest.TestCase):
     def setUp(self):

@@ -1,5 +1,7 @@
-*.code-workspace
 log
 .log
 *.cfg
 .idea
+*.egg-info
+venv
+.venv

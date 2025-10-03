@@ -5,15 +5,15 @@ import threading
 import pytest
 from pytestqt.qtbot import QtBot
 
-from logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
-from logic.recipes import RecipeCollection
-from logic.communication import BoardType
-from logic.mockup import MaiboardConnectionMockup
-from gui.main_window import MainWindow
-from gui.userviews import ListRecipes, RecipeNewOrEdit
-from gui.userviews import SingleIngredient, Statistics, OrderRecipe
-from gui.adminviews import AdminLogin, BalanceCalibration, Overview
-from gui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
+from barbot.logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
+from barbot.logic.recipes import RecipeCollection
+from barbot.logic.communication import BoardType
+from barbot.logic.mockup import MainboardConnectionMockup
+from barbot.gui.main_window import MainWindow
+from barbot.gui.userviews import ListRecipes, RecipeNewOrEdit
+from barbot.gui.userviews import SingleIngredient, Statistics, OrderRecipe
+from barbot.gui.adminviews import AdminLogin, BalanceCalibration, Overview
+from barbot.gui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
 
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists
@@ -21,8 +21,8 @@ os.makedirs(temp_path, exist_ok=True)
 
 class TestGui:
     @pytest.fixture
-    def mainboard_connection_mockup(self) -> MaiboardConnectionMockup:
-        result = MaiboardConnectionMockup()
+    def mainboard_connection_mockup(self) -> MainboardConnectionMockup:
+        result = MainboardConnectionMockup()
         result.duration_DO = 0.5
         result.duration_SET = 0.1
         result.duration_GET = 0.1

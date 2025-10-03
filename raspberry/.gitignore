@@ -2,4 +2,5 @@
 *.py.bak
 **/__pycache__/
 **/.pytest_cache
-test/.barbot
+barbot/test/.barbot
+.pytest_cache

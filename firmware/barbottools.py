@@ -10,7 +10,7 @@ python_dir = os.path.join(parent_dir, "../raspberry/python/")
 # Add python directory sys.path
 sys.path.append(python_dir)
 
-from logic import communication
+from barbot.logic import communication
 import threading
 import time
 import logging

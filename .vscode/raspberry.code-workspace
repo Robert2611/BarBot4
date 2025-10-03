@@ -1,0 +1,64 @@
+{
+	"folders": [
+		{
+			"name": "All",
+			"path": ".."
+		},
+		{
+			"name": "Raspberry",
+			"path": "../raspberry"
+		}
+	],
+	"settings": {
+		"python.testing.pytestArgs": [
+			"barbot/test"
+		],
+		"python.testing.unittestEnabled": false,
+		"python.testing.pytestEnabled": true
+	},
+	"launch": {
+		// Use IntelliSense to learn about possible attributes.
+		// Hover to view descriptions of existing attributes.
+		// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "BarBot",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "../raspberry/barbot/console.py",
+				"env": {
+					"DISPLAY": ":0"
+				},
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "BarBot DEMO",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "../raspberry/barbot/demo.py",
+				"env": {
+					"DISPLAY": ":0"
+				},
+				"console": "integratedTerminal"
+			}
+		]
+	},
+	"tasks": {
+		// See https://go.microsoft.com/fwlink/?LinkId=733558
+		// for the documentation about the tasks.json format
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Stop barbot",
+				"type": "shell",
+				"command": "PID=$(ps -ef |grep '[p]ython3.*main.py') && echo $PID|awk '{print $2}'|xargs kill",
+				"presentation": {
+					"echo": false,
+					"reveal": "never",
+					"panel": "shared"
+				}
+			}
+		]
+	}
+}

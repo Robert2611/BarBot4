@@ -1,12 +1,12 @@
 """Views to be shown for admins"""
 from typing import Dict
 from PyQt5 import QtWidgets, QtCore
-from logic.communication import BoardType
-from logic.config import version as barbot_version
-from logic.recipes import Recipe
-from logic.config import PORT_COUNT
-from gui.core import BarBotWindow, qt_icon_from_file_name, View, Ingredient
-from gui.userviews import UserView
+from barbot.logic.communication import BoardType
+from barbot.logic.config import version as barbot_version
+from barbot.logic.recipes import Recipe
+from barbot.logic.config import PORT_COUNT
+from .core import BarBotWindow, qt_icon_from_file_name, View, Ingredient
+from .userviews import UserView
 
 class AdminView(UserView):
     """Base class for the admin views"""

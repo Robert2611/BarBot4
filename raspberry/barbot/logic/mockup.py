@@ -1,8 +1,8 @@
 """Mockups for testing and demo"""
 import time
-from logic.communication import MainboardConnection
+from .communication import MainboardConnection
 
-class MaiboardConnectionMockup(MainboardConnection):
+class MainboardConnectionMockup(MainboardConnection):
     """Mockup class for MainboardConnection.
     It executes delays instead of actual communication.
     The result of a GET command can be set.
