@@ -4,11 +4,11 @@ import platform
 import sys
 from typing import Optional
 from PyQt5 import QtWidgets, Qt, QtCore
-from barbot import BarBot, UserMessageType, BarBotState, run_command
-from barbot.config import Ingredient, IngredientType
-from barbot.recipes import RecipeCollection, RecipeFilter
-from barbot import UserInputType
-from barbotgui.controls import set_no_spacing
+from logic import BarBot, UserMessageType, BarBotState, run_command
+from logic.config import Ingredient, IngredientType
+from logic.recipes import RecipeCollection, RecipeFilter
+from logic import UserInputType
+from gui.controls import set_no_spacing
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17
 

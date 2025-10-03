@@ -1,7 +1,7 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 from io import StringIO, TextIOWrapper
 import unittest
-from barbot.config import BarBotConfig
+from logic.config import BarBotConfig
 
 class TestConfig(unittest.TestCase):
     def setUp(self):

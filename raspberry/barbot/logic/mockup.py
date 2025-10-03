@@ -1,6 +1,6 @@
 """Mockups for testing and demo"""
 import time
-from barbot.communication import MainboardConnection
+from logic.communication import MainboardConnection
 
 class MaiboardConnectionMockup(MainboardConnection):
     """Mockup class for MainboardConnection.

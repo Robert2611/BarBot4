@@ -1,8 +1,8 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 import unittest
 from unittest.mock import MagicMock
-from barbot.communication import decode_firmware_version, FirmwareVersion, Mainboard
-from barbot.mockup import MaiboardConnectionMockup
+from logic.communication import decode_firmware_version, FirmwareVersion, Mainboard
+from logic.mockup import MaiboardConnectionMockup
 
 class TestCommunication(unittest.TestCase):
     def test_firmware_version_decoding(self):

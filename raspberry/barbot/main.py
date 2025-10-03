@@ -13,13 +13,13 @@ import psutil
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QTimer
 
-from barbotgui import MainWindow
+from gui import MainWindow
 
-from barbot import BarBot, Mainboard
-from barbot.recipes import RecipeCollection
-from barbot.config import log_directory, BarBotConfig, PortConfiguration
-from barbot.communication import MainboardConnectionBluetooth
-from barbot.mockup import MaiboardConnectionMockup
+from logic import BarBot, Mainboard
+from logic.recipes import RecipeCollection
+from logic.config import log_directory, BarBotConfig, PortConfiguration
+from logic.communication import MainboardConnectionBluetooth
+from logic.mockup import MaiboardConnectionMockup
 
 # cofigure logging
 exception_file_path = os.path.join(

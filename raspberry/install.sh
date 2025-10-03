@@ -23,7 +23,7 @@ mkdir -p $DATA_FOLDER/recipes
 rsync --ignore-existing $INSTALL_FOLDER/data/recipes/* $DATA_FOLDER/recipes
 
 #make main program executable
-sudo chmod +x "$INSTALL_FOLDER/python/main.py"
+sudo chmod +x "$INSTALL_FOLDER/barbot/main.py"
 
 sudo apt-get -y -q install bluetooth bluez libbluetooth-dev
 sudo apt-get -y -q install python3-pyqt5
@@ -50,7 +50,7 @@ cat > $X_AUTOSTART_FILE << EOL
 @xscreensaver -no-splash
 point-rpi
 @$INSTALL_FOLDER/touch_rotate.sh
-@$INSTALL_FOLDER/python/main.py
+@$INSTALL_FOLDER/barbot/main.py
 EOL
 
 	#create desktop shortcut and make it executable
@@ -58,7 +58,7 @@ cat > ~/Desktop/barbot.desktop << EOL
 [Desktop Entry]
 Name=BarBot
 Comment=Starte BarBot
-Exec=$INSTALL_FOLDER/python/main.py
+Exec=$INSTALL_FOLDER/barbot/main.py
 Type=Application
 Encoding=UTF-8
 Terminal=false

@@ -4,13 +4,13 @@ import os
 
 from PyQt5 import QtWidgets, Qt, QtCore
 
-from barbot import BarBot
-from barbot.recipes import RecipeCollection
+from logic import BarBot
+from logic.recipes import RecipeCollection
 
-from barbotgui.core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry
-from barbotgui.controls import Keyboard, Numpad, set_no_spacing
-from barbotgui.adminviews import AdminLogin
-from barbotgui.userviews import ListRecipes, OrderRecipe
+from gui.core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry
+from gui.controls import Keyboard, Numpad, set_no_spacing
+from gui.adminviews import AdminLogin
+from gui.userviews import ListRecipes, OrderRecipe
 
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 

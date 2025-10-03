@@ -2,12 +2,12 @@
 from enum import Enum, auto
 from PyQt5 import QtWidgets, QtCore
 
-from barbot import MixingOptions
-from barbot.recipes import PartyStatistics, RecipeItem, Recipe, Party
-from barbot.config import IngredientType, Stir as StirIngredient
+from logic import MixingOptions
+from logic.recipes import PartyStatistics, RecipeItem, Recipe, Party
+from logic.config import IngredientType, Stir as StirIngredient
 
-from barbotgui.core import BarBotWindow, View, qt_icon_from_file_name
-from barbotgui.controls import BarChartRow, GlasFilling, GlasIndicator, BarChart, set_no_spacing
+from gui.core import BarBotWindow, View, qt_icon_from_file_name
+from gui.controls import BarChartRow, GlasFilling, GlasIndicator, BarChart, set_no_spacing
 
 
 class UserView(View):

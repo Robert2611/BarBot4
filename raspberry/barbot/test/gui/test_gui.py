@@ -5,15 +5,15 @@ import threading
 import pytest
 from pytestqt.qtbot import QtBot
 
-from barbot import PortConfiguration, BarBotConfig, BarBot, Mainboard
-from barbot.recipes import RecipeCollection
-from barbot.communication import BoardType
-from barbot.mockup import MaiboardConnectionMockup
-from barbotgui.main_window import MainWindow
-from barbotgui.userviews import ListRecipes, RecipeNewOrEdit
-from barbotgui.userviews import SingleIngredient, Statistics, OrderRecipe
-from barbotgui.adminviews import AdminLogin, BalanceCalibration, Overview
-from barbotgui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
+from logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
+from logic.recipes import RecipeCollection
+from logic.communication import BoardType
+from logic.mockup import MaiboardConnectionMockup
+from gui.main_window import MainWindow
+from gui.userviews import ListRecipes, RecipeNewOrEdit
+from gui.userviews import SingleIngredient, Statistics, OrderRecipe
+from gui.adminviews import AdminLogin, BalanceCalibration, Overview
+from gui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
 
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists
