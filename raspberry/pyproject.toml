@@ -15,6 +15,7 @@ dependencies = [
     "pybluez @ git+https://github.com/pybluez/pybluez.git",
     "pyyaml",
     "psutil",
+    "platformdirs",
 ]
 
 [project.scripts]
@@ -22,12 +23,17 @@ barbot = "barbot.__main__:run_service"
 barbot-with-log = "barbot.__main__:run_console"
 barbot-demo = "barbot.__main__:run_demo"
 barbot-tools = "barbot.barbottools:main"
+barbot-setup = "barbot.setup:main"
+barbot-update = "barbot.update_script:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-qt"]
 
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.setuptools]
+include-package-data = true
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

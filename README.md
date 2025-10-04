@@ -24,22 +24,13 @@ Hier einfach die SSID und das Passwort eures WLAN Netzwerks eintragen.
 Um SSH zu erlauben, muss im "Boot" Ordner noch eine leere Datei mit dem Namen "ssh" angelegt werden.
 Nun könnt ihr euch z.B. mit [Putty](https://www.putty.org/) unter Windows direkt über das Netzwerk auf den Pi aufschalten.
 ### BarBot4 installieren
-Zuerst muss der Ordner erstellt und die Dateien heruntergeladen werden:
-```bash
-content= $(curl -s "https://api.github.com/repos/Robert2611/BarBot4/releases/latest")
-url= $(echo $content | grep -Po '(?<="browser_download_url": ").*raspberry.tar.gz(?=")')
-mkdir barbot && curl -s -L $url | tar xvz -C ./barbot
-```
-Dann sollten die Packetquellen neu vom Server geladen werden und das Installer-Script gestartet werden:
-```bash
-sudo apt-get update
-sh ./barbot/install.sh
-```
-Das Install-Script muss als Benutzer "pi" gestartet werden.
+War noch kein Barbot bisher installiert, so muss das System erst vorbereitet werden.
+Dazu zuerst den Inhalt von [install.sh](raspberry/install.sh) ausführen oder die Datei herunterladen und dann ausführen.
 ### BarBot4 updaten
-Zum updaten einfach die Update-Datei Ausführen:
 ```bash
-sh ./barbot/update.sh
+LATEST_TAG=$(curl -s https://api.github.com/repos/Robert2611/BarBot4/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+python3 -m pip install "git+https://github.com/Robert2611/BarBot4.git@$LATEST_TAG#subdirectory=raspberry"
+barbot-setup
 ```
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)

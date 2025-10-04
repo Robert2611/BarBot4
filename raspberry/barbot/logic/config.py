@@ -8,7 +8,7 @@ from typing import Dict, List, Union
 
 import yaml
 
-data_directory = os.path.expanduser('~/.barbot/')
+data_directory = os.path.expanduser('~/.config/barbot/')
 __version_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"../../version.txt")
 PORT_COUNT = 12
 

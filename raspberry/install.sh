@@ -1,70 +1,60 @@
 #!/bin/bash
+set -e
 
-INSTALL_FOLDER=~/barbot
-DATA_FOLDER=~/.barbot
-# get the folder of the currently running file 
-SCRIPT_FOLDER=$(readlink -f "$0"|xargs dirname)
+INSTALL_BIN="/usr/local/bin"
+AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi"
+AUTOSTART_FILE="$AUTOSTART_PATH/autostart"
+TOUCH_SCRIPT="$INSTALL_BIN/touch_rotate.sh"
+GIT_REPO="Robert2611/BarBot4"
+PYTHON_PACKAGE_DIR="raspberry"
 
-
-# if we are not in the install folder...
-if [ ! $SCRIPT_FOLDER -ef $INSTALL_FOLDER ]; then
-	echo "Not in install dir (~/barbot), copying files..."
-	mkdir -p $INSTALL_FOLDER
-	# ...copy the the content of this folder to the install folder
-	cp -a $SCRIPT_FOLDER/. $INSTALL_FOLDER/
-else
-	echo "We are in the install dir (~/barbot)."
+# Warn if not running as root
+if [[ $EUID -ne 0 ]]; then
+    echo "⚠️  Some commands require root. Consider running with sudo."
 fi
 
-#create data folders if not exist
-mkdir -p $DATA_FOLDER/log
-mkdir -p $DATA_FOLDER/recipes
-#copy recipes
-rsync --ignore-existing $INSTALL_FOLDER/data/recipes/* $DATA_FOLDER/recipes
+echo "📦 Installing system dependencies..."
+sudo apt-get update
+sudo apt-get -y -q install \
+    bluetooth bluez libbluetooth-dev \
+    python3-pyqt5 python3-pip
 
-#make main program executable
-sudo chmod +x "$INSTALL_FOLDER/barbot/main.py"
+echo "🔧 Enabling Bluetooth..."
+sudo systemctl start hciuart || echo "⚠️  Failed to start hciuart, continuing..."
 
-sudo apt-get -y -q install bluetooth bluez libbluetooth-dev
-sudo apt-get -y -q install python3-pyqt5
-sudo apt-get -y -q install python3-pip
-# better use "pip3 install pyqt5 --config-settings --confirm-license= --verbose"??
-pip3 install -r "$INSTALL_FOLDER/python/requirements.txt"
-# to check startup logs use:
-# nano ~/.cache/lxsession/LXDE-pi/run.log
+# Detect Raspbian
+if grep -qi "ID=raspbian" /etc/os-release; then
+    echo "🖥️  Configuring LXDE autostart..."
 
-#enable bluetooth
-sudo systemctl start hciuart
+    mkdir -p "$AUTOSTART_PATH"
 
-# Check if we are on a raspbian system
-if [[ $(cat /etc/os-release|grep -i "pretty") = *"aspbian"* ]]; then
-	#add gui to x-servers startup if not yet so
-	X_AUTOSTART_PATH="$HOME/.config/lxsession/LXDE-pi/"
-	#create path if not exist
-	mkdir -p $X_AUTOSTART_PATH
-	X_AUTOSTART_FILE="$X_AUTOSTART_PATH/autostart"
-	# write links to the autostart file
-cat > $X_AUTOSTART_FILE << EOL
+    cat > "$AUTOSTART_FILE" << EOL
 @lxpanel --profile LXDE-pi
 @pcmanfm --desktop --profile LXDE-pi
 @xscreensaver -no-splash
 point-rpi
-@$INSTALL_FOLDER/touch_rotate.sh
-@$INSTALL_FOLDER/barbot/main.py
+@$TOUCH_SCRIPT
+@barbot
 EOL
 
-	#create desktop shortcut and make it executable
-cat > ~/Desktop/barbot.desktop << EOL
-[Desktop Entry]
-Name=BarBot
-Comment=Starte BarBot
-Exec=$INSTALL_FOLDER/barbot/main.py
-Type=Application
-Encoding=UTF-8
-Terminal=false
-EOL
-	# make it executable 
-	sudo chmod +x "$DESKTOP_SHORTCUT"
+    echo "🌀 Creating touch_rotate.sh..."
+    sudo tee "$TOUCH_SCRIPT" > /dev/null << 'EOF'
+#!/bin/sh
+sleep 3
+xinput --set-prop 'raspberrypi-ts' 'Coordinate Transformation Matrix' 0 -1 1 1 0 -0.02 0 0 1
+xrandr --output DSI-1 --rotate left
+EOF
+
+    sudo chmod +x "$TOUCH_SCRIPT"
 else
-	echo "Not on a raspbian system."
+    echo "❌ Not a Raspbian system. Skipping autostart config."
 fi
+
+echo "📦 Fetching latest BarBot release tag from GitHub..."
+LATEST_TAG=$(curl -s "https://api.github.com/repos/$GIT_REPO/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
+LATEST_TAG=python_project
+echo "🔗 Installing $GIT_REPO@$LATEST_TAG via pip..."
+python3 -m pip install "git+https://github.com/$GIT_REPO.git@$LATEST_TAG#subdirectory=$PYTHON_PACKAGE_DIR"
+
+# echo and run initial setup	
+barbot-setup

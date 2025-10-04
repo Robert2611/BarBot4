@@ -8,15 +8,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
-    - name: Raspberry Archive
+    - name: Set pyproject.toml version from tag
       run: |
-        cd raspberry
-        chmod +x touch_rotate.sh
-        chmod +x install.sh
-        chmod +x python/main.py
-        echo $GITHUB_REF | cut -d / -f 3 >> version.txt
-        tar czf raspberry.tar.gz --exclude '*.git*' *
-        cp raspberry.tar.gz ../raspberry.tar.gz
+        REF_NAME="${GITHUB_REF##*/}"
+
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          VERSION="${REF_NAME#v}"  # Strip leading 'v' if present
+        else
+          VERSION="0.0.0-dev+${REF_NAME}"  # Or use commit hash for uniqueness
+        fi
+
+        echo "🔧 Setting version to $VERSION in pyproject.toml..."
+        sed -i "s/^version *= *\".*\"/version = \"$VERSION\"/" raspberry/pyproject.toml
     - name: Set up Python
       uses: actions/setup-python@v1
     - name: Install dependencies
@@ -69,5 +72,5 @@ jobs:
     - name: Upload Release
       uses: ncipollo/release-action@v1
       with:
-        artifacts: raspberry.tar.gz, firmware.zip
+        artifacts: raspberry/install.sh, firmware.zip
         token: ${{ secrets.GITHUB_TOKEN }}
