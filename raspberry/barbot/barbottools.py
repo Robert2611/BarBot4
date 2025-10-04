@@ -2,28 +2,20 @@
 import re
 import os
 import sys
-from PyQt5 import QtWidgets, Qt, QtCore, QtGui
-
-# Get python directory
-parent_dir = os.path.dirname(os.path.realpath(__file__))
-python_dir = os.path.join(parent_dir, "../raspberry/python/")
-# Add python directory sys.path
-sys.path.append(python_dir)
-
-from barbot.logic import communication
 import threading
 import time
 import logging
+from PyQt5 import QtWidgets, QtCore
 
+from barbot.logic.communication import Mainboard, MainboardConnectionBluetooth
 
-def get_commands():
+def get_commands(mainboard_firmware_path: str):
     pattern = re.compile(
         """protocol\.add(?P<type>Do|Set|Get)Command\(\s*     #function call and type
         \"(?P<name>[^\"]*)\"                                 #string parameter aka name
         ([^\"]*if\s*\(param_c\s==\s(?P<count>\d+))?          #parameters
         """, re.DOTALL | re.VERBOSE)
-    script_dir = os.path.dirname(__file__)
-    with open(os.path.join(script_dir, "mainboard/src/main.cpp"), "r", encoding="utf-8") as f:
+    with open(os.path.join(mainboard_firmware_path, "src/main.cpp"), "r", encoding="utf-8") as f:
         content = f.read()
     commands = []
     for match in pattern.finditer(content):
@@ -36,12 +28,11 @@ def get_commands():
     return commands
 
 
-def get_errors():
+def get_errors(mainboard_firmware_path: str):
     errors = {}
-    script_dir = os.path.dirname(__file__)
     start_of_enum_found = False
     index = None
-    with open(os.path.join(script_dir, "mainboard/include/StateMachine.h"), "r", encoding="utf-8") as f:
+    with open(os.path.join(mainboard_firmware_path, "include/StateMachine.h"), "r", encoding="utf-8") as f:
         for line in f:
             if not start_of_enum_found:
                 if line.startswith("enum BarBotStatus_t"):
@@ -71,8 +62,8 @@ def print_commands_by_type(commands, type):
             print(command_str)
 
 
-def print_all_commands():
-    commands = get_commands()
+def print_all_commands(mainboard_firmware_path: str):
+    commands = get_commands(mainboard_firmware_path)
 
     print("Do Commands:")
     print_commands_by_type(commands, "Do")
@@ -88,37 +79,41 @@ class ProtocolThread(threading.Thread):
     abort = False
     mac_address: str
 
-    def __init__(self):
+    def __init__(self, mainboard: Mainboard):
         threading.Thread.__init__(self)
+        self._mainboard = mainboard
         self._next_command = None
 
     def run_next(self, command):
         self._next_command = command
 
+    def send_abort(self):
+        self._mainboard.send_abort()
+
     def run(self):
         while not self.abort:
-            if not communication.is_connected:
-                communication.connect(self.mac_address)
-                if not communication.is_connected:
+            if not self._mainboard.is_connected:
+                self._mainboard.connect(self.mac_address)
+                if not self._mainboard.is_connected:
                     # only try connecting every 500ms
                     time.sleep(0.5)
             else:
-                m = communication.read_message()
+                m = self._mainboard.read_message()
                 if m is not None and self._next_command is not None:
+                    parameters = self._next_command["parameters"]
                     if self._next_command["type"] == "Do":
-                        if len(self._next_command["parameters"]) == 0:
-                            communication.try_do(self._next_command["name"])
-                        elif len(self._next_command["parameters"]) == 1:
-                            communication.try_do(
-                                self._next_command["name"], self._next_command["parameters"][0])
-                        elif len(self._next_command["parameters"]) == 2:
-                            communication.try_do(
-                                self._next_command["name"], self._next_command["parameters"][0], self._next_command["parameters"][1])
+                        if len(parameters) == 0:
+                            self._mainboard.do(self._next_command["name"])
+                        elif len(parameters) == 1:
+                            self._mainboard.do(
+                                self._next_command["name"], parameters[0])
+                        elif len(parameters) == 2:
+                            self._mainboard.do(self._next_command["name"], parameters[0], parameters[1])
                     elif self._next_command["type"] == "Set":
-                        communication.try_set(
-                            self._next_command["name"], self._next_command["parameters"][0])
+                        self._mainboard.set(
+                            self._next_command["name"], parameters[0])
                     elif self._next_command["type"] == "Get":
-                        communication.try_get(self._next_command["name"])
+                        self._mainboard.get(self._next_command["name"])
                     # reset command
                     self._next_command = None
 
@@ -137,9 +132,10 @@ class GuiLogger(logging.Handler):
 class ToolsWindow(QtWidgets.QMainWindow):
     _log_lines = []
 
-    def __init__(self, protocol_thread: ProtocolThread):
+    def __init__(self, protocol_thread: ProtocolThread, mainboard_firmware_path: str):
         super().__init__()
-        communication_thread = protocol_thread
+        self.protocol_thread = protocol_thread
+        self.mainboard_firmware_path = mainboard_firmware_path
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
         self.center.setLayout(QtWidgets.QHBoxLayout())
@@ -152,7 +148,7 @@ class ToolsWindow(QtWidgets.QMainWindow):
         container = QtWidgets.QWidget()
         container.setLayout(QtWidgets.QGridLayout())
         self.center.layout().addWidget(container)
-        self.commands = get_commands()
+        self.commands = get_commands(mainboard_firmware_path)
         row = 0
         for command in self.commands:
             column = 0
@@ -181,17 +177,17 @@ class ToolsWindow(QtWidgets.QMainWindow):
         # errors
         self.errors_widget = QtWidgets.QLabel("No Error")
         container.layout().addWidget(self.errors_widget)
-        self.errors = get_errors()
+        self.errors = get_errors(mainboard_firmware_path)
         # abort
         self.btn_abort = QtWidgets.QPushButton("Abort")
         self.btn_abort.clicked.connect(
-            lambda checked: communication.send_abort())
+            lambda checked: self.protocol_thread.send_abort())
         container.layout().addWidget(self.btn_abort)
 
     def send_command(self, command):
         parameters = [str(pw.value()) for pw in command["parameter_widgets"]]
         command["parameters"] = parameters if parameters is not None else None
-        protocol_thread.run_next(command)
+        self.protocol_thread.run_next(command)
 
     def log_add_line(self, line):
         # only show 100 lines
@@ -206,7 +202,7 @@ class ToolsWindow(QtWidgets.QMainWindow):
             m = re.search(
                 "ERROR (?P<command>.+) (?P<id>\d+) (?P<parameter>-?\d+)", line)
             error_id = int(m.group("id"))
-            errors = get_errors()
+            errors = get_errors(self.mainboard_firmware_path)
             if error_id in errors.keys():
                 error = errors[error_id]
             else:
@@ -214,15 +210,36 @@ class ToolsWindow(QtWidgets.QMainWindow):
             self.errors_widget.setText(error)
 
 
-if __name__ == '__main__':
+def main():
     try:
-        print("Searching for bar_bot...")
-        mac_address = communication.find_bar_bot()
-        print(f"Connecting to '{mac_address}'")
+        #TODO: first start the gui to show log messages from here on
+        # check if firmware folder exists
+        mainboard_firmware_path = os.path.join(os.path.dirname(__file__), "../../firmware/mainboard")
+        if not os.path.exists(mainboard_firmware_path):
+            print(f"Could not find mainboard firmware folder at '{mainboard_firmware_path}'")
+            print("This tools must be used from within the BarBot repository")
+            sys.exit(1)
+
+        # if the mac adress is given via command line use it, otherwise search for bar_bot
+        if len(sys.argv) > 1:
+            mac_address = sys.argv[1]
+            print(f"Using mac address from command line")
+        else:
+            print("No mac address given via command line, searching for bar_bot...")
+            try:
+                mac_address = MainboardConnectionBluetooth.find_bar_bot()
+            except Exception as e:
+                print(f"Error while searching for bar_bot: {e}")
+                sys.exit(1)
+
         # create protocol thread
-        protocol_thread = ProtocolThread()
+        print(f"Connecting to barbot with mac adress '{mac_address}'")
+        mainboard_connection = MainboardConnectionBluetooth()
+        mainboard = Mainboard(mainboard_connection)
+        protocol_thread = ProtocolThread(mainboard)
         protocol_thread.mac_address = mac_address
         protocol_thread.start()
+
         app = QtWidgets.QApplication(sys.argv)
         # redirect logging to gui
         logging.basicConfig(
@@ -233,12 +250,15 @@ if __name__ == '__main__':
         gui_logger = GuiLogger()
         logging.getLogger().addHandler(gui_logger)
         # create window
-        window = ToolsWindow(protocol_thread)
-        gui_logger.qt.new_entry_signal.connect(
-            lambda line: window.log_add_line(line))
+        window = ToolsWindow(protocol_thread, mainboard_firmware_path)
+        gui_logger.qt.new_entry_signal.connect(window.log_add_line)
         window.show()
         app.exec_()
+
         protocol_thread.abort = True
         protocol_thread.join()
     except KeyboardInterrupt:
         print("--> closed by user")
+
+if __name__ == '__main__':
+    main()

@@ -78,13 +78,13 @@ def setup_sigint(app):
     signal.signal(signal.SIGINT, sigint_handler)
 
 def run(is_demo: bool, enable_log_to_stdout: bool):
-    log_file_path, exception_file_path = setup_logging(enable_log_to_stdout)
+    _, exception_file_path = setup_logging(enable_log_to_stdout)
     logging.info("<<<<<<BarBot started>>>>>>")
     logging.info("--------------------------")
 
     bot = create_barbot(is_demo)
     bar_bot_thread = start_statemachine(bot)
-    
+
     recipe_collection = RecipeCollection()
     recipe_collection.load()
 
@@ -103,3 +103,12 @@ def run(is_demo: bool, enable_log_to_stdout: bool):
 
     logging.info("-------------------------")
     logging.info(">>>>>>BarBot closed<<<<<<")
+
+def run_demo():
+    run(is_demo=True, enable_log_to_stdout=True)
+
+def run_console():
+    run(is_demo=False, enable_log_to_stdout=True)
+
+def run_service():
+    run(is_demo=False, enable_log_to_stdout=False)

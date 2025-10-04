@@ -1,4 +1,4 @@
-from barbot.main import run
+from barbot.main import run_console
 
 if __name__ == "__main__":
-    run(is_demo=False, enable_log_to_stdout=True)
+    run_console()

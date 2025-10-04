@@ -18,9 +18,10 @@ dependencies = [
 ]
 
 [project.scripts]
-barbot = "barbot.__main__:barbot"
-barbot-with-log = "barbot.__main__:barbot_with_log"
-barbot-demo = "barbot.__main__:barbot_demo"
+barbot = "barbot.__main__:run_service"
+barbot-with-log = "barbot.__main__:run_console"
+barbot-demo = "barbot.__main__:run_demo"
+barbot-tools = "barbot.barbottools:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-qt"]
