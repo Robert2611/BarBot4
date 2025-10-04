@@ -24,7 +24,6 @@ barbot-with-log = "barbot.__main__:run_console"
 barbot-demo = "barbot.__main__:run_demo"
 barbot-tools = "barbot.barbottools:main"
 barbot-setup = "barbot.setup:main"
-barbot-update = "barbot.update_script:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-qt"]

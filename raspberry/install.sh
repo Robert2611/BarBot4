@@ -34,7 +34,7 @@ if grep -qi "ID=raspbian" /etc/os-release; then
 @xscreensaver -no-splash
 point-rpi
 @$TOUCH_SCRIPT
-@barbot
+@python3 -m barbot
 EOL
 
     echo "🌀 Creating touch_rotate.sh..."
@@ -57,4 +57,4 @@ echo "🔗 Installing $GIT_REPO@$LATEST_TAG via pip..."
 python3 -m pip install "git+https://github.com/$GIT_REPO.git@$LATEST_TAG#subdirectory=$PYTHON_PACKAGE_DIR"
 
 # echo and run initial setup	
-barbot-setup
+python3 -m barbot.setup
