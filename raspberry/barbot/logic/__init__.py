@@ -158,7 +158,7 @@ class BarBot():
     def state(self):
         """Get the current state of the barbot"""
         return self._state
-    
+
     def _delay_and_keep_communicating(self, seconds):
         """Delay the state machine but keep checking the idle state to handle the communication"""
         start_time = time.time()
@@ -244,7 +244,7 @@ class BarBot():
         start_time = time.time()
         if self._mainboard.supports_is_idle_command:
             result = self._mainboard.get("IsIdle")
-            if result.was_successfull and len(result.return_parameters) == 1:
+            if result.was_successful and len(result.return_parameters) == 1:
                 if result.return_parameters[0] != "1":
                     logging.warning("'IsIdle' returned false")
             else:
@@ -381,7 +381,7 @@ class BarBot():
         """Wait for the condition to become true.
         Will return False when operation is aborted. 
         :param condition: Callback that is called periodically until it returns True
-        :returns: True if the wait was successfull, False on abort
+        :returns: True if the wait was successful, False on abort
         """
         while not self._abort and not condition():
             self._mainboard.read_message()
@@ -417,7 +417,7 @@ class BarBot():
 
     def _has_glas(self):
         result = self._mainboard.get("HasGlas")
-        return result.was_successfull and result.return_parameters[0] == "1"
+        return result.was_successful and result.return_parameters[0] == "1"
 
     def _draft_one(self, item: RecipeItem) -> bool:
         """Draft a single ingredient.
@@ -447,7 +447,7 @@ class BarBot():
                     result = self._mainboard.set("SetPumpPower", self._config.pump_power_sirup)
                 else:
                     result = self._mainboard.set("SetPumpPower", self._config.pump_power)
-                if not result.was_successfull:
+                if not result.was_successful:
                     self._set_message(UserMessageType.UNKNOWN_ERROR)
                     self._wait_for_user_input()
                     return False
@@ -455,8 +455,8 @@ class BarBot():
             # user aborted
             if self._abort_mixing:
                 return False
-            if result.was_successfull is True:
-                # drafting successfull
+            if result.was_successful is True:
+                # drafting successful
                 return True
             logging.error("Error while drafting: '%s'", result.error.name)
             if result.error == CommError.INGREDIENT_EMPTY:
@@ -570,8 +570,8 @@ class BarBot():
             if self._abort_mixing:
                 # user aborted
                 return False
-            if result.was_successfull:
-                # crushing successfull
+            if result.was_successful:
+                # crushing successful
                 return True
             logging.error("Error while drafting: '%s'", result.error.name)
             if result.error == CommError.INGREDIENT_EMPTY:
@@ -677,7 +677,7 @@ class BarBot():
         """Try dispensing straw until it works or user aborts"""
         while True:
             result = self._mainboard.do("Straw")
-            if result.was_successfull:
+            if result.was_successful:
                 break
             self._reset_user_input()
             self._set_message(UserMessageType.STRAWS_EMPTY)
@@ -732,7 +732,7 @@ class BarBot():
         """
         def internal_callback(res:CommunicationResult):
             self._weight = float(res.return_parameters[0]) \
-                if res.was_successfull and len(res.return_parameters) > 0 \
+                if res.was_successful and len(res.return_parameters) > 0 \
                 else None
             callback(self._weight)
         self._idle_tasks.append(
@@ -743,7 +743,7 @@ class BarBot():
         """Synchronously get the connected boards and save them to '_connected_boards'
         """
         result = self._mainboard.get("GetConnectedBoards")
-        if result.was_successfull and len(result.return_parameters) > 0:
+        if result.was_successful and len(result.return_parameters) > 0:
             self._connected_boards = self._parse_connected_boards(result.return_parameters[0])
 
     def _parse_connected_boards(self, bit_values) -> List[BoardType]:

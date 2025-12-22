@@ -30,7 +30,7 @@ Dazu zuerst den Inhalt von [install.sh](raspberry/install.sh) ausführen oder di
 ```bash
 LATEST_TAG=$(curl -s https://api.github.com/repos/Robert2611/BarBot4/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
 python3 -m pip install "git+https://github.com/Robert2611/BarBot4.git@$LATEST_TAG#subdirectory=raspberry"
-barbot-setup
+python3 -m barbot.setup
 ```
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)

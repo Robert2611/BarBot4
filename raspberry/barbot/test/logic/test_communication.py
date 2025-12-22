@@ -37,7 +37,7 @@ class TestCommunication(unittest.TestCase):
                 result = mainboard.set(command_name, *fake_parameters)
             else:
                 result = mainboard.set(command_name, *fake_parameters)
-            assert result.was_successfull
+            assert result.was_successful
             if command_type == "GET":
                 assert len(result.return_parameters) == 1
 
@@ -58,7 +58,7 @@ class TestCommunication(unittest.TestCase):
         mainboard = Mainboard(connection_mockup)
 
         result = mainboard.do(command, *params)
-        assert result.was_successfull
+        assert result.was_successful
         connection_mockup.send.assert_called_once_with(f"{command} {' '.join(params)}")
 
     def test_mainboard_command_get(self):
@@ -78,7 +78,7 @@ class TestCommunication(unittest.TestCase):
 
         #normal response
         result = mainboard.set(command, *params)
-        assert result.was_successfull
+        assert result.was_successful
         assert result.return_parameters == [str(return_value)]
         connection_mockup.send.assert_called_once_with(f"{command} {' '.join(params)}")
 
@@ -97,5 +97,5 @@ class TestCommunication(unittest.TestCase):
         mainboard = Mainboard(connection_mockup)
 
         result = mainboard.set(command, *params)
-        assert result.was_successfull
+        assert result.was_successful
         connection_mockup.send.assert_called_once_with(f"{command} {' '.join(params)}")

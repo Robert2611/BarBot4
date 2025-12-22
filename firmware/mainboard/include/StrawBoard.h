@@ -10,10 +10,9 @@ class StrawBoard
 public:
   StrawBoard();
   bool StartDispense();
-  bool IsDispensing(bool* dispensing);
-  bool WasSuccessfull(bool* successfull);
+  bool IsDispensing(bool *dispensing);
+  bool Wassuccessful(bool *successful);
 
 private:
-
 };
 #endif

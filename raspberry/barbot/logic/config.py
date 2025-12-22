@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import yaml
 
@@ -127,7 +127,7 @@ class PortConfiguration:
 
     def save(self, output_stream : TextIOWrapper = None):
         """ Save the current port configuration
-        :return: True if saving was successfull, False otherwise
+        :return: True if saving was successful, False otherwise
         """
         #prepare data
         data = {}
@@ -151,7 +151,7 @@ class PortConfiguration:
 
     def load(self, input_stream : TextIOWrapper = None):
         """ Load the current port configuration
-        :return: True if loading was successfull, False otherwise
+        :return: True if loading was successful, False otherwise
         """
         #load data
         result = True

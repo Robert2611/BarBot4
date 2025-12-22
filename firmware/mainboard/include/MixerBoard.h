@@ -11,9 +11,8 @@ public:
   MixerBoard();
   bool IsMixing(bool *mixing);
   bool StartMixing(byte seconds);
-  bool WasSuccessfull(bool* successfull);
+  bool Wassuccessful(bool *successful);
 
 private:
-
 };
 #endif

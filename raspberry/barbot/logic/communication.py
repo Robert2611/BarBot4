@@ -1,21 +1,25 @@
 """This module handles the communication between the barbot and the mainboard"""
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import NamedTuple, List
 from enum import Enum, auto
 from functools import total_ordering
-import logging
+from typing import List, NamedTuple, Optional
+
 import bluetooth
 
 CONNECTION_TIMEOUT = 1
 MAX_RETRIES = 3
+
+# module logger
+logger = logging.getLogger(__name__)
 
 class ErrorType(Enum):
     """Errors that may occur during operations"""
 
     NONE = 0
 
-    # generated error codes are above 100, so we don't interfere with the mainboard codes 
+    # generated error codes are above 100, so we don't interfere with the mainboard codes
     COMM_ERROR = 101
     SEND_FAILED = 102
     NO_RESULT_SENT = 103
@@ -35,8 +39,13 @@ class ErrorType(Enum):
     COMMAND_ABORTED = 41
     SUGAR_DISPENSER_TIMEOUT = 42
 
-def is_mainboard_error(error:ErrorType):
-    return error.value < ErrorType.COMM_ERROR.value
+def is_mainboard_error(error: ErrorType) -> bool:
+    """Return True when an ErrorType represents a mainboard-reported error.
+
+    Mainboard error codes are below COMM_ERROR (generated codes start at 101).
+    Exclude ErrorType.NONE from being treated as a mainboard error.
+    """
+    return error is not None and error != ErrorType.NONE and error.value < ErrorType.COMM_ERROR.value
 
 class BoardType(Enum):
     """board addresses must match 'shared.h'"""
@@ -81,16 +90,18 @@ class FirmwareVersion:
     minor: int
     patch: int
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, FirmwareVersion):
+            return NotImplemented
         return self._to_int() == other._to_int()
 
-    def __ge__(self, other):
-        return self._to_int() > other._to_int()
+    def __lt__(self, other: 'FirmwareVersion') -> bool:
+        return self._to_int() < other._to_int()
 
-    def _to_int(self):
+    def _to_int(self) -> int:
         return self.major * 10000 + self.minor * 100 + self.patch
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"v{self.major}.{self.minor}.{self.patch}"
 
 def decode_firmware_version(version: int) -> FirmwareVersion:
@@ -107,7 +118,7 @@ class CommunicationResult():
         self.return_parameters: List[str] = [] if return_parameters is None else return_parameters
 
     @property
-    def was_successfull(self):
+    def was_successful(self):
         """Get whether an error code was set"""
         return self.error == ErrorType.NONE
 
@@ -122,7 +133,7 @@ class MainboardConnection(ABC):
 
     @staticmethod
     @abstractmethod
-    def find_bar_bot() -> str:
+    def find_bar_bot() -> Optional[str]:
         """Returns an identifier that can be used by the connect() method"""
         return ""
 
@@ -136,7 +147,7 @@ class MainboardConnection(ABC):
         """Close the mainboard connection"""
 
     @abstractmethod
-    def read_line(self) -> str:
+    def read_line(self) -> Optional[str]:
         """Read a single line from the mainboard"""
         return ""
 
@@ -168,7 +179,7 @@ class MainboardConnectionBluetooth(MainboardConnection):
                     # return address of first device with "Bar Bot" in its name
                     return x[0]
         except bluetooth.BluetoothError:
-            pass
+            logger.debug("Bluetooth discovery failed", exc_info=True)
         return None
 
     def _read_line_unsave(self):
@@ -186,12 +197,22 @@ class MainboardConnectionBluetooth(MainboardConnection):
             # we received a new line character
             if data[-1:] == b'\n':
                 break
-        decoded_data:str = data.decode('utf-8')
-        # only take the last part of the message
-        lines = decoded_data.replace('\r','').split('\n')
-        if len(lines) > 2:
-            logging.warning("read_line: More than one line in buffer! Received: '%s'", repr(decoded_data))
-        return lines[-2]
+        try:
+            decoded_data: str = data.decode('utf-8', errors='replace')
+        except UnicodeDecodeError as e:
+            logger.debug("Decoding received bytes failed: %s", e, exc_info=True)
+            decoded_data = ''
+        # normalize and split into lines, drop empty trailing item from split
+        lines = decoded_data.replace('\r', '').split('\n')
+        # remove empty strings
+        non_empty = [l for l in lines if l != '']
+        if len(non_empty) == 0:
+            logger.debug("_read_line_unsave: no non-empty lines received: %r", repr(decoded_data))
+            return ''
+        if len(non_empty) > 1:
+            logger.warning("read_line: More than one line in buffer! Received: '%s'", repr(decoded_data))
+        # return the last non-empty line
+        return non_empty[-1]
 
     def read_line(self) -> str:
         """Read the last line that was received on the manboard connection.
@@ -222,12 +243,15 @@ class MainboardConnectionBluetooth(MainboardConnection):
             self._conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
             self._conn.connect((mac_address, 1))
             self._conn.settimeout(CONNECTION_TIMEOUT)
-            # read one line to make sure the mainboard has started
-            self.read_line()
+            # read one line to make sure the mainboard has started (best-effort)
+            try:
+                _ = self.read_line()
+            except (bluetooth.BluetoothError, OSError) as e:
+                logger.debug("Ignored exception while priming connection: %s", e, exc_info=True)
             self._is_connected = True
-            logging.info("Connection successfull")
+            logger.info("Connection successful")
         except bluetooth.BluetoothError as e:
-            logging.warning("Connection failed %s", e)
+            logger.warning("Connection failed %s", e)
             return False
         return True
 
@@ -283,7 +307,7 @@ class Mainboard:
             return False
         # read firmware version
         response = self.get("GetFirmwareVersion")
-        if response.was_successfull and len(response.return_parameters) > 0:
+        if response.was_successful and len(response.return_parameters) > 0:
             self._firmware_version = decode_firmware_version(int(response.return_parameters[0]))
             logging.info("Firmware version is: %s", self._firmware_version)
         else:
@@ -313,19 +337,19 @@ class Mainboard:
 
         result = CommunicationResult()
         # check if the result is for the command we sent and it is an ACK
-        if result.was_successfull and message.command != command:
+        if result.was_successful and message.command != command:
             result.error = ErrorType.ANSWER_FOR_WRONG_COMMAND
-        if result.was_successfull and message.message_type == ResponseTypes.NAK:
+        if result.was_successful and message.message_type == ResponseTypes.NAK:
             result.error = ErrorType.NACK_RECEIVED
-        if result.was_successfull and message.message_type != ResponseTypes.ACK:
+        if result.was_successful and message.message_type != ResponseTypes.ACK:
             result.error = ErrorType.WRONG_ANSWER
-        if result.was_successfull and message.message_type == ResponseTypes.COMM_ERROR:
+        if result.was_successful and message.message_type == ResponseTypes.COMM_ERROR:
             result.error = ErrorType.COMM_ERROR
-        if result.was_successfull and message.message_type == ResponseTypes.ERROR:
+        if result.was_successful and message.message_type == ResponseTypes.ERROR:
             # first parameter is the error type
             result.error = ErrorType[message.parameters[0]]
             result.return_parameters = message.parameters[1:]
-        if result.was_successfull and message.message_type == ResponseTypes.ACK:
+        if result.was_successful and message.message_type == ResponseTypes.ACK:
             # an ack can include more info
             result.return_parameters = message.parameters
         return result
@@ -344,19 +368,19 @@ class Mainboard:
             result = self.send_command_and_read_response(command, *parameters)
 
             # ACK was received for the command, so wait until it finished
-            while result.was_successfull:
+            while result.was_successful:
                 message = self.read_message()
-                if result.was_successfull and message.command != command:
+                if result.was_successful and message.command != command:
                     result.error = ErrorType.ANSWER_FOR_WRONG_COMMAND
-                if result.was_successfull and message.message_type == ResponseTypes.ERROR:
+                if result.was_successful and message.message_type == ResponseTypes.ERROR:
                     result.error = ErrorType(int(message.parameters[0]))
                     result.return_parameters = message.parameters[1:]
-                if result.was_successfull:
+                if result.was_successful:
                     if message.message_type == ResponseTypes.DONE:
                         break
                     if message.message_type != ResponseTypes.STATUS:
                         result.error = ErrorType.WRONG_ANSWER
-            if result.was_successfull or is_mainboard_error(result.error):
+            if result.was_successful or is_mainboard_error(result.error):
                 # at success, exit the loop
                 break
             logging.warning("try_do with '%s', failed attempt: %s", command, result.error.name)
@@ -372,13 +396,13 @@ class Mainboard:
         
         :param command: Command name
         :param parameters: Parameter for the controller command
-        :returns: Whether the command executed successfully
+        :returns: Whether the command executed successfuly
         """
         retries_left = MAX_RETRIES
         # make sure to always run the loop once
         while retries_left > 0:
             result = self.send_command_and_read_response(command, *parameters)
-            if result.was_successfull:
+            if result.was_successful:
                 # at success, exit the loop
                 break
             logging.warning("try_set with '%s', failed attempt: %s", command, result.error.name)
@@ -400,7 +424,7 @@ class Mainboard:
         # make sure to always run the loop once
         while retries_left > 0:
             result = self.send_command_and_read_response(command, *parameters)
-            if result.was_successfull:
+            if result.was_successful:
                 # at success, first check if we actually received a value
                 if len(result.return_parameters) == 0:
                     result.error = ErrorType.NO_RESULT_SENT

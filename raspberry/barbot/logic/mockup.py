@@ -65,7 +65,7 @@ class MainboardConnectionMockup(MainboardConnection):
         return "mainboard_mockup"
 
     def connect(self, identifier: str = "") -> bool:
-        """Connect, return true if successfull"""
+        """Connect, return true if successful"""
         return self.is_connected
 
     def disconnect(self):
