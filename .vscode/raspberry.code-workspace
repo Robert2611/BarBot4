@@ -26,7 +26,7 @@
 				"name": "BarBot",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "../raspberry/barbot/console.py",
+				"module": "barbot",
 				"env": {
 					"DISPLAY": ":0"
 				},
@@ -36,7 +36,11 @@
 				"name": "BarBot DEMO",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "../raspberry/barbot/demo.py",
+				"module": "barbot",
+				"args": [
+					"--demo",
+					"--log"
+				],
 				"env": {
 					"DISPLAY": ":0"
 				},

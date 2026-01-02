@@ -21,7 +21,7 @@ from .logic import BarBot, Mainboard
 from .logic.recipes import RecipeCollection
 from .logic.config import log_directory, BarBotConfig, PortConfiguration
 from .logic.communication import MainboardConnectionBluetooth
-from .logic.mockup import MainboardConnectionMockup
+from .logic.communication import MainboardConnectionMockup
 
 
 def setup_logging(enable_log_to_stdout: bool):

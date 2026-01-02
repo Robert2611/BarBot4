@@ -62,7 +62,8 @@ class MainboardConnectionMockup(MainboardConnection):
     @staticmethod
     def find_bar_bot() -> str:
         """Returns an identifier that can be used by the connect() method"""
-        return "mainboard_mockup"
+        # the address must have the connect length of a mac address
+        return '00:00:00:00:00:00'
 
     def connect(self, identifier: str = "") -> bool:
         """Connect, return true if successful"""

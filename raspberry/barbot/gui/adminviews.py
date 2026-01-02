@@ -2,7 +2,7 @@
 from typing import Dict
 from PyQt5 import QtWidgets, QtCore
 from barbot.logic.communication import BoardType
-from barbot.logic.config import version as barbot_version
+from barbot.logic import version as barbot_version
 from barbot.logic.recipes import Recipe
 from barbot.logic.config import PORT_COUNT
 from .core import BarBotWindow, qt_icon_from_file_name, View, Ingredient

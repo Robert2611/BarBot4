@@ -8,7 +8,7 @@ from pytestqt.qtbot import QtBot
 from barbot.logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
 from barbot.logic.recipes import RecipeCollection
 from barbot.logic.communication import BoardType
-from barbot.logic.mockup import MainboardConnectionMockup
+from barbot.logic.communication import MainboardConnectionMockup
 from barbot.gui.main_window import MainWindow
 from barbot.gui.userviews import ListRecipes, RecipeNewOrEdit
 from barbot.gui.userviews import SingleIngredient, Statistics, OrderRecipe

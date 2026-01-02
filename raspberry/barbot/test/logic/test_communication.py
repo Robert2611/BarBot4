@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import MagicMock
 from barbot.logic.communication import decode_firmware_version, FirmwareVersion, Mainboard
-from barbot.logic.mockup import MainboardConnectionMockup
+from barbot.logic.communication import MainboardConnectionMockup
 
 class TestCommunication(unittest.TestCase):
     def test_firmware_version_decoding(self):
