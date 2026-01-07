@@ -1,4 +1,5 @@
 """Core functionality of the barbot gui"""
+
 import os
 import platform
 import sys
@@ -7,17 +8,20 @@ from PyQt5 import QtWidgets, Qt, QtCore
 
 from barbot.logic import BarBot, UserMessageType, BarBotState, run_command
 from barbot.logic.config import Ingredient, IngredientType
+from barbot.logic.core.states import MixingState
 from barbot.logic.recipes import RecipeCollection, RecipeFilter
 from barbot.logic import UserInputType
 from .controls import set_no_spacing
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17
 
+
 def restart_barbot():
     """Callback to restart the barbot and gui"""
     QtWidgets.QApplication.instance().quit()
     filepath = os.path.join(sys.path[0], "main.py")
     run_command(filepath)
+
 
 def is_raspberry() -> bool:
     """Check whether we are running on a raspberry pi"""
@@ -44,17 +48,19 @@ def qt_icon_from_file_name(file_name) -> Qt.QIcon:
     path = os.path.join(script_dir, "asset", file_name)
     return Qt.QIcon(path)
 
+
 class BarBotWindow(QtWidgets.QMainWindow):
     """Main window of the barbot, this is the entry point for the barbot gui"""
+
     # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
     _barbot_state_trigger = QtCore.pyqtSignal(BarBotState)
     _mixing_progress_trigger = QtCore.pyqtSignal(int)
     _message_trigger = QtCore.pyqtSignal(UserMessageType)
     _show_message_trigger = QtCore.pyqtSignal(str)
 
-    def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
+    def __init__(self, barbot_: BarBot, recipes: RecipeCollection):
         super().__init__()
-        self.recipe_filter = RecipeFilter(descending = True)
+        self.recipe_filter = RecipeFilter(descending=True)
         self._barbot = barbot_
         self._recipes = recipes
 
@@ -87,8 +93,13 @@ class BarBotWindow(QtWidgets.QMainWindow):
                 widget.setCurrentIndex(i)
         return widget
 
-    def combobox_ingredients(self, selected_ingredient: Ingredient=None, only_available = False, \
-                                    only_normal = False, only_weighed = False):
+    def combobox_ingredients(
+        self,
+        selected_ingredient: Ingredient = None,
+        only_available=False,
+        only_normal=False,
+        only_weighed=False,
+    ):
         """Create a combobox with options for ingredients selected by the filter parameters 
         
         :param only_available: If set to true, only return ingredients that \
@@ -112,10 +123,11 @@ class BarBotWindow(QtWidgets.QMainWindow):
     def set_view(self, view: Optional["View"]):
         """Set the currrently visible view to the specified instance of View"""
 
+
 class View(QtWidgets.QWidget):
     """Content that can be shown in the center of the main window"""
 
-    def __init__(self, window: BarBotWindow, is_idle_view:bool = True):
+    def __init__(self, window: BarBotWindow, is_idle_view: bool = True):
         super().__init__(window)
         self._window = window
         self._is_idle_view = is_idle_view
@@ -169,8 +181,10 @@ class View(QtWidgets.QWidget):
         # dummy
         container.layout().addWidget(QtWidgets.QWidget(), 1)
 
+
 class SystemBusyView(View):
     """View to access system (eg. restart) when the mainboard is busy"""
+
     def __init__(self, window: BarBotWindow):
         super().__init__(window, is_idle_view=False)
 
@@ -186,8 +200,10 @@ class SystemBusyView(View):
         # add actual content
         View.set_system_view(self._content)
 
+
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
+
     def __init__(self, window: BarBotWindow):
         super().__init__(window, is_idle_view=False)
 
@@ -219,7 +235,7 @@ class BusyView(View):
 
         self.update_message(None)
 
-    def update_message(self, message:str = None):
+    def update_message(self, message: str = None):
         """Update the message shown to the user"""
         if message is None:
             message = UserMessageType.NONE
@@ -245,10 +261,12 @@ class BusyView(View):
         buttons_container.setLayout(QtWidgets.QHBoxLayout())
         self._message.layout().addWidget(buttons_container)
 
-        def add_button(text, result:UserInputType):
+        def add_button(text, result: UserInputType):
             button = QtWidgets.QPushButton(text)
+
             def callback():
                 return self.barbot_.set_user_input(result)
+
             button.clicked.connect(callback)
             buttons_container.layout().addWidget(button)
 
@@ -284,20 +302,20 @@ class BusyView(View):
                     instruction = QtWidgets.QLabel(options.recipe.post_instruction)
                     self._message.layout().addWidget(instruction)
                 elif options is not None:
-                    text = "Der Cocktail ist fertig gemischt.\n" + \
-                        "Du kannst ihn von der Platform nehmen."
+                    text = (
+                        "Der Cocktail ist fertig gemischt.\n"
+                        + "Du kannst ihn von der Platform nehmen."
+                    )
                     message_label.setText(text)
 
         elif message == UserMessageType.ASK_FOR_STRAW:
-            message_label.setText(
-                "Möchtest du einen Strohhalm haben?")
+            message_label.setText("Möchtest du einen Strohhalm haben?")
 
             add_button("Ja", UserInputType.YES)
             add_button("Nein", UserInputType.NO)
 
         elif message == UserMessageType.ASK_FOR_ICE:
-            message_label.setText(
-                "Möchtest du Eis in deinem Cocktail haben?")
+            message_label.setText("Möchtest du Eis in deinem Cocktail haben?")
 
             add_button("Ja", UserInputType.YES)
             add_button("Nein", UserInputType.NO)
@@ -396,7 +414,7 @@ class BusyView(View):
         self._content_container.setVisible(False)
         self._title_label.setVisible(False)
 
-    def set_progress(self, progress:int):
+    def set_progress(self, progress: int):
         """Set the progress for the items of recipe_list_widgets.
         :param process: The current process"""
         for i, widget in enumerate(self.recipe_list_widgets):
@@ -410,7 +428,7 @@ class BusyView(View):
 
     def _init_by_status(self):
         # content
-        if self.barbot_.state == BarBotState.MIXING:
+        if self.barbot_.state == MixingState:
 
             # ingredients
             recipe_items_list = QtWidgets.QWidget()
@@ -424,7 +442,9 @@ class BusyView(View):
                 widget_item = QtWidgets.QLabel()
                 self.recipe_list_widgets.append(widget_item)
                 recipe_items_list.layout().addWidget(widget_item, self._row_index, 0)
-                recipe_items_list.layout().addWidget(QtWidgets.QLabel(name), self._row_index, 1)
+                recipe_items_list.layout().addWidget(
+                    QtWidgets.QLabel(name), self._row_index, 1
+                )
                 self._row_index += 1
 
             options = self.barbot_.current_mixing_options

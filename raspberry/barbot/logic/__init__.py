@@ -1,5 +1,5 @@
-""" All the BarBot logic
-"""
+"""All the BarBot logic"""
+
 from .core import *
 from .communication import *
 from .config import *
