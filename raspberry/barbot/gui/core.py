@@ -6,9 +6,8 @@ import sys
 from typing import Optional
 from PyQt5 import QtWidgets, Qt, QtCore
 
-from barbot.logic import BarBot, UserMessageType, BarBotState, run_command
+from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, run_command
 from barbot.logic.config import Ingredient, IngredientType
-from barbot.logic.core.states import MixingState
 from barbot.logic.recipes import RecipeCollection, RecipeFilter
 from barbot.logic import UserInputType
 from .controls import set_no_spacing
@@ -53,7 +52,7 @@ class BarBotWindow(QtWidgets.QMainWindow):
     """Main window of the barbot, this is the entry point for the barbot gui"""
 
     # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
-    _barbot_state_trigger = QtCore.pyqtSignal(BarBotState)
+    _barbot_state_trigger = QtCore.pyqtSignal(BarBotStateEnum)
     _mixing_progress_trigger = QtCore.pyqtSignal(int)
     _message_trigger = QtCore.pyqtSignal(UserMessageType)
     _show_message_trigger = QtCore.pyqtSignal(str)
@@ -428,7 +427,8 @@ class BusyView(View):
 
     def _init_by_status(self):
         # content
-        if self.barbot_.state == MixingState:
+        state = self.barbot_.state
+        if state == BarBotStateEnum.MIXING:
 
             # ingredients
             recipe_items_list = QtWidgets.QWidget()
@@ -467,25 +467,25 @@ class BusyView(View):
             if options is not None:
                 self._title_label.setText(f"'{options.recipe.name}'\nwird gemischt.")
 
-        elif self.barbot_.state == BarBotState.CLEANING:
+        elif state == BarBotStateEnum.CLEANING:
             self._title_label.setText("Reinigung")
-        elif self.barbot_.state == BarBotState.CONNECTING:
+        elif state == BarBotStateEnum.CONNECTING:
             self._title_label.setText("Stelle Verbindung her")
-        elif self.barbot_.state == BarBotState.SEARCHING:
+        elif state == BarBotStateEnum.SEARCHING:
             self._title_label.setText("Suche nach BarBots in der Nähe")
-        elif self.barbot_.state == BarBotState.CLEANING_CYCLE:
+        elif state == BarBotStateEnum.CLEANING_CYCLE:
             # buttons
             button = QtWidgets.QPushButton("Abbrechen")
             button.clicked.connect(self.barbot_.abort_mixing)
             self._content_container.layout().addWidget(button)
             self._title_label.setText("Reinigung (Zyklus)")
-        elif self.barbot_.state == BarBotState.SINGLE_INGREDIENT:
+        elif state == BarBotStateEnum.SINGLE_INGREDIENT:
             self._title_label.setText("Dein Nachschlag wird hinzugefügt")
-        elif self.barbot_.state == BarBotState.STARTUP:
+        elif state == BarBotStateEnum.STARTUP:
             self._title_label.setText("Starte BarBot, bitte warten")
-        elif self.barbot_.state == BarBotState.CRUSHING:
+        elif state == BarBotStateEnum.CRUSHING:
             self._title_label.setText("Eis wird hinzugefügt")
-        elif self.barbot_.state == BarBotState.STRAW:
+        elif state == BarBotStateEnum.STRAW:
             self._title_label.setText("Strohhalm wird hinzugefügt")
         else:
-            self._title_label.setText(f"Unknown status: {self.barbot_.state}")
+            self._title_label.setText(f"Unknown status: {state}")

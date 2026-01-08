@@ -1,8 +1,9 @@
 """The main window of the barbot gui"""
+
 import logging
 import os
 
-from PyQt5 import QtWidgets, Qt, QtCore
+from PyQt5 import QtWidgets, QtCore
 
 from ..logic import BarBot
 from ..logic.recipes import RecipeCollection
@@ -14,22 +15,24 @@ from .userviews import ListRecipes, OrderRecipe
 
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 
+
 class MainWindow(BarBotWindow):
     """Main window for the barbot"""
-    def __init__(self, barbot_:BarBot, recipes: RecipeCollection):
+
+    def __init__(self, barbot_: BarBot, recipes: RecipeCollection):
         super().__init__(barbot_, recipes)
 
-        self._current_view : View = None
-        self._last_idle_view : View = None
+        self._current_view: View = None
+        self._last_idle_view: View = None
         self._keyboard: Keyboard = None
         self._timer: QtCore.QTimer
-        self._admin_button_active : bool = False
+        self._admin_button_active: bool = False
 
         self.center = QtWidgets.QWidget()
         self.setCentralWidget(self.center)
 
         self.setProperty("class", "MainWindow")
-        with open(os.path.join(css_path(), 'main.qss'), encoding="utf-8") as file:
+        with open(os.path.join(css_path(), "main.qss"), encoding="utf-8") as file:
             self.styles = file.read()
         # replace the #iconpath# wildcard
         self.styles = self.styles.replace("#iconpath#", css_path().replace("\\", "/"))
@@ -95,8 +98,10 @@ class MainWindow(BarBotWindow):
             self._admin_button_active = True
             # reset the admin button after one second
             self._timer = QtCore.QTimer(self)
+
             def _reset_admin_button():
                 self._admin_button_active = False
+
             self._timer.singleShot(1000, _reset_admin_button)
             return
         if not self._barbot.is_busy:
@@ -148,10 +153,12 @@ class MainWindow(BarBotWindow):
 
     def update_view(self):
         """Set the view to the busy view if the barbot is busy.
-        Else load the last idle view. If none was set, load the recipe list """
+        Else load the last idle view. If none was set, load the recipe list"""
         if not self._barbot.is_busy:
             # load the default view
-            if self._last_idle_view is None or isinstance(self._last_idle_view, OrderRecipe):
+            if self._last_idle_view is None or isinstance(
+                self._last_idle_view, OrderRecipe
+            ):
                 self.set_view(ListRecipes(self))
             elif self._last_idle_view != self._current_view:
                 self.set_view(self._last_idle_view)
@@ -162,14 +169,22 @@ class MainWindow(BarBotWindow):
         """Show a spash sceen with a given message.
         :param message: The message"""
         splash = QtWidgets.QLabel(message)
-        splash.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint)
+        splash.setWindowFlags(
+            QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.FramelessWindowHint
+        )
         splash.setProperty("class", "Splash")
         splash.setStyleSheet(self.styles)
         splash.show()
         # center on screen
-        splash.move(QtWidgets.QApplication.desktop().screen().rect().center() - splash.rect().center())
-        
+        splash.move(
+            QtWidgets.QApplication.desktop().screen().rect().center()
+            - splash.rect().center()
+        )
+
         # close the splash after some time
         def _close_message_splash():
             splash.close()
-        QtCore.QTimer.singleShot(int(1000 * SPLASH_MESSAGE_DURATION_IN_SECONDS), _close_message_splash)
+
+        QtCore.QTimer.singleShot(
+            int(1000 * SPLASH_MESSAGE_DURATION_IN_SECONDS), _close_message_splash
+        )

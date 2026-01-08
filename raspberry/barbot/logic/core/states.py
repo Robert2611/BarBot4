@@ -50,10 +50,30 @@ class BarBotState(ABC):
     def on_exit(self):
         """Actions to perform when exiting the state"""
 
+    def _wait_for_user_input(self):
+        """Reset the user input and wait until set_user_input() was called or mixing was aborted."""
+        self._context.reset_user_input()
+        logging.debug("Wait for user input")
+        while (
+            not self._context.should_abort_mixing
+            and self._context.user_input == UserInputType.UNDEFINED
+        ):
+            self._mainboard.read_message()
+        if self._context.should_abort_mixing:
+            logging.warning("Waiting aborted")
+            return False
+        # else
+        logging.debug("User answered: %s", self._context.user_input.name)
+        return True
+
+    def _has_glas(self):
+        result = self._mainboard.get("HasGlas")
+        return result.was_successful and result.return_parameters[0] == "1"
+
     def _wait_for_glass(self) -> bool:
         """Wait for glass to be placed"""
         # Check if glas is already present
-        if self._context.has_glas():
+        if self._has_glas():
             return True
 
         self._context.message = UserMessageType.PLACE_GLAS
@@ -62,8 +82,8 @@ class BarBotState(ABC):
 
         # Wait until glas is present or user input is given
         success = False
-        while not self._context.was_aborted:
-            if self._context.has_glas():
+        while not self._context.should_abort_mixing:
+            if self._has_glas():
                 success = True
                 break
             if self._context.user_input != UserInputType.UNDEFINED:
@@ -72,7 +92,7 @@ class BarBotState(ABC):
 
         # Clear message and reset user input
         self._context.reset_user_input()
-        self._context.clear_user_message()
+        self._context.remove_message()
 
         return success
 
@@ -80,7 +100,7 @@ class BarBotState(ABC):
         """Draft a single ingredient.
         :param item: The recipe item to be draft"""
         # user aborted
-        if self._context.was_aborted:
+        if self._context.should_abort_mixing:
             return False
         if item.ingredient.type == IngredientType.STIRR:
             logging.info("Start stirring")
@@ -114,11 +134,11 @@ class BarBotState(ABC):
                     )
                 if not result.was_successful:
                     self._context.message = UserMessageType.UNKNOWN_ERROR
-                    self._context.wait_foruser_input()
+                    self._wait_for_user_input()
                     return False
                 result = self._mainboard.do("Draft", port, weight)
             # user aborted
-            if self._context.was_aborted:
+            if self._context.should_abort_mixing:
                 return False
             if result.was_successful is True:
                 # drafting successful
@@ -134,10 +154,10 @@ class BarBotState(ABC):
                     logging.warning("No remaining weight received")
                 self._context.message = UserMessageType.INGREDIENT_EMPTY
                 # wait for user input
-                if not self._context.wait_foruser_input():
+                if not self._wait_for_user_input():
                     return False
                 # remove the message
-                self._context.clear_user_message()
+                self._context.remove_message()
                 if self._context.user_input != UserInputType.YES:
                     return False
                 # repeat the loop
@@ -145,13 +165,13 @@ class BarBotState(ABC):
             elif result.error == CommError.GLAS_REMOVED:
                 logging.warning("Glas was removed while drafting")
                 self._context.message = UserMessageType.GLAS_REMOVED_WHILE_DRAFTING
-                self._context.wait_foruser_input()
+                self._wait_for_user_input()
                 return False
 
             else:
                 logging.warning("Unexpected error code")
                 self._context.message = UserMessageType.UNKNOWN_ERROR
-                self._context.wait_foruser_input()
+                self._wait_for_user_input()
                 return False
 
     def _delay_and_keep_communicating(self, seconds):
@@ -177,7 +197,7 @@ class BarBotState(ABC):
         self._context.parties.current_party.add_order(
             self._context.current_mixing_options.recipe
         )
-        self._context.clear_user_message()
+        self._context.remove_message()
 
         if self._context.on_mixing_finished is not None:
             self._context.on_mixing_finished(
@@ -217,10 +237,10 @@ class BarBotState(ABC):
 
         self._context.message = message_type
 
-        if not self._context.wait_foruser_input():
+        if not self._wait_for_user_input():
             return None
 
-        self._context.clear_user_message()
+        self._context.remove_message()
 
         if requires_user_confirmation and self._context.user_input == UserInputType.YES:
             return ice_to_add
@@ -238,12 +258,12 @@ class BarBotState(ABC):
         # Show message and wait for user input
         self._context.reset_user_input()
         self._context.message = UserMessageType.STRAWS_EMPTY
-        if not self._context.wait_foruser_input():
+        if not self._wait_for_user_input():
             # user aborted
             return False
 
         # remove message
-        self._context.clear_user_message()
+        self._context.remove_message()
 
         # check user input
         if self._context.user_input != UserInputType.UNDEFINED:
@@ -349,10 +369,10 @@ class StartupState(BarBotState):
 
             if should_check and board_type not in self._context.connected_boards:
                 self._context.message = message_type
-                if not self._context.wait_foruser_input():
+                if not self._wait_for_user_input():
                     return None
 
-        self._context.clear_user_message()
+        self._context.remove_message()
 
         # Configure mainboard with config values
         self._mainboard.set("SetLED", LEDMode.RAINBOW.value)
@@ -372,12 +392,11 @@ class IdleState(BarBotState):
 
     def on_enter(self):
         """Actions to perform when entering idle state"""
-        logging.debug("Go to idle")
         self._context.abort_mixing = False
-        self._context.clear_user_message()
+        self._context.remove_message()
         # reset current values
-        self._context.set_current_mixing_options(None)
-        self._context.set_current_recipe_item(None)
+        self._context.current_mixing_options = None
+        self._context.current_recipe_item = None
         self._mainboard.set("SetLED", LEDMode.RAINBOW.value)
         self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
         # move to where zero should be, if no motor steps were skipped
@@ -407,7 +426,7 @@ class IdleState(BarBotState):
 
         idle_task = self._context.get_next_idle_task()
         if idle_task is not None:
-            idle_task.update(self._mainboard)
+            idle_task.execute(self._mainboard)
 
         # ensure minimum idle time
         time_diff = time.time() - start_time
@@ -439,7 +458,7 @@ class MixingState(BarBotState):
 
         # Process each recipe item
         for item in self._context.current_mixing_options.recipe.items:
-            if self._context.was_aborted:
+            if self._context.should_abort_mixing:
                 break
 
             self._context.current_recipe_item = item
@@ -452,11 +471,11 @@ class MixingState(BarBotState):
         # Add ice if requested
         if (
             self._context.current_mixing_options.add_ice
-            and not self._context.was_aborted
+            and not self._context.should_abort_mixing
         ):
             ice_to_add = self._config.ice_amount
             while True:
-                if self._context.was_aborted:
+                if self._context.should_abort_mixing:
                     break
                 ice_to_add_result = self._add_ice_once(ice_to_add)
                 if ice_to_add_result is None:
@@ -474,7 +493,7 @@ class MixingState(BarBotState):
         # Add straw if requested
         if (
             self._context.current_mixing_options.add_straw
-            and not self._context.was_aborted
+            and not self._context.should_abort_mixing
         ):
             while True:
                 was_successful = self._add_straw()
@@ -498,7 +517,7 @@ class CrushingState(BarBotState):
         ice_to_add = self._config.ice_amount
 
         while True:
-            if self._context.was_aborted:
+            if self._context.should_abort_mixing:
                 return IdleState
             ice_to_add_result = self._add_ice_once(ice_to_add)
             if ice_to_add_result is None:
@@ -534,7 +553,7 @@ class CleaningCycleState(BarBotState):
         self._context.message = UserMessageType.CLEANING_ADAPTER
         self._context.reset_user_input()
 
-        if not self._context.wait_foruser_input():
+        if not self._wait_for_user_input():
             # user aborted
             return IdleState
 
@@ -542,11 +561,11 @@ class CleaningCycleState(BarBotState):
             # user did not confirm cleaning adapter is present
             return IdleState
 
-        self._context.clear_user_message()
+        self._context.remove_message()
 
         # perform cleaning for each pump that needs it
         for pump_index in self._context.pumps_to_clean:
-            if self._context.was_aborted:
+            if self._context.should_abort_mixing:
                 return IdleState
             self._mainboard.do("Clean", pump_index, self._config.cleaning_time)
 

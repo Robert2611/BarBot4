@@ -36,3 +36,4 @@ include-package-data = true
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
+markers = ["timeout: mark test to fail after a timeout"]

@@ -68,10 +68,11 @@ class BarBotContext:
     @message.setter
     def message(self, message: UserMessageType):
         """Set a message to the user, or None to remove it"""
-        self._message = message
-        if message is None:
+        if message is None or message == UserMessageType.NONE:
+            message = UserMessageType.NONE
             logging.debug("Remove user message")
         else:
             logging.debug("Show user message: %s", message)
+        self._message = message
         if self.on_message_changed is not None:
             self.on_message_changed(message)

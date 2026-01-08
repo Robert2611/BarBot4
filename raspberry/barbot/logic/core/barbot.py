@@ -42,11 +42,12 @@ class BarBot:
         self._state_changed: bool = False
         self._should_reconnect: bool = True
         self._context = BarBotContext()
-        self._transition_to_state: Type["BarBotState"] = None
+        self._next_state_by_class: Type["BarBotState"] = None
+        self._is_transitioning: bool = False
 
         # Initialize state handlers
         BBSE = BarBotStateEnum
-        self._state_handlers: dict[BarBotStateEnum, Type["BarBotState"]] = {
+        self._state_classes_by_type: dict[BarBotStateEnum, Type["BarBotState"]] = {
             BBSE.CONNECTING: ConnectingState,
             BBSE.SEARCHING: SearchingState,
             BBSE.STARTUP: StartupState,
@@ -59,9 +60,28 @@ class BarBot:
         }
 
         # initial state
-        self._state: BarBotState = self._state_handlers[BarBotStateEnum.CONNECTING]
+        self._state_instance: BarBotState = self._create_state(
+            self._state_classes_by_type[BarBotStateEnum.CONNECTING]
+        )
 
         self.on_state_changed: Callable[[type], None] = lambda state: None
+    
+    def _set_next_state_by_class(self, state: Type["BarBotState"]):
+        """Set the next state to transition to.
+        :param state: The state type to transition to"""
+        logging.debug("Next state set to %s", state.__name__)
+        self._next_state_by_class = state
+    
+    def _set_next_state_by_enum(self, state: BarBotStateEnum):
+        """Set the next state to transition to.
+        :param state: The state enum to transition to"""
+        self._set_next_state_by_class(self._state_classes_by_type[state])
+
+    def _create_state(self, state: Type["BarBotState"]) -> "BarBotState":
+        """Create a new state instance of the given state type.
+        :param state: The state type to create
+        :return: The created state instance"""
+        return state(self._config, self._ports, self._mainboard, self._context)
 
     # forward on_mixing_finished callback
     @property
@@ -167,40 +187,47 @@ class BarBot:
         """Reinitiate the connection procedure"""
         # in demo mode there is nothing to do here
         self._should_reconnect = True
+    
+    def _transition_to_state(self, state: Type["BarBotState"]):
+        """Transition to the given state type immediately.
+        :param state: The state type to transition to"""
+        self._is_transitioning = True
+        self._state_instance.on_exit()
+        self._state_instance = self._create_state(state)
+        self._state_instance.on_enter()
+        self._is_transitioning = False
+
+        # callback for state change with the new states enum representation
+        if self.on_state_changed is not None:
+            for state_enum, state_class in self._state_classes_by_type.items():
+                if isinstance(self._state_instance, state_class):
+                    self.on_state_changed(state_enum)
+                    break
 
     def run(self):
         """main loop, runs the whole time"""
         logging.debug("State machine started")
-        self._state.on_enter()
+        self._state_instance.on_enter()
         while not self._context.should_stop_statemachine:
             # call the appropriate state handler
-            next_state = self._state.update()
+            next_state = self._state_instance.update()
             if next_state is not None:
-                self._transition_to_state = next_state
-            if self._transition_to_state is not None:
-                # transition to next state
+                self._set_next_state_by_class(next_state)
+            if self._next_state_by_class is not None:
                 logging.debug(
-                    "Transition from %s to %s",
-                    self._state.__class__.__name__,
-                    self._transition_to_state.__name__,
+                    "Transitioning from %s to %s",
+                    self._state_instance.__class__.__name__,
+                    self._next_state_by_class.__name__,
                 )
-                self._state.on_exit()
-                # create new state instance and enter it
-                self._state = self._transition_to_state(
-                    self._config,
-                    self._ports,
-                    self._mainboard,
-                    self._context,
+                self._transition_to_state(self._next_state_by_class)
+                self._next_state_by_class = None
+                
+                logging.debug(
+                    "Now in %s",
+                    self._state_instance.__class__.__name__,
                 )
-                self._state.on_enter()
-                self._transition_to_state = None
-
-                # callback for state change with the new states enum representation
-                if self.on_state_changed is not None:
-                    for state_enum, state_class in self._state_handlers.items():
-                        if isinstance(self._state, state_class):
-                            self.on_state_changed(state_enum)
-                            break
+            else:
+                logging.debug("No state transition, still in %s", self._state_instance)
         logging.debug("State machine stopped")
         self._mainboard.disconnect()
 
@@ -229,15 +256,15 @@ class BarBot:
     @property
     def state(self) -> BarBotStateEnum:
         """Get the enum representation of the current state"""
-        for state_enum, state_instance in self._state_handlers.items():
-            if isinstance(self._state, state_instance.__class__):
+        for state_enum, state_instance in self._state_classes_by_type.items():
+            if isinstance(self._state_instance, state_instance):
                 return state_enum
         return None
 
     @property
     def is_busy(self):
         """Whether the barbot is executing any commands"""
-        return self.state != BarBotStateEnum.IDLE
+        return self.state != BarBotStateEnum.IDLE or self._is_transitioning
 
     @property
     def can_edit_database(self):
@@ -260,7 +287,7 @@ class BarBot:
             logging.warning("Cannot start mixing while busy")
             return
         self._context.current_mixing_options = options
-        self._transition_to_state = BarBotStateEnum.MIXING
+        self._set_next_state_by_enum(BarBotStateEnum.MIXING)
 
     def start_single_ingredient(self, recipe_item: RecipeItem):
         """Start adding a single ingredient to your glas.
@@ -268,15 +295,15 @@ class BarBot:
         if self.is_busy:
             logging.warning("Cannot start single ingredient while busy")
             return
-        self._context.current_mixing_options = recipe_item
-        self._transition_to_state = BarBotStateEnum.SINGLE_INGREDIENT
+        self._context.current_recipe_item = recipe_item
+        self._set_next_state_by_enum(BarBotStateEnum.SINGLE_INGREDIENT)
 
     def start_crushing(self):
         """Add ice to the glas"""
         if self.is_busy:
             logging.warning("Cannot start crushing while busy")
             return
-        self._transition_to_state = BarBotStateEnum.CRUSHING
+        self._set_next_state_by_enum(BarBotStateEnum.CRUSHING)
 
     def start_cleaning(self, port: int):
         """Start cleaning a single pump.
@@ -285,7 +312,8 @@ class BarBot:
             logging.warning("Cannot start cleaning while busy")
             return
         self._context.pumps_to_clean = [port]
-        self._transition_to_state = BarBotStateEnum.CLEANING
+        
+        self._set_next_state_by_enum(BarBotStateEnum.CLEANING)
 
     def start_cleaning_cycle(self, pumps_to_clean: List[int]):
         """Start a cleaning cycle.
@@ -293,15 +321,15 @@ class BarBot:
         if self.is_busy:
             logging.warning("Cannot start cleaning cycle while busy")
             return
-        self._context.pumps_to_clean = pumps_to_clean
-        self._transition_to_state = BarBotStateEnum.CLEANING_CYCLE
+        self._context.pumps_to_clean = pumps_to_clean        
+        self._set_next_state_by_enum(BarBotStateEnum.CLEANING_CYCLE)
 
     def start_straw(self):
         """Add a straw to the glas"""
         if self.is_busy:
             logging.warning("Cannot start adding straw while busy")
             return
-        self._transition_to_state = BarBotStateEnum.STRAW
+        self._set_next_state_by_enum(BarBotStateEnum.STRAW)
 
     def get_weight(self, callback: Callable[[float], None]):
         """Get the weight when the state machine is idle again.

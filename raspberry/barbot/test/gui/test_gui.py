@@ -56,6 +56,7 @@ class TestGui:
         main_window.set_view(view)
         view._ingredient_widget.setCurrentIndex(2)
         view._amount_widget.setCurrentIndex(3)
+        print("Barbot is in state:", main_window.barbot_.state)
         view._start_button.click()
         mainboard_connection_mockup.set_result_for_getter("HasGlas", 1)
         time.sleep(2)
