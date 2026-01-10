@@ -1,4 +1,7 @@
 """Barbot main configuration"""
+
+__all__ = ["BarBotConfig"]
+
 from io import TextIOWrapper
 import logging
 import os
@@ -109,7 +112,7 @@ class BarBotConfig:
         data: dict[int, str]
         try:
             if input_stream is not None:
-                data = yaml.load(input_stream, Loader=yaml.FullLoader)
+                data = yaml.safe_load(input_stream)
             else:
                 with open(self._filename, 'r', encoding="utf-8") as configfile:
                     data = yaml.safe_load(configfile)

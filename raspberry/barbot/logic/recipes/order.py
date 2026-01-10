@@ -1,4 +1,7 @@
 """Order classes and functions"""
+
+__all__ = ["OrderItem", "Order", "get_order_from_json"]
+
 from datetime import datetime
 from typing import NamedTuple, List
 
@@ -12,8 +15,8 @@ class OrderItem(NamedTuple):
 class Order(NamedTuple):
     """Order of a recipe containing the recipe name and a copy of the recipe items"""
     recipe: str
-    date: datetime = datetime.now()
-    items: List[OrderItem] = []
+    date: datetime
+    items: List[OrderItem]
 
 
 def get_order_from_json(data: dict):

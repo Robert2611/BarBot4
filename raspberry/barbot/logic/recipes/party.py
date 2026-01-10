@@ -1,4 +1,7 @@
 """Party classes and statistics"""
+
+__all__ = ["PartyStatistics", "Party", "PartyCollection"]
+
 import os
 from datetime import datetime, timedelta
 from typing import NamedTuple, List, Dict
@@ -32,12 +35,16 @@ class Party:
 
     def add_order(self, recipe: Recipe):
         """Add a new order to the list and save it"""
-        order = Order(recipe.name)
-        for item in recipe.items:
-            ingredient = item.ingredient.identifier if item.ingredient is not None else None
-            order_item = OrderItem(item.amount, ingredient)
-            order.items.append(order_item)
-        _filename = datetime.now().strftime(
+        order_items = [
+            OrderItem(
+                item.amount,
+                item.ingredient.identifier if item.ingredient is not None else None,
+            )
+            for item in recipe.items
+        ]
+        order = Order(recipe=recipe.name, date=datetime.now(), items=order_items)
+
+        _filename = order.date.strftime(
             ORDERS_FILENAME_PREFIX + ORDERS_FILENAME_TIMEFORMAT + ORDERS_FILENAME_EXTENSION
         )
         _filepath = os.path.join(orders_directory, _filename)
@@ -47,12 +54,9 @@ class Party:
                 "recipe": order.recipe,
                 "date": order.date,
                 "items": [
-                    {
-                        "amount": item.amount,
-                        "ingredient": item.ingredient
-                    }
+                    {"amount": item.amount, "ingredient": item.ingredient}
                     for item in order.items
-                ]
+                ],
             }
             yaml.dump([data], file)
         self.orders.append(order)

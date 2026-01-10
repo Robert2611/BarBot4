@@ -1,4 +1,21 @@
 """This module handles the communication between the barbot and the mainboard"""
+
+__all__ = [
+    "ErrorType",
+    "is_mainboard_error",
+    "BoardType",
+    "LEDMode",
+    "PlatformLEDMode",
+    "ResponseTypes",
+    "FirmwareVersion",
+    "decode_firmware_version",
+    "CommunicationResult",
+    "RawResponse",
+    "MainboardConnection",
+    "MainboardConnectionBluetooth",
+    "Mainboard",
+]
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

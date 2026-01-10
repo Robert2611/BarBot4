@@ -1,4 +1,14 @@
 """Directory management"""
+
+__all__ = [
+    "data_directory",
+    "fixed_recipes_directory",
+    "recipes_directory",
+    "old_recipes_directory",
+    "orders_directory",
+    "log_directory",
+]
+
 import os
 
 # Data directory

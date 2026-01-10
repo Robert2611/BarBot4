@@ -1,4 +1,14 @@
 """Recipe classes and functions"""
+
+__all__ = [
+    "RecipeSorting",
+    "RecipeFilter",
+    "RecipeItem",
+    "Recipe",
+    "load_recipe_from_yaml",
+    "load_recipe_from_file",
+]
+
 from enum import Enum, auto
 import os
 import logging
@@ -51,7 +61,10 @@ class Recipe:
         # fixed recipes cannot be modified
         if self.is_fixed:
             return False
-        filename = self.name + ".yaml"
+        
+        # sanitize filename to prevent directory traversal
+        filename = "".join(c for c in self.name if c.isalnum() or c in " ._").rstrip() + ".yaml"
+
         filepath = os.path.join(folder, filename)
         data = self.to_yaml()
         result = True

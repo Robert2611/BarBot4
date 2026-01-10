@@ -1,7 +1,10 @@
 """All the BarBot logic"""
 
+__all__ = ["BarBot"]
+
+
 import logging
-from typing import Callable, List, Type
+from typing import Callable, List, Optional, Type
 
 from barbot.logic.core.common import (
     BarBotStateEnum,
@@ -42,7 +45,7 @@ class BarBot:
         self._state_changed: bool = False
         self._should_reconnect: bool = True
         self._context = BarBotContext()
-        self._next_state_by_class: Type["BarBotState"] = None
+        self._next_state_by_class: Optional[Type["BarBotState"]] = None
         self._is_transitioning: bool = False
 
         # Initialize state handlers
@@ -64,14 +67,14 @@ class BarBot:
             self._state_classes_by_type[BarBotStateEnum.CONNECTING]
         )
 
-        self.on_state_changed: Callable[[type], None] = lambda state: None
-    
+        self.on_state_changed: Callable[[BarBotStateEnum], None] = lambda state: None
+
     def _set_next_state_by_class(self, state: Type["BarBotState"]):
         """Set the next state to transition to.
         :param state: The state type to transition to"""
         logging.debug("Next state set to %s", state.__name__)
         self._next_state_by_class = state
-    
+
     def _set_next_state_by_enum(self, state: BarBotStateEnum):
         """Set the next state to transition to.
         :param state: The state enum to transition to"""
@@ -187,7 +190,7 @@ class BarBot:
         """Reinitiate the connection procedure"""
         # in demo mode there is nothing to do here
         self._should_reconnect = True
-    
+
     def _transition_to_state(self, state: Type["BarBotState"]):
         """Transition to the given state type immediately.
         :param state: The state type to transition to"""
@@ -221,7 +224,7 @@ class BarBot:
                 )
                 self._transition_to_state(self._next_state_by_class)
                 self._next_state_by_class = None
-                
+
                 logging.debug(
                     "Now in %s",
                     self._state_instance.__class__.__name__,
@@ -312,8 +315,8 @@ class BarBot:
             logging.warning("Cannot start cleaning while busy")
             return
         self._context.pumps_to_clean = [port]
-        
-        self._set_next_state_by_enum(BarBotStateEnum.CLEANING)
+
+        self._set_next_state_by_enum(BarBotStateEnum.CLEANING_CYCLE)
 
     def start_cleaning_cycle(self, pumps_to_clean: List[int]):
         """Start a cleaning cycle.
@@ -321,7 +324,7 @@ class BarBot:
         if self.is_busy:
             logging.warning("Cannot start cleaning cycle while busy")
             return
-        self._context.pumps_to_clean = pumps_to_clean        
+        self._context.pumps_to_clean = pumps_to_clean
         self._set_next_state_by_enum(BarBotStateEnum.CLEANING_CYCLE)
 
     def start_straw(self):

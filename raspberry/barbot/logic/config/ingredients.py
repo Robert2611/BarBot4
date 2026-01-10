@@ -1,4 +1,14 @@
 """Barbot ingredients configuration"""
+
+__all__ = [
+    "IngredientType",
+    "Ingredient",
+    "Stir",
+    "Sugar",
+    "get_ingredient_by_identifier",
+    "get_all_ingredients",
+]
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import List

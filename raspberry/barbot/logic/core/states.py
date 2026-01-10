@@ -1,5 +1,20 @@
 """State machine states for BarBot"""
 
+__all__ = [
+    "BarBotState",
+    "ConnectingState",
+    "SearchingState",
+    "StartupState",
+    "IdleState",
+    "MixingState",
+    "CrushingState",
+    "StrawState",
+    "CleaningCycleState",
+    "CleaningState",
+    "SingleIngredientState",
+]
+
+
 import time
 import logging
 from abc import ABC
@@ -177,7 +192,7 @@ class BarBotState(ABC):
     def _delay_and_keep_communicating(self, seconds):
         """Delay the state machine but keep checking the idle state to handle the communication"""
         start_time = time.time()
-        while time.time() - start_time > seconds:
+        while time.time() - start_time < seconds:
             time_at_send = time.time()
             self._mainboard.get("IsIdle")
             self._mainboard.read_message()
@@ -443,7 +458,7 @@ class MixingState(BarBotState):
     def update(self) -> Optional[Type["BarBotState"]]:
         """Perform mixing process with the current recipe"""
         progress = 0
-        self._context.set_mixing_progress(progress)
+        self._context.mixing_progress = progress
 
         # Wait for glass
         if not self._wait_for_glass():
@@ -466,7 +481,7 @@ class MixingState(BarBotState):
                 break
 
             progress += 1
-            self._context.set_mixing_progress(progress)
+            self._context.mixing_progress = progress
 
         # Add ice if requested
         if (
@@ -485,7 +500,7 @@ class MixingState(BarBotState):
                 ice_to_add = ice_to_add_result
                 # try again
             progress += 1
-            self._set_mixing_progress(progress)
+            self._context.mixing_progress = progress
 
         # Move to start position
         self._mainboard.do("Move", 0)
@@ -503,7 +518,7 @@ class MixingState(BarBotState):
                     break
                 # else try again
             progress += 1
-            self._set_mixing_progress(progress)
+            self._context.mixing_progress = progress
 
         # Mixing complete
         return self._finish_mixing()

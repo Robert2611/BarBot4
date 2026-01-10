@@ -25,7 +25,6 @@ class BarBotContext:
         self.parties = PartyCollection()
         self.state_changed: bool = False
         self.should_reconnect: bool = True
-        self.user_input: UserInputType = UserInputType.UNDEFINED
 
         # callbacks
         self.on_mixing_finished: Callable[[Recipe], None] = lambda current_recipe: None

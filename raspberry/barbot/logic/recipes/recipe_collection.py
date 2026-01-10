@@ -1,4 +1,7 @@
 """Recipe collection management"""
+
+__all__ = ["RecipeCollection"]
+
 import os
 from typing import List
 

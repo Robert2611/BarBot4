@@ -1,15 +1,25 @@
+__all__ = [
+    "run_command",
+    "MixingOptions",
+    "UserMessageType",
+    "UserInputType",
+    "BarBotStateEnum",
+]
+
 from enum import Enum, auto
 import subprocess
 from typing import NamedTuple
 from barbot.logic.recipes.recipe import Recipe
 
 
+
 def run_command(cmd_str):
     """Run a linux command discarding all its output
     :param cmd_str: Command to be executed
     """
+    import shlex
     subprocess.Popen(
-        [cmd_str], shell=True, stdin=None, stdout=None, stderr=None, close_fds=True
+        shlex.split(cmd_str), stdin=None, stdout=None, stderr=None, close_fds=True
     )
 
 

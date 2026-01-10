@@ -1,4 +1,7 @@
 """Port configuration management"""
+
+__all__ = ["PortConfiguration", "PORT_COUNT"]
+
 from io import TextIOWrapper
 import logging
 import os
@@ -73,23 +76,24 @@ class PortConfiguration:
         """
         # load data
         result = True
-        data: dict[int, str]
+        data: dict[int, str] = None
         try:
             if input_stream is not None:
-                data = yaml.load(input_stream, Loader=yaml.FullLoader)
+                data = yaml.safe_load(input_stream)
             else:
                 with open(self._filepath, 'r', encoding="utf-8") as file:
-                    data = yaml.load(file, Loader=yaml.FullLoader)
+                    data = yaml.safe_load(file)
         except OSError:
             result = False
         # parse data
         if result is True:
             self._list = {}
-            for port, identifier in data.items():
-                if identifier is None or identifier == "":
-                    self._list[port] = None
-                else:
-                    self._list[port] = get_ingredient_by_identifier(identifier)
+            if data is not None:
+                for port, identifier in data.items():
+                    if identifier is None or identifier == "":
+                        self._list[port] = None
+                    else:
+                        self._list[port] = get_ingredient_by_identifier(identifier)
         return result
 
     @property

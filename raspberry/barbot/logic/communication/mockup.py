@@ -1,4 +1,7 @@
 """Mockups for testing and demo"""
+
+__all__ = ["MainboardConnectionMockup"]
+
 import time
 from .communication import MainboardConnection
 
