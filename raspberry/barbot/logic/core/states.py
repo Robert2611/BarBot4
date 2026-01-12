@@ -10,7 +10,6 @@ __all__ = [
     "CrushingState",
     "StrawState",
     "CleaningCycleState",
-    "CleaningState",
     "SingleIngredientState",
 ]
 
@@ -199,27 +198,6 @@ class BarBotState(ABC):
             time_diff = time.time() - time_at_send
             if time_diff < MIN_IDLE_TIME_SEC:
                 time.sleep(MIN_IDLE_TIME_SEC - time_diff)
-
-    def _finish_mixing(self) -> Type["BarBotState"]:
-        """Handle mixing completion"""
-        self._context.message = UserMessageType.MIXING_DONE_REMOVE_GLAS
-        self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
-        self._mainboard.set("SetLED", LEDMode.POSITION_WATERFALL.value)
-
-        self._delay_and_keep_communicating(4)
-        self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
-
-        self._context.parties.current_party.add_order(
-            self._context.current_mixing_options.recipe
-        )
-        self._context.remove_message()
-
-        if self._context.on_mixing_finished is not None:
-            self._context.on_mixing_finished(
-                self._context.current_mixing_options.recipe
-            )
-
-        return IdleState
 
     def _add_ice_once(self, ice_to_add: int) -> Optional[int]:
         """Add ice using the crusher, return True if successful, False if aborted"""
@@ -455,6 +433,25 @@ class IdleState(BarBotState):
 class MixingState(BarBotState):
     """Handle mixing state"""
 
+    def _finish_mixing(self):
+        """Handle mixing completion"""
+        self._context.message = UserMessageType.MIXING_DONE_REMOVE_GLAS
+        self._mainboard.set("PlatformLED", PlatformLEDMode.BLINK.value)
+        self._mainboard.set("SetLED", LEDMode.POSITION_WATERFALL.value)
+
+        self._delay_and_keep_communicating(4)
+        self._mainboard.set("PlatformLED", PlatformLEDMode.OFF.value)
+
+        self._context.parties.current_party.add_order(
+            self._context.current_mixing_options.recipe
+        )
+        self._context.remove_message()
+
+        if self._context.on_mixing_finished is not None:
+            self._context.on_mixing_finished(
+                self._context.current_mixing_options.recipe
+            )
+
     def update(self) -> Optional[Type["BarBotState"]]:
         """Perform mixing process with the current recipe"""
         progress = 0
@@ -521,28 +518,35 @@ class MixingState(BarBotState):
             self._context.mixing_progress = progress
 
         # Mixing complete
-        return self._finish_mixing()
+        self._finish_mixing()
+        return IdleState
 
 
 class CrushingState(BarBotState):
     """Handle ice crushing state"""
 
+    def __init__(self, config, ports, mainboard, context):
+        super().__init__(config, ports, mainboard, context)
+        self._ice_to_add = 0
+
+    def on_enter(self):
+        self._ice_to_add = self._config.ice_amount
+
     def update(self) -> Optional[Type["BarBotState"]]:
         """Perform the crushing of ice"""
-        ice_to_add = self._config.ice_amount
+        if self._context.should_abort_mixing:
+            return IdleState
+        ice_to_add_result = self._add_ice_once(self._ice_to_add)
+        if ice_to_add_result is None:
+            # user aborted
+            return IdleState
+        if ice_to_add_result == 0:
+            # ice added completely
+            return IdleState
+        self._ice_to_add = ice_to_add_result
 
-        while True:
-            if self._context.should_abort_mixing:
-                return IdleState
-            ice_to_add_result = self._add_ice_once(ice_to_add)
-            if ice_to_add_result is None:
-                # user aborted
-                return IdleState
-            if ice_to_add_result == 0:
-                # ice added completely
-                return IdleState
-            ice_to_add = ice_to_add_result
-            # try again
+        # try again
+        return None
 
 
 class StrawState(BarBotState):
@@ -550,13 +554,13 @@ class StrawState(BarBotState):
 
     def update(self) -> Optional[Type["BarBotState"]]:
         """Try dispensing straw until it works or user aborts"""
-        while True:
-            was_successful = self._add_straw()
-            if was_successful:
-                return IdleState
-            if not self._ask_for_straw_retry():
-                return IdleState
-            # try again
+        was_successful = self._add_straw()
+        if was_successful:
+            return IdleState
+        if not self._ask_for_straw_retry():
+            return IdleState
+        # try again
+        return None
 
 
 class CleaningCycleState(BarBotState):
@@ -587,16 +591,6 @@ class CleaningCycleState(BarBotState):
         return IdleState
 
 
-class CleaningState(BarBotState):
-    """Handle cleaning cycle state"""
-
-    def update(self) -> Optional[Type["BarBotState"]]:
-        """Perform cleaning of the current recipe item"""
-        item = self._context.current_recipe_item
-        weight = int(item.weight)
-        self._mainboard.do("Clean", item.port, weight)
-
-
 class SingleIngredientState(BarBotState):
     """Handle single ingredient dispensing state"""
 
@@ -604,4 +598,6 @@ class SingleIngredientState(BarBotState):
         """Add a single ingredient"""
         if self._wait_for_glass():
             self._draft_one(self._context.current_recipe_item)
+
+        # done, go back to idle
         return IdleState

@@ -6,18 +6,18 @@ __all__ = [
     "BarBotStateEnum",
 ]
 
-from enum import Enum, auto
+import shlex
 import subprocess
+from enum import Enum, auto
 from typing import NamedTuple
-from barbot.logic.recipes.recipe import Recipe
 
+from barbot.logic.recipes.recipe import Recipe
 
 
 def run_command(cmd_str):
     """Run a linux command discarding all its output
     :param cmd_str: Command to be executed
     """
-    import shlex
     subprocess.Popen(
         shlex.split(cmd_str), stdin=None, stdout=None, stderr=None, close_fds=True
     )
@@ -74,5 +74,4 @@ class BarBotStateEnum(Enum):
     CRUSHING = auto()
     STRAW = auto()
     CLEANING_CYCLE = auto()
-    CLEANING = auto()
     SINGLE_INGREDIENT = auto()
