@@ -43,7 +43,7 @@ class BarBot:
         self._ports = ports
         self._mainboard = mainboard
         self._state_changed: bool = False
-        self._should_reconnect: bool = True
+        self._should_reconnect: bool = False
         self._context = BarBotContext()
         self._next_state_by_class: Optional[Type["BarBotState"]] = None
         self._is_transitioning: bool = False
@@ -188,8 +188,8 @@ class BarBot:
 
     def reconnect(self):
         """Reinitiate the connection procedure"""
-        # in demo mode there is nothing to do here
         self._should_reconnect = True
+        logging.debug("Reconnection requested")
 
     def _transition_to_state(self, state: Type["BarBotState"]):
         """Transition to the given state type immediately.
@@ -216,6 +216,14 @@ class BarBot:
             next_state = self._state_instance.update()
             if next_state is not None:
                 self._set_next_state_by_class(next_state)
+                logging.debug("State requested transition to %s", next_state.__name__)
+
+            elif self._should_reconnect:
+                # handle reconnection request
+                self._should_reconnect = False
+                self._set_next_state_by_class(ConnectingState)
+                logging.debug("State requested reconnection to ConnectingState")
+
             if self._next_state_by_class is not None:
                 logging.debug(
                     "Transitioning from %s to %s",

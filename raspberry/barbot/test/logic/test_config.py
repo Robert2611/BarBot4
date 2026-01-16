@@ -1,30 +1,31 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 from io import StringIO, TextIOWrapper
 import unittest
-from barbot.logic.config import BarBotConfig
+from barbot.logic.config import BarBotConfig, Ingredient, IngredientType
+
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
         # shape is
         # name : (value_as_string, expected_value)
         self.config_elements = {
-            "admin_password" : ('\'0123\'', '0123'),
-            "balance_calibration" : ('2', 2),
-            "balance_offset" : ('3', 3),
-            "cleaning_time" : ('4', 4),
-            "ice_amount" : ('5', 5),
-            "ice_crusher_connected" : ('false', False),
-            "mac_address" : ('00:80:41:ae:fd:7e', '00:80:41:ae:fd:7e'),
-            "max_accel" : ('8', 8),
-            "max_cocktail_size" : ('9', 9),
-            "max_speed" : ('10', 10),
-            "pump_power" : ('11', 11),
-            "pump_power_sirup" : ('12', 12),
-            "stirrer_connected" : ('false', False),
-            "stirring_time" : ('14', 14),
-            "straw_dispenser_connected" : ('true', True),
-            "sugar_dispenser_connected" : ('true', True),
-            "sugar_per_unit" : ('17', 17),
+            "admin_password": ("'0123'", "0123"),
+            "balance_calibration": ("2", 2),
+            "balance_offset": ("3", 3),
+            "cleaning_time": ("4", 4),
+            "ice_amount": ("5", 5),
+            "ice_crusher_connected": ("false", False),
+            "mac_address": ("00:80:41:ae:fd:7e", "00:80:41:ae:fd:7e"),
+            "max_accel": ("8", 8),
+            "max_cocktail_size": ("9", 9),
+            "max_speed": ("10", 10),
+            "pump_power": ("11", 11),
+            "pump_power_sirup": ("12", 12),
+            "stirrer_connected": ("false", False),
+            "stirring_time": ("14", 14),
+            "straw_dispenser_connected": ("true", True),
+            "sugar_dispenser_connected": ("true", True),
+            "sugar_per_unit": ("17", 17),
         }
 
     def get_test_data_yaml_stream(self) -> TextIOWrapper:
@@ -39,7 +40,7 @@ class TestConfig(unittest.TestCase):
         config = BarBotConfig(load_on_init=False)
         config.load(self.get_test_data_yaml_stream())
 
-        #check config
+        # check config
         for name, value in self.config_elements.items():
             self.assertEqual(getattr(config, name), value[1])
 
@@ -57,6 +58,24 @@ class TestConfig(unittest.TestCase):
         config_new = BarBotConfig(load_on_init=False)
         config_new.load(input_stream=StringIO(saved_config_yaml))
 
-        #check config
+        # check config
         for name, value in self.config_elements.items():
             self.assertEqual(getattr(config_new, name), value[1])
+
+
+class TestIngredient(unittest.TestCase):
+    def test_ingredient_alcoholic(self):
+        spirit = Ingredient("test", "Test", IngredientType.SPIRIT, 0)
+        juice = Ingredient("test2", "Test2", IngredientType.JUICE, 0)
+        self.assertTrue(spirit.alcoholic())
+        self.assertFalse(juice.alcoholic())
+
+    def test_ingredient_density(self):
+        spirit = Ingredient("test", "Test", IngredientType.SPIRIT, 0)
+        juice = Ingredient("test2", "Test2", IngredientType.JUICE, 0)
+        sirup = Ingredient("test3", "Test3", IngredientType.SIRUP, 0)
+        other = Ingredient("test4", "Test4", IngredientType.OTHER, 0)
+        self.assertEqual(spirit.density, 1)
+        self.assertEqual(juice.density, 1)
+        self.assertEqual(sirup.density, 1)
+        self.assertEqual(other.density, 1)  # default

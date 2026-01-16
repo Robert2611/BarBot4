@@ -4,6 +4,7 @@ import time
 import threading
 import pytest
 from pytestqt.qtbot import QtBot
+from PyQt5 import QtWidgets
 
 from barbot.logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
 from barbot.logic.recipes import RecipeCollection
@@ -14,10 +15,12 @@ from barbot.gui.userviews import ListRecipes, RecipeNewOrEdit
 from barbot.gui.userviews import SingleIngredient, Statistics, OrderRecipe
 from barbot.gui.adminviews import AdminLogin, BalanceCalibration, Overview
 from barbot.gui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
+from barbot.gui.controls import set_no_spacing
 
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists
 os.makedirs(temp_path, exist_ok=True)
+
 
 class TestGui:
     @pytest.fixture
@@ -29,13 +32,15 @@ class TestGui:
         return result
 
     @pytest.fixture
-    def main_window(self, qtbot : QtBot, mainboard_connection_mockup):
+    def main_window(self, qtbot: QtBot, mainboard_connection_mockup):
         ports = PortConfiguration()
         config = BarBotConfig()
         mainboard = Mainboard(mainboard_connection_mockup)
         bot = BarBot(config, ports, mainboard)
-        boards_encoded = 1<<BoardType.BALANCE.value | 1<<BoardType.MIXER.value
-        mainboard_connection_mockup.set_result_for_getter("GetConnectedBoards", boards_encoded)
+        boards_encoded = 1 << BoardType.BALANCE.value | 1 << BoardType.MIXER.value
+        mainboard_connection_mockup.set_result_for_getter(
+            "GetConnectedBoards", boards_encoded
+        )
         recipe_collection = RecipeCollection()
         recipe_collection.load()
         bar_bot_thread = threading.Thread(target=bot.run)
@@ -64,7 +69,7 @@ class TestGui:
             time.sleep(1)
         assert "Draft" in mainboard_connection_mockup.command_history
 
-    def test_admin_views(self, main_window:MainWindow, qtbot : QtBot):
+    def test_admin_views(self, main_window: MainWindow, qtbot: QtBot):
         admin_views = [
             AdminLogin,
             BalanceCalibration,
@@ -72,28 +77,40 @@ class TestGui:
             Ports,
             Cleaning,
             Settings,
-            RemoveRecipe
+            RemoveRecipe,
         ]
         for view in admin_views:
             view_instance = view(main_window)
             main_window.set_view(view_instance)
             qtbot.wait(200)
 
-    def test_order_recipe(self, main_window:MainWindow, qtbot : QtBot):
+    def test_order_recipe(self, main_window: MainWindow, qtbot: QtBot):
         qtbot.wait(200)
         # take the first recipe from the list
         recipe = main_window.recipes._recipes[0]
         main_window.set_view(OrderRecipe(main_window, recipe))
         qtbot.wait(200)
 
-    def test_views(self, main_window:MainWindow, qtbot : QtBot):
+    def test_views(self, main_window: MainWindow, qtbot: QtBot):
         views = [
             ListRecipes,
             RecipeNewOrEdit,
             SingleIngredient,
             Statistics,
-            RecipeNewOrEdit
+            RecipeNewOrEdit,
         ]
         for view in views:
             main_window.set_view(view(main_window))
             qtbot.wait(200)
+
+
+class TestControls:
+    def test_set_no_spacing(self):
+        layout = QtWidgets.QVBoxLayout()
+        set_no_spacing(layout)
+        assert layout.spacing() == 0
+        margins = layout.contentsMargins()
+        assert margins.left() == 0
+        assert margins.top() == 0
+        assert margins.right() == 0
+        assert margins.bottom() == 0

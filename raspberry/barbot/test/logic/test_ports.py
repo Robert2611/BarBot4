@@ -1,26 +1,31 @@
 # pylint: disable=missing-module-docstring, missing-class-docstring, missing-function-docstring, protected-access
 from io import StringIO, TextIOWrapper
 import unittest
-from barbot.logic.config import PortConfiguration, get_ingredient_by_identifier
+from barbot.logic.config import (
+    PortConfiguration,
+    get_ingredient_by_identifier,
+    get_all_ingredients,
+)
+
 
 class TestPorts(unittest.TestCase):
     def setUp(self):
         self.ingredients = [
-            'rum weiss',
-            'rum braun',
-            'vodka',
-            'tequila',
-            'gin',
-            'saft zitrone',
-            'saft limette',
-            'saft orange',
-            'saft ananas',
-            'tripple sec',
-            'sirup kokos',
-            'sirup curacao',
-            'sirup grenadine',
-            'saft cranberry',
-            'milch',
+            "rum weiss",
+            "rum braun",
+            "vodka",
+            "tequila",
+            "gin",
+            "saft zitrone",
+            "saft limette",
+            "saft orange",
+            "saft ananas",
+            "tripple sec",
+            "sirup kokos",
+            "sirup curacao",
+            "sirup grenadine",
+            "saft cranberry",
+            "milch",
         ]
 
     def get_test_data_yaml_stream(self) -> TextIOWrapper:
@@ -59,3 +64,11 @@ class TestPorts(unittest.TestCase):
         for i, name in enumerate(self.ingredients):
             ingredient = get_ingredient_by_identifier(name)
             self.assertEqual(read_ingredients[i], ingredient)
+
+    def test_get_ingredient_by_invalid_identifier(self):
+        self.assertIsNone(get_ingredient_by_identifier("invalid"))
+
+    def test_get_all_ingredients(self):
+        all_ing = get_all_ingredients()
+        self.assertIsInstance(all_ing, list)
+        self.assertGreater(len(all_ing), 0)
