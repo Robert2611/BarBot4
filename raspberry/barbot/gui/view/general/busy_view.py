@@ -2,28 +2,8 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, UserInputType
 from barbot.logic.config import IngredientType
 from barbot.logic.recipes import RecipeCollection
-from .base import View
-from ..core import qt_icon_from_file_name
-from ..controls import set_no_spacing
-
-class SystemBusyView(View):
-    """View to access system (eg. restart) when the mainboard is busy"""
-
-    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
-        super().__init__(barbot, recipes, is_idle_view=False)
-
-        self.setLayout(QtWidgets.QVBoxLayout())
-        set_no_spacing(self.layout())
-
-        self.header = QtWidgets.QWidget()
-        self.layout().addWidget(self.header)
-
-        self._content = QtWidgets.QWidget()
-        self.layout().addWidget(self._content)
-
-        # add actual content
-        View.set_system_view(self._content)
-
+from ..base import View
+from ...core import qt_icon_from_file_name, set_no_spacing
 
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
