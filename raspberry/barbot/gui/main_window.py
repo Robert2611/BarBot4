@@ -8,7 +8,8 @@ from PyQt5 import QtWidgets, QtCore
 from ..logic import BarBot
 from ..logic.recipes import RecipeCollection
 
-from .core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry, InputMethod
+from .core import SystemBusyView, View, BusyView, css_path, is_raspberry, InputMethod
+
 from .controls import Keyboard, Numpad, set_no_spacing
 from .adminviews import AdminLogin
 from .userviews import ListRecipes, OrderRecipe
@@ -16,11 +17,22 @@ from .userviews import ListRecipes, OrderRecipe
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 
 
-class MainWindow(BarBotWindow):
+from barbot.logic import UserMessageType, BarBotStateEnum
+
+class MainWindow(QtWidgets.QMainWindow):
     """Main window for the barbot"""
 
+    # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
+    _barbot_state_trigger = QtCore.pyqtSignal(BarBotStateEnum)
+    _mixing_progress_trigger = QtCore.pyqtSignal(int)
+    _message_trigger = QtCore.pyqtSignal(UserMessageType)
+    _show_message_trigger = QtCore.pyqtSignal(str)
+
     def __init__(self, barbot_: BarBot, recipes: RecipeCollection):
-        super().__init__(barbot_, recipes)
+        super().__init__()
+        self._barbot = barbot_
+        self._recipes = recipes
+
 
         self._current_view: View = None
         self._last_idle_view: View = None
@@ -82,6 +94,7 @@ class MainWindow(BarBotWindow):
         else:
             self.show()
 
+
     def _busyview_set_progress(self, progress):
         """forward progress if the current view is a busyview"""
         if self._current_view is not None and isinstance(self._current_view, BusyView):
@@ -105,9 +118,9 @@ class MainWindow(BarBotWindow):
             self._timer.singleShot(1000, _reset_admin_button)
             return
         if not self._barbot.is_busy:
-            self.set_view(AdminLogin(self.barbot_, self.recipes))
+            self.set_view(AdminLogin(self._barbot, self._recipes))
         else:
-            self.set_view(SystemBusyView(self.barbot_, self.recipes))
+            self.set_view(SystemBusyView(self._barbot, self._recipes))
 
     def close_keyboard(self):
         """Close the keyboard if it is visible"""
@@ -155,7 +168,7 @@ class MainWindow(BarBotWindow):
 
         # connect signals
         self._current_view.switch_view_trigger.connect(self.set_view)
-        self._current_view.show_message_trigger.connect(self.show_message)
+        self._current_view.show_message_trigger.connect(self._show_message_trigger.emit)
         self._current_view.open_input_method_trigger.connect(self._open_input_method)
         self._current_view.close_keyboard_trigger.connect(self.close_keyboard)
 
@@ -172,11 +185,11 @@ class MainWindow(BarBotWindow):
             if self._last_idle_view is None or isinstance(
                 self._last_idle_view, OrderRecipe
             ):
-                self.set_view(ListRecipes(self.barbot_, self.recipes))
+                self.set_view(ListRecipes(self._barbot, self._recipes))
             elif self._last_idle_view != self._current_view:
                 self.set_view(self._last_idle_view)
         else:
-            self.set_view(BusyView(self.barbot_, self.recipes))
+            self.set_view(BusyView(self._barbot, self._recipes))
 
     def _show_message_splash(self, message):
         """Show a spash sceen with a given message.

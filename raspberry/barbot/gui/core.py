@@ -54,37 +54,6 @@ def qt_icon_from_file_name(file_name) -> Qt.QIcon:
     return Qt.QIcon(path)
 
 
-class BarBotWindow(QtWidgets.QMainWindow):
-    """Main window of the barbot, this is the entry point for the barbot gui"""
-
-    # https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
-    _barbot_state_trigger = QtCore.pyqtSignal(BarBotStateEnum)
-    _mixing_progress_trigger = QtCore.pyqtSignal(int)
-    _message_trigger = QtCore.pyqtSignal(UserMessageType)
-    _show_message_trigger = QtCore.pyqtSignal(str)
-
-    def __init__(self, barbot_: BarBot, recipes: RecipeCollection):
-        super().__init__()
-        self._barbot = barbot_
-        self._recipes = recipes
-
-    @property
-    def barbot_(self):
-        """The barbot"""
-        return self._barbot
-
-    @property
-    def recipes(self):
-        """Get the collection of recipes"""
-        return self._recipes
-
-    def show_message(self, message: str):
-        """Show a given message to the user.
-        :param message: Message string"""
-        self._show_message_trigger.emit(message)
-
-    def set_view(self, view: Optional["View"]):
-        """Set the currrently visible view to the specified instance of View"""
 
 
 class View(QtWidgets.QWidget):
