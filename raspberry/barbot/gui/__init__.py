@@ -1,3 +1,3 @@
 """The barbot gui"""
-from .main_window import MainWindow
+from .core import MainWindow
 __all__ = ['MainWindow']

@@ -10,11 +10,11 @@ from barbot.logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
 from barbot.logic.recipes import RecipeCollection
 from barbot.logic.communication import BoardType
 from barbot.logic.communication import MainboardConnectionMockup
-from barbot.gui.main_window import MainWindow
-from barbot.gui.userviews import ListRecipes, RecipeNewOrEdit
-from barbot.gui.userviews import SingleIngredient, Statistics, OrderRecipe
-from barbot.gui.adminviews import AdminLogin, BalanceCalibration, Overview
-from barbot.gui.adminviews import Ports, Cleaning, Settings, RemoveRecipe
+from barbot.gui.core import MainWindow
+from barbot.gui.view.user import ListRecipes, RecipeNewOrEdit
+from barbot.gui.view.user import SingleIngredient, Statistics, OrderRecipe
+from barbot.gui.view.admin import AdminLogin, BalanceCalibration, Overview
+from barbot.gui.view.admin import Ports, Cleaning, Settings, RemoveRecipe
 from barbot.gui.controls import set_no_spacing
 
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
@@ -57,7 +57,7 @@ class TestGui:
     @pytest.mark.timeout(20)
     def test_single_ingredient(self, main_window, mainboard_connection_mockup):
         mainboard_connection_mockup.clear_command_history()
-        view = SingleIngredient(main_window)
+        view = SingleIngredient(main_window.barbot_, main_window.recipes)
         main_window.set_view(view)
         view._ingredient_widget.setCurrentIndex(2)
         view._amount_widget.setCurrentIndex(3)
@@ -80,7 +80,7 @@ class TestGui:
             RemoveRecipe,
         ]
         for view in admin_views:
-            view_instance = view(main_window)
+            view_instance = view(main_window.barbot_, main_window.recipes)
             main_window.set_view(view_instance)
             qtbot.wait(200)
 
@@ -88,7 +88,7 @@ class TestGui:
         qtbot.wait(200)
         # take the first recipe from the list
         recipe = main_window.recipes._recipes[0]
-        main_window.set_view(OrderRecipe(main_window, recipe))
+        main_window.set_view(OrderRecipe(main_window.barbot_, main_window.recipes, recipe))
         qtbot.wait(200)
 
     def test_views(self, main_window: MainWindow, qtbot: QtBot):
@@ -100,7 +100,7 @@ class TestGui:
             RecipeNewOrEdit,
         ]
         for view in views:
-            main_window.set_view(view(main_window))
+            main_window.set_view(view(main_window.barbot_, main_window.recipes))
             qtbot.wait(200)
 
 
