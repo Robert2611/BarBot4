@@ -42,7 +42,6 @@ class BarBot:
         self._config = config
         self._ports = ports
         self._mainboard = mainboard
-        self._state_changed: bool = False
         self._should_reconnect: bool = False
         self._context = BarBotContext()
         self._next_state_by_class: Optional[Type["BarBotState"]] = None
@@ -237,8 +236,7 @@ class BarBot:
                     "Now in %s",
                     self._state_instance.__class__.__name__,
                 )
-            else:
-                logging.debug("No state transition, still in %s", self._state_instance)
+
         logging.debug("State machine stopped")
         self._mainboard.disconnect()
 
