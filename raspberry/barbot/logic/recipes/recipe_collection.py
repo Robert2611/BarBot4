@@ -14,6 +14,7 @@ class RecipeCollection:
     """Collection holding all recipes"""
     def __init__(self):
         self._recipes: List[Recipe] = []
+        self.filter = RecipeFilter(descending=True)
 
     def load(self):
         """Load all recipes in the recipes folder and the fixed_recipes folder """
@@ -35,8 +36,10 @@ class RecipeCollection:
                 r.is_fixed = True
                 self._recipes.append(r)
 
-    def get_filtered(self, recipe_filter: RecipeFilter, ports: PortConfiguration, config: BarBotConfig) -> List[Recipe]:
+    def get_filtered(self, ports: PortConfiguration, config: BarBotConfig, recipe_filter: RecipeFilter = None) -> List[Recipe]:
         """Get a filtered list of recipes using the given filter"""
+        if recipe_filter is None:
+            recipe_filter = self.filter
         # lazy loading
         if self._recipes is None:
             self.load()

@@ -5,15 +5,16 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic import MixingOptions
 from barbot.logic.recipes import PartyStatistics, RecipeItem, Recipe, Party
 from barbot.logic.config import IngredientType, Stir as StirIngredient
+from barbot.logic import RecipeCollection, BarBot
 
-from .core import BarBotWindow, View, qt_icon_from_file_name
+from .core import View, qt_icon_from_file_name, InputMethod
 from .controls import BarChartRow, GlasFilling, GlasIndicator, BarChart, set_no_spacing
 
 
 class UserView(View):
     """Base class for all user views"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self.navigation_items = [
             ["Liste", ListRecipes],
@@ -67,7 +68,7 @@ class UserView(View):
         for text, _class in self.navigation_items:
             button = QtWidgets.QPushButton(text)
             def btn_click(_, c=_class):
-                return self.window.set_view(c(self.window))
+                return self.switch_view_trigger.emit(c(self.barbot_, self.recipes))
             button.clicked.connect(btn_click)
             self.navigation.layout().addWidget(button, 1)
 
@@ -82,8 +83,8 @@ class UserView(View):
 
 class ListRecipes(UserView):
     """List of known recipes"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QHBoxLayout())
 
@@ -97,13 +98,13 @@ class ListRecipes(UserView):
     def _add_filter_alcoholic(self):
         self._cb_alcoholic = QtWidgets.QCheckBox("Alkoholisch")
         self._fixed_content.layout().addWidget(self._cb_alcoholic)
-        self._cb_alcoholic.setChecked(self.window.recipe_filter.show_alcoholic)
+        self._cb_alcoholic.setChecked(self.recipes.filter.show_alcoholic)
         self._cb_alcoholic.toggled.connect(self._update_recipe_list)
 
     def _add_filter_available(self):
         self._cb_available = QtWidgets.QCheckBox("Nur verfügbare")
         self._fixed_content.layout().addWidget(self._cb_available)
-        self._cb_available.setChecked(self.window.recipe_filter.only_available)
+        self._cb_available.setChecked(self.recipes.filter.only_available)
         self._cb_available.toggled.connect(self._update_recipe_list)
 
     def _add_recipe_list_container(self):
@@ -113,12 +114,12 @@ class ListRecipes(UserView):
         set_no_spacing(self._recipe_list_container.layout())
 
     def _update_recipe_list(self):
-        recipe_filter = self.window.recipe_filter
+        recipe_filter = self.recipes.filter
         recipe_filter.only_available = self._cb_available.isChecked()
         recipe_filter.show_alcoholic = self._cb_alcoholic.isChecked()
         recipe_filter.show_non_acloholic = not self._cb_alcoholic.isChecked()
-        recipes = self.window.recipes.get_filtered( \
-            recipe_filter, self.barbot_.ports, self.barbot_.config)
+        recipes = self.recipes.get_filtered( \
+            self.barbot_.ports, self.barbot_.config)
 
         self._clear_recipe_list_container()
         for recipe in recipes:
@@ -218,23 +219,23 @@ class ListRecipes(UserView):
             right_column.layout().setAlignment(order_button, QtCore.Qt.AlignRight)
 
     def _open_edit(self, recipe: Recipe):
-        self.window.set_view(RecipeNewOrEdit(self.window, recipe))
+        self.switch_view_trigger.emit(RecipeNewOrEdit(self.barbot_, self.recipes, recipe))
 
     def _order(self, recipe):
         if self.barbot_.is_busy:
-            self.window.show_message(
+            self.show_message_trigger.emit(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
         if recipe is None:
-            self.window.show_message("Rezept nicht gefunden")
+            self.show_message_trigger.emit("Rezept nicht gefunden")
             return
-        self.window.set_view(OrderRecipe(self.window, recipe))
+        self.switch_view_trigger.emit(OrderRecipe(self.barbot_, self.recipes, recipe))
 
 
 class RecipeNewOrEdit(UserView):
     """View for editing existing recpies and creating new ones"""
-    def __init__(self, window: BarBotWindow, recipe: Recipe = None):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection, recipe: Recipe = None):
+        super().__init__(barbot, recipes)
 
         if recipe is None:
             self._init_new_recipe()
@@ -294,13 +295,13 @@ class RecipeNewOrEdit(UserView):
         wrapper.layout().addRow(label, self._post_instruction_widget)
 
     def _open_keyboard_for_name_widget(self, _):
-        self.window.open_keyboard(self._name_widget)
+        self.open_input_method_trigger.emit(self._name_widget, InputMethod.KEYBOARD)
 
     def _open_keyboard_for_pre_instruction(self, _):
-        self.window.open_keyboard(self._pre_instruction_widget)
+        self.open_input_method_trigger.emit(self._pre_instruction_widget, InputMethod.KEYBOARD)
 
     def _open_keyboard_for_post_instruction_widget(self, _):
-        self.window.open_keyboard(self._post_instruction_widget)
+        self.open_input_method_trigger.emit(self._post_instruction_widget, InputMethod.KEYBOARD)
 
     def _add_ingredients(self, max_count):
         self._content.layout().addWidget(QtWidgets.QLabel("Zutaten:"))
@@ -318,11 +319,11 @@ class RecipeNewOrEdit(UserView):
                 selected_amount = 0
                 selected_ingredient = None
             # add ingredient name
-            ingredient_widget = self.window.combobox_ingredients(selected_ingredient)
+            ingredient_widget = self.combobox_ingredients(selected_ingredient)
             ingredient_widget.currentIndexChanged.connect(self._update_view)
             ingredients_container.layout().addWidget(ingredient_widget, i, 0)
             # add ingredient amount
-            amount_widget = self.window.combobox_amounts(selected_amount)
+            amount_widget = self.combobox_amounts(selected_amount)
             amount_widget.currentIndexChanged.connect(self._update_view)
             if(i >= len(self._recipe.items) \
                or self._recipe.items[i].ingredient.type == IngredientType.STIRR):
@@ -385,24 +386,25 @@ class RecipeNewOrEdit(UserView):
         # check data
         self._recipe.name = self._name_widget.text()
         if self._recipe.name is None or self._recipe.name == "":
-            self.window.show_message("Bitte einen Namen eingeben")
+            self.show_message_trigger.emit("Bitte einen Namen eingeben")
             return
         if self._is_new_cocktail or self._recipe.name != self._original_recipe.name:
             # name changed or new recipe
+            from barbot.logic.recipes import RecipeFilter
             names = [
                 recipe.name
                 for recipe
-                in self.window.recipes.get_filtered(None, self.barbot_.ports, self.barbot_.config)
+                in self.recipes.get_filtered(self.barbot_.ports, self.barbot_.config, RecipeFilter(only_available=False))
             ]
             if self._recipe.name in names:
-                self.window.show_message("Ein Cocktail mit diesem Namen existiert bereits")
+                self.show_message_trigger.emit("Ein Cocktail mit diesem Namen existiert bereits")
                 return
         size = self._get_cocktail_size()
         if size > self.barbot_.config.max_cocktail_size:
-            self.window.show_message("Dein Cocktail ist zu groß.")
+            self.show_message_trigger.emit("Dein Cocktail ist zu groß.")
             return
         if size == 0:
-            self.window.show_message("Der Cocktail ist leer.")
+            self.show_message_trigger.emit("Der Cocktail ist leer.")
             return
         self._recipe.pre_instruction = self._pre_instruction_widget.text()
         self._recipe.post_instruction = self._post_instruction_widget.text()
@@ -422,20 +424,20 @@ class RecipeNewOrEdit(UserView):
                 item = RecipeItem(ingredient, amount)
             self._recipe.items.append(item)
         if not self._is_new_cocktail and self._recipe.equal_to(self._original_recipe):
-            self.window.show_message("Rezept wurde nicht verändert")
+            self.show_message_trigger.emit("Rezept wurde nicht verändert")
             return
         # save copy or new recipe
         if not self._is_new_cocktail:
-            self.window.recipes.remove(self._original_recipe)
-        self.window.recipes.add(self._recipe)
+            self.recipes.remove(self._original_recipe)
+        self.recipes.add(self._recipe)
         if self._is_new_cocktail:
             self._reload_with_message("Neues Rezept gespeichert")
         else:
             self._reload_with_message("Rezept gespeichert")
 
     def _reload_with_message(self, message):
-        self.window.set_view(RecipeNewOrEdit(self.window, self._recipe))
-        self.window.show_message(message)
+        self.switch_view_trigger.emit(RecipeNewOrEdit(self.barbot_, self.recipes, self._recipe))
+        self.show_message_trigger.emit(message)
 
 
 class SingleIngredient(UserView):
@@ -447,8 +449,8 @@ class SingleIngredient(UserView):
         STRAW = auto()
         ICE = auto()
 
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self._ice_index = -2
         self._content.setLayout(QtWidgets.QVBoxLayout())
@@ -480,14 +482,14 @@ class SingleIngredient(UserView):
         self._content.layout().setAlignment(panel, QtCore.Qt.AlignCenter)
 
         # ingredient selector
-        self._ingredient_widget = self.window.combobox_ingredients(
+        self._ingredient_widget = self.combobox_ingredients(
             only_available=True,
             only_weighed=True
         )
         panel.layout().addWidget(self._ingredient_widget)
 
         # amount selector
-        self._amount_widget = self.window.combobox_amounts()
+        self._amount_widget = self.combobox_amounts()
         panel.layout().addWidget(self._amount_widget)
 
         # start button
@@ -529,7 +531,7 @@ class SingleIngredient(UserView):
 
     def _start(self, action_type: ActionType):
         if self.barbot_.is_busy:
-            self.window.show_message(
+            self.show_message_trigger.emit(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return
         config = self.barbot_.config
@@ -544,32 +546,32 @@ class SingleIngredient(UserView):
                     # normal ingredient
                     port = self.barbot_.ports.port_of_ingredient(ingredient)
                     if port is None:
-                        self.window.show_message(
+                        self.show_message_trigger.emit(
                             "Diese Zutat ist nicht anschlossen")
                         return
                 item.amount = amount
                 item.ingredient = ingredient
                 self.barbot_.start_single_ingredient(item)
-                self.window.show_message("Zutat wird hinzugefügt")
+                self.show_message_trigger.emit("Zutat wird hinzugefügt")
             else:
-                self.window.show_message(
+                self.show_message_trigger.emit(
                     "Bitte eine Zutat und\neine Menge auswählen")
         elif action_type == self.ActionType.STIR and config.stirrer_connected:
             item = RecipeItem(StirIngredient, 0)
             self.barbot_.start_single_ingredient(item)
-            self.window.show_message("Cocktail wird gerührt")
+            self.show_message_trigger.emit("Cocktail wird gerührt")
         elif action_type == self.ActionType.ICE and config.ice_crusher_connected:
             self.barbot_.start_crushing()
-            self.window.show_message("Eis wird hinzugefügt")
+            self.show_message_trigger.emit("Eis wird hinzugefügt")
         elif action_type == self.ActionType.STRAW and config.straw_dispenser_connected:
             self.barbot_.start_straw()
-            self.window.show_message("Strohhalm wird hinzugefügt")
+            self.show_message_trigger.emit("Strohhalm wird hinzugefügt")
 
 
 class Statistics(UserView):
     """View that shows statistics of a party"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
         self._statistics_widget = None
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
@@ -667,8 +669,8 @@ class Statistics(UserView):
 
 class OrderRecipe(UserView):
     """Shown when the order button is clicked for a recipe"""
-    def __init__(self, window: BarBotWindow, recipe: Recipe = None):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection, recipe: Recipe = None):
+        super().__init__(barbot, recipes)
 
         self._recipe = recipe
         self._cb_ice = None
@@ -694,7 +696,7 @@ class OrderRecipe(UserView):
         button = QtWidgets.QPushButton("Abbrechen")
 
         def show_list():
-            self.window.set_view(ListRecipes(self.window))
+            self.switch_view_trigger.emit(ListRecipes(self.barbot_, self.recipes))
         button.clicked.connect(show_list)
         buttons_container.layout().addWidget(button)
         # order

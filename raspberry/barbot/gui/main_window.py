@@ -8,7 +8,7 @@ from PyQt5 import QtWidgets, QtCore
 from ..logic import BarBot
 from ..logic.recipes import RecipeCollection
 
-from .core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry
+from .core import BarBotWindow, SystemBusyView, View, BusyView, css_path, is_raspberry, InputMethod
 from .controls import Keyboard, Numpad, set_no_spacing
 from .adminviews import AdminLogin
 from .userviews import ListRecipes, OrderRecipe
@@ -105,15 +105,21 @@ class MainWindow(BarBotWindow):
             self._timer.singleShot(1000, _reset_admin_button)
             return
         if not self._barbot.is_busy:
-            self.set_view(AdminLogin(self))
+            self.set_view(AdminLogin(self.barbot_, self.recipes))
         else:
-            self.set_view(SystemBusyView(self))
+            self.set_view(SystemBusyView(self.barbot_, self.recipes))
 
     def close_keyboard(self):
         """Close the keyboard if it is visible"""
         if self._keyboard is not None:
             self._keyboard.close()
             self._keyboard = None
+
+    def _open_input_method(self, target, method: InputMethod):
+        if method == InputMethod.KEYBOARD:
+            self.open_keyboard(target)
+        elif method == InputMethod.NUMPAD:
+            self.open_numpad(target)
 
     def open_keyboard(self, target: QtWidgets.QLineEdit):
         """Open a keyboard for a given target widget
@@ -146,6 +152,13 @@ class MainWindow(BarBotWindow):
                 # delete the view
                 self._current_view.deleteLater()
         self._current_view = view
+
+        # connect signals
+        self._current_view.switch_view_trigger.connect(self.set_view)
+        self._current_view.show_message_trigger.connect(self.show_message)
+        self._current_view.open_input_method_trigger.connect(self._open_input_method)
+        self._current_view.close_keyboard_trigger.connect(self.close_keyboard)
+
         # save the last used idle view
         if view.is_idle_view:
             self._last_idle_view = view
@@ -159,11 +172,11 @@ class MainWindow(BarBotWindow):
             if self._last_idle_view is None or isinstance(
                 self._last_idle_view, OrderRecipe
             ):
-                self.set_view(ListRecipes(self))
+                self.set_view(ListRecipes(self.barbot_, self.recipes))
             elif self._last_idle_view != self._current_view:
                 self.set_view(self._last_idle_view)
         else:
-            self.set_view(BusyView(self))
+            self.set_view(BusyView(self.barbot_, self.recipes))
 
     def _show_message_splash(self, message):
         """Show a spash sceen with a given message.

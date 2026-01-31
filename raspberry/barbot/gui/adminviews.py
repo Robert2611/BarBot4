@@ -3,15 +3,16 @@ from typing import Dict
 from PyQt5 import QtWidgets, QtCore
 from barbot.logic.communication import BoardType
 from barbot.logic import version as barbot_version
-from barbot.logic.recipes import Recipe
-from barbot.logic.config import PORT_COUNT
-from .core import BarBotWindow, qt_icon_from_file_name, View, Ingredient
+from barbot.logic.recipes import Recipe, RecipeFilter
+from barbot.logic import RecipeCollection, BarBot
+from barbot.logic.config import PORT_COUNT, Ingredient
+from .core import qt_icon_from_file_name, View, InputMethod
 from .userviews import UserView
 
 class AdminView(UserView):
     """Base class for the admin views"""
-    def __init__(self, window:BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self._content.setLayout(QtWidgets.QVBoxLayout())
         self._fixed_content.setLayout(QtWidgets.QVBoxLayout())
@@ -19,14 +20,14 @@ class AdminView(UserView):
     def _add_back_button_to_fixed_content(self):
         back_button = QtWidgets.QPushButton("Übersicht")
         def btn_click():
-            return self.window.set_view(Overview(self.window))
+            return self.switch_view_trigger.emit(Overview(self.barbot_, self.recipes))
         back_button.clicked.connect(btn_click)
         self._fixed_content.layout().addWidget(back_button)
 
 class AdminLogin(AdminView):
     """Login for the admin area"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
         self._entered_password = ""
 
         self._add_title_to_fixed_content("Admin Login")
@@ -85,14 +86,14 @@ class AdminLogin(AdminView):
 
     def _check_password(self):
         if self._entered_password == self.barbot_.config.admin_password:
-            self.window.set_view(Overview(self.window))
+            self.switch_view_trigger.emit(Overview(self.barbot_, self.recipes))
         self._clear_password()
 
 
 class Overview(AdminView):
     """Overview over the admin views"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self.admin_navigation_items = [
             ["System", System],
@@ -133,7 +134,7 @@ class Overview(AdminView):
         for text, _class in self.admin_navigation_items:
             button = QtWidgets.QPushButton(text)
             def btn_click(_, c=_class):
-                return self.window.set_view(c(self.window))
+                return self.switch_view_trigger.emit(c(self.barbot_, self.recipes))
             button.clicked.connect(btn_click)
             self.admin_navigation.layout().addWidget(button, row, column)
             column += 1
@@ -197,8 +198,8 @@ class Overview(AdminView):
 
 class Ports(AdminView):
     """Handles what is connected to the ports of the barbot"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self._add_title_to_fixed_content("Positionen")
         self._add_back_button_to_fixed_content()
@@ -216,7 +217,7 @@ class Ports(AdminView):
             label = QtWidgets.QLabel(f"Position {(i+1)}")
             table.layout().addWidget(label, i, 0)
             ingredient = self.barbot_.ports.ingredient_at_port(i)
-            cb_port = self.window.combobox_ingredients(ingredient, only_normal=True)
+            cb_port = self.combobox_ingredients(ingredient, only_normal=True)
             self._ingredient_widgets[i] = cb_port
             table.layout().addWidget(cb_port, i, 1)
 
@@ -237,7 +238,7 @@ class Ports(AdminView):
             if ing is not None
         ]
         if len(not_none_entries) != len(set(not_none_entries)):
-            self.window.show_message(
+            self.show_message_trigger.emit(
                 "Jede Zutat darf nur einer\n" +\
                 "Position zugewiesen werden!"
             )
@@ -245,12 +246,12 @@ class Ports(AdminView):
         # update the ports list and save it
         self.barbot_.ports.update(new_ports)
         self.barbot_.ports.save()
-        self.window.show_message("Positionen wurden gespeichert.")
+        self.show_message_trigger.emit("Positionen wurden gespeichert.")
 
 class BalanceCalibration(AdminView):
     """Calibrate the internal balance"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self._tare_and_calibrate = False
         self._entered_weight = 0
@@ -382,7 +383,7 @@ class BalanceCalibration(AdminView):
             # tare only: set offset, keep calibration
             self.barbot_.set_balance_calibration(
                 self.new_offset, self.barbot_.config.balance_calibration)
-            self.window.show_message("Kalibrierung wurde gespeichert")
+            self.show_message_trigger.emit("Kalibrierung wurde gespeichert")
             self._show_dialog_calibration_buttons()
 
     def _calibrate(self):
@@ -391,10 +392,10 @@ class BalanceCalibration(AdminView):
                 cal = (weight-self.tare_weight) * \
                     self.barbot_.config.balance_calibration/self._entered_weight
                 self.barbot_.set_balance_calibration(self.new_offset, cal)
-                self.window.show_message("Kalibrierung gespeichert")
+                self.show_message_trigger.emit("Kalibrierung gespeichert")
             self.barbot_.get_weight(set_calibration_and_save)
         else:
-            self.window.show_message("Bitte ein Gewicht eingeben")
+            self.show_message_trigger.emit("Bitte ein Gewicht eingeben")
         self._show_dialog_calibration_buttons()
 
     def _start_tare(self):
@@ -424,8 +425,8 @@ class BalanceCalibration(AdminView):
 
 class Cleaning(AdminView):
     """Clean the ports"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self.amount = 50
 
@@ -473,8 +474,8 @@ class Cleaning(AdminView):
 
 class Settings(AdminView):
     """Edit barbot settings"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self.entries = [
             {"name": "Max. Geschwindigkeit [mm/s]","setting": "max_speed",
@@ -525,7 +526,7 @@ class Settings(AdminView):
                 if "max" in entry:
                     edit_widget.setMaximum(entry["max"])
                 edit_widget.setValue(getattr(config, entry["setting"]))
-                edit_widget.enterEvent = lambda e, w=edit_widget: self.window.open_numpad(w)
+                edit_widget.enterEvent = lambda e, w=edit_widget: self.open_input_method_trigger.emit(w, InputMethod.NUMPAD)
                 #TODO: Numpad only opens if focus is already on the element
             elif entry["type"] == bool:
                 edit_widget = QtWidgets.QCheckBox()
@@ -555,13 +556,13 @@ class Settings(AdminView):
                 setattr(config, entry["setting"], entry["widget"].text())
         self.barbot_.config.save()
         self.barbot_.reconnect()
-        self.window.show_message(
+        self.show_message_trigger.emit(
             "Einstellungen wurden gespeichert, barbot wird neu gestartet")
 
 class System(AdminView):
     """Control the whole barbot system"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self._add_title_to_fixed_content("System")
         self._add_back_button_to_fixed_content()
@@ -569,8 +570,8 @@ class System(AdminView):
 
 class RemoveRecipe(AdminView):
     """Remove recipes"""
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes)
 
         self._list = None
         self._recipe:Recipe = None
@@ -613,7 +614,7 @@ class RemoveRecipe(AdminView):
         self._list = QtWidgets.QWidget()
         self._list.setLayout(QtWidgets.QVBoxLayout())
         self._content.layout().addWidget(self._list, 1)
-        recipes = self.window.recipes.get_filtered(None, self.barbot_.ports, self.barbot_.config)
+        recipes = self.recipes.get_filtered(self.barbot_.ports, self.barbot_.config, RecipeFilter(only_available=False))
         for recipe in recipes:
             # box to hold the recipe
             recipe_box = QtWidgets.QWidget()
@@ -642,6 +643,6 @@ class RemoveRecipe(AdminView):
         self._list.setVisible(True)
 
     def _remove(self):
-        self.window.recipes.remove(self._recipe)
+        self.recipes.remove(self._recipe)
         self._hide_confirmation()
         self._add_recipe_list()

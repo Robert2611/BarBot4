@@ -10,6 +10,12 @@ from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, run_command
 from barbot.logic.config import Ingredient, IngredientType
 from barbot.logic.recipes import RecipeCollection, RecipeFilter
 from barbot.logic import UserInputType
+from enum import Enum, auto
+
+class InputMethod(Enum):
+    KEYBOARD = auto()
+    NUMPAD = auto()
+
 from .controls import set_no_spacing
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17
@@ -59,7 +65,6 @@ class BarBotWindow(QtWidgets.QMainWindow):
 
     def __init__(self, barbot_: BarBot, recipes: RecipeCollection):
         super().__init__()
-        self.recipe_filter = RecipeFilter(descending=True)
         self._barbot = barbot_
         self._recipes = recipes
 
@@ -77,6 +82,39 @@ class BarBotWindow(QtWidgets.QMainWindow):
         """Show a given message to the user.
         :param message: Message string"""
         self._show_message_trigger.emit(message)
+
+    def set_view(self, view: Optional["View"]):
+        """Set the currrently visible view to the specified instance of View"""
+
+
+class View(QtWidgets.QWidget):
+    """Content that can be shown in the center of the main window"""
+
+    switch_view_trigger = QtCore.pyqtSignal(object)
+    show_message_trigger = QtCore.pyqtSignal(str)
+    open_input_method_trigger = QtCore.pyqtSignal(object, InputMethod)
+    close_keyboard_trigger = QtCore.pyqtSignal()
+
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection, is_idle_view: bool = True):
+        super().__init__()
+        self._barbot = barbot
+        self._recipes = recipes
+        self._is_idle_view = is_idle_view
+
+    @property
+    def is_idle_view(self):
+        """Get whether the view is an idle view"""
+        return self._is_idle_view
+
+    @property
+    def barbot_(self):
+        """The barbot"""
+        return self._barbot
+
+    @property
+    def recipes(self):
+        """Get the collection of recipes"""
+        return self._recipes
 
     def combobox_amounts(self, selected_amount=None):
         """Create a combobox for selecting the amount of a ingredient.
@@ -119,33 +157,6 @@ class BarBotWindow(QtWidgets.QMainWindow):
                 widget.setCurrentIndex(i + 1)
         return widget
 
-    def set_view(self, view: Optional["View"]):
-        """Set the currrently visible view to the specified instance of View"""
-
-
-class View(QtWidgets.QWidget):
-    """Content that can be shown in the center of the main window"""
-
-    def __init__(self, window: BarBotWindow, is_idle_view: bool = True):
-        super().__init__(window)
-        self._window = window
-        self._is_idle_view = is_idle_view
-
-    @property
-    def is_idle_view(self):
-        """Get whether the view is an idle view"""
-        return self._is_idle_view
-
-    @property
-    def window(self):
-        """Get the window the view is used for"""
-        return self._window
-
-    @property
-    def barbot_(self):
-        """The barbot"""
-        return self._window.barbot_
-
     @staticmethod
     def set_system_view(container: QtWidgets.QWidget):
         """Get the systems view widget."""
@@ -184,8 +195,8 @@ class View(QtWidgets.QWidget):
 class SystemBusyView(View):
     """View to access system (eg. restart) when the mainboard is busy"""
 
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window, is_idle_view=False)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes, is_idle_view=False)
 
         self.setLayout(QtWidgets.QVBoxLayout())
         set_no_spacing(self.layout())
@@ -203,8 +214,8 @@ class SystemBusyView(View):
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""
 
-    def __init__(self, window: BarBotWindow):
-        super().__init__(window, is_idle_view=False)
+    def __init__(self, barbot: BarBot, recipes: RecipeCollection):
+        super().__init__(barbot, recipes, is_idle_view=False)
 
         self._message = None
 
@@ -466,9 +477,6 @@ class BusyView(View):
 
             if options is not None:
                 self._title_label.setText(f"'{options.recipe.name}'\nwird gemischt.")
-
-        elif state == BarBotStateEnum.CLEANING:
-            self._title_label.setText("Reinigung")
         elif state == BarBotStateEnum.CONNECTING:
             self._title_label.setText("Stelle Verbindung her")
         elif state == BarBotStateEnum.SEARCHING:
