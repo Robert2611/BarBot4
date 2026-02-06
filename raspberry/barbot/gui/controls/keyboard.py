@@ -61,12 +61,12 @@ class Keyboard(QtWidgets.QWidget):
         # number keys
         for index, data in enumerate(self._number_keys):
             new_text = data[1] if self._is_shift else data[0]
-            self._numbers_row[index].setText()
+            self._numbers_row[index].setText(new_text)
         # letter keys
-        for keys in self._letter_keys:
-            for index, letter in enumerate(keys):
+        for row_index, keys in enumerate(self._letter_keys):
+            for col_index, letter in enumerate(keys):
                 new_text = str.upper(letter) if self._is_shift else letter
-                self._letters_rows[index].setText(new_text)
+                self._letters_rows[row_index][col_index].setText(new_text)
 
     def _add_special_keys_row(self):
         row = QtWidgets.QWidget()
