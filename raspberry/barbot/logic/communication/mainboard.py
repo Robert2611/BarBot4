@@ -80,25 +80,27 @@ class Mainboard:
         message = self.read_non_status_message()
 
         result = CommunicationResult()
-        # check if the result is for the command we sent and it is an ACK
+        # check if the result is for the command we sent
         if result.was_successful and message.command != command:
             result.error = ErrorType.ANSWER_FOR_WRONG_COMMAND
-        if result.was_successful and message.message_type == ResponseTypes.NAK:
-            result.error = ErrorType.NACK_RECEIVED
-        if result.was_successful and message.message_type != ResponseTypes.ACK:
-            result.error = ErrorType.WRONG_ANSWER
-        if result.was_successful and message.message_type == ResponseTypes.COMM_ERROR:
-            result.error = ErrorType.COMM_ERROR
-        if result.was_successful and message.message_type == ResponseTypes.ERROR:
-            # first parameter is the error type
-            try:
-                result.error = ErrorType[message.parameters[0]]
-            except (KeyError, IndexError):
-                 result.error = ErrorType.WRONG_ANSWER
-            result.return_parameters = message.parameters[1:]
-        if result.was_successful and message.message_type == ResponseTypes.ACK:
-            # an ack can include more info
-            result.return_parameters = message.parameters
+
+        if result.was_successful:
+            if message.message_type == ResponseTypes.ACK:
+                # an ack can include more info
+                result.return_parameters = message.parameters
+            elif message.message_type == ResponseTypes.NAK:
+                result.error = ErrorType.NACK_RECEIVED
+            elif message.message_type == ResponseTypes.ERROR:
+                # first parameter is the error type
+                try:
+                    result.error = ErrorType[message.parameters[0]]
+                except (KeyError, IndexError):
+                    result.error = ErrorType.WRONG_ANSWER
+                result.return_parameters = message.parameters[1:]
+            elif message.message_type == ResponseTypes.COMM_ERROR:
+                result.error = ErrorType.COMM_ERROR
+            else:
+                result.error = ErrorType.WRONG_ANSWER
         return result
 
     def do(self, command, *parameters:str) -> CommunicationResult:
@@ -213,9 +215,12 @@ class Mainboard:
         if not self.is_connected:
             return RawResponse(ResponseTypes.COMM_ERROR, "port not open")
         line = self._connection.read_line()
-        if line == "" or line is None:
+        if not line:
             return RawResponse(ResponseTypes.COMM_ERROR, "empty line read")
         tokens = line.split()
+        if not tokens:
+            return RawResponse(ResponseTypes.COMM_ERROR, "no tokens in line")
+
         # Do not repeat status messages over and over again
         is_idle_message = self._is_status_message(tokens) or self._is_is_idle_message(tokens)
         do_logging = not is_idle_message or not self._last_message_was_status_idle
@@ -224,15 +229,13 @@ class Mainboard:
         self._last_message_was_status_idle = is_idle_message
 
         # expected format: <Type> <Command> [Parameter1] [Parameter2] ...
-        # find message type
-        if len(tokens) > 0:
-            for msg_type in ResponseTypes:
-                if msg_type.name != tokens[0]:
-                    continue
-                if len(tokens) < 2:
-                    return RawResponse(ResponseTypes.COMM_ERROR, "wrong format")
-                return RawResponse(ResponseTypes[tokens[0]], tokens[1], tokens[2:])
-        return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")
+        try:
+            msg_type = ResponseTypes[tokens[0]]
+            if len(tokens) < 2:
+                return RawResponse(ResponseTypes.COMM_ERROR, "wrong format")
+            return RawResponse(msg_type, tokens[1], tokens[2:])
+        except KeyError:
+            return RawResponse(ResponseTypes.COMM_ERROR, "unknown type")
 
     def _is_status_message(self, tokens):
         return tokens == ["STATUS", "IDLE"]
