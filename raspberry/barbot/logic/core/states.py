@@ -19,7 +19,7 @@ import logging
 from abc import ABC
 from typing import List, Optional, Type
 
-from barbot.logic.communication.communication import Mainboard
+
 from barbot.logic.config.barbot_config import BarBotConfig
 from barbot.logic.config.ingredients import IngredientType
 from barbot.logic.config.port_config import PortConfiguration
@@ -33,6 +33,8 @@ from ..communication import (
     LEDMode,
     PlatformLEDMode,
     ErrorType as CommError,
+    Mainboard,
+    CommunicationResult,
 )
 
 MIN_IDLE_TIME_SEC = 0.1

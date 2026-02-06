@@ -1,2 +1,3 @@
-from .communication import *
-from .mockup import *
+from .common import *
+from .connection import *
+from .mainboard import *

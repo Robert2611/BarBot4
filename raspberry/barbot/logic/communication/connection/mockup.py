@@ -1,9 +1,7 @@
 """Mockups for testing and demo"""
 
-__all__ = ["MainboardConnectionMockup"]
-
 import time
-from .communication import MainboardConnection
+from .base import MainboardConnection
 
 class MainboardConnectionMockup(MainboardConnection):
     """Mockup class for MainboardConnection.

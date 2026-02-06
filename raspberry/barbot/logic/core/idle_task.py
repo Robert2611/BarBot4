@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from typing import Callable
 
-from barbot.logic.communication.communication import CommunicationResult, Mainboard
+from barbot.logic.communication import CommunicationResult, Mainboard
 
 
 class IdleTaskType(Enum):

@@ -1,285 +1,12 @@
-"""This module handles the communication between the barbot and the mainboard"""
-
-__all__ = [
-    "ErrorType",
-    "is_mainboard_error",
-    "BoardType",
-    "LEDMode",
-    "PlatformLEDMode",
-    "ResponseTypes",
-    "FirmwareVersion",
-    "decode_firmware_version",
-    "CommunicationResult",
-    "RawResponse",
-    "MainboardConnection",
-    "MainboardConnectionBluetooth",
-    "Mainboard",
-]
-
 import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum, auto
-from functools import total_ordering
-from typing import List, NamedTuple, Optional
-
 import bluetooth
+from .common import (
+    ErrorType, CommunicationResult, RawResponse, ResponseTypes, 
+    FirmwareVersion, decode_firmware_version, is_mainboard_error
+)
+from .connection import MainboardConnection
 
-CONNECTION_TIMEOUT = 1
 MAX_RETRIES = 3
-
-# module logger
-logger = logging.getLogger(__name__)
-
-class ErrorType(Enum):
-    """Errors that may occur during operations"""
-
-    NONE = 0
-
-    # generated error codes are above 100, so we don't interfere with the mainboard codes
-    COMM_ERROR = 101
-    SEND_FAILED = 102
-    NO_RESULT_SENT = 103
-    WRONG_ANSWER = 104
-    NACK_RECEIVED = 105
-    ANSWER_FOR_WRONG_COMMAND = 106
-
-    # error codes of the mainboard (must match "shared.h")
-    INGREDIENT_EMPTY = 33
-    BALANCE_COMMUNICATION = 34
-    I2C = 35
-    STRAWS_EMPTY = 36
-    GLAS_REMOVED = 37
-    MIXING_FAILED = 38
-    CRUSHER_COVER_OPEN = 39
-    CRUSHER_TIMEOUT = 40
-    COMMAND_ABORTED = 41
-    SUGAR_DISPENSER_TIMEOUT = 42
-
-def is_mainboard_error(error: ErrorType) -> bool:
-    """Return True when an ErrorType represents a mainboard-reported error.
-
-    Mainboard error codes are below COMM_ERROR (generated codes start at 101).
-    Exclude ErrorType.NONE from being treated as a mainboard error.
-    """
-    return error is not None and error != ErrorType.NONE and error.value < ErrorType.COMM_ERROR.value
-
-class BoardType(Enum):
-    """board addresses must match 'shared.h'"""
-    BALANCE = 0x01
-    MIXER = 0x02
-    STRAW = 0x03
-    CRUSHER = 0x04
-    SUGAR = 0x05
-
-class LEDMode(Enum):
-    """Must match LEDController.h in mainboard"""
-    OFF = 0
-    CONTINOUS = 1
-    BLINK = 2
-    RAINBOW = 3
-    POSITION_WATERFALL = 4
-    DRAFT_POSITION = 5
-
-class PlatformLEDMode(Enum):
-    """Must match BALANCE_LED_TYPE_<name> in 'shared.h'"""
-    OFF = 0
-    CONTINOUS = 1
-    BLINK = 2
-    ROTATE = 3
-    PULSING = 4
-    CHASE = 5
-
-class ResponseTypes(Enum):
-    """Types of messages that can be received from the mainboard"""
-    ACK = auto()
-    NAK = auto()
-    DONE = auto()
-    ERROR = auto()
-    STATUS = auto()
-    COMM_ERROR = auto()
-    TIMEOUT = auto()
-@total_ordering
-@dataclass
-class FirmwareVersion:
-    """Firmware version handling"""
-    major: int
-    minor: int
-    patch: int
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, FirmwareVersion):
-            return NotImplemented
-        return self._to_int() == other._to_int()
-
-    def __lt__(self, other: 'FirmwareVersion') -> bool:
-        return self._to_int() < other._to_int()
-
-    def _to_int(self) -> int:
-        return self.major * 10000 + self.minor * 100 + self.patch
-
-    def __str__(self) -> str:
-        return f"v{self.major}.{self.minor}.{self.patch}"
-
-def decode_firmware_version(version: int) -> FirmwareVersion:
-    """Decode a firmware version string comming from the mainboard"""
-    version = int(version)
-    major, version = divmod(version, 10000)
-    minor, patch = divmod(version, 100)
-    return FirmwareVersion(major=major, minor=minor, patch=patch)
-
-class CommunicationResult():
-    """Result of a command sent to the mainboard"""
-    def __init__(self, error: ErrorType = ErrorType.NONE, return_parameters: List[str] = None):
-        self.error: ErrorType = error
-        self.return_parameters: List[str] = [] if return_parameters is None else return_parameters
-
-    @property
-    def was_successful(self):
-        """Get whether an error code was set"""
-        return self.error == ErrorType.NONE
-
-class RawResponse(NamedTuple):
-    """A raw message received from the mainboard"""
-    message_type: ResponseTypes
-    command: str
-    parameters: List[str] = []
-
-class MainboardConnection(ABC):
-    """Abstract representation of a serial connection to the mainboard"""
-
-    @staticmethod
-    @abstractmethod
-    def find_bar_bot() -> Optional[str]:
-        """Returns an identifier that can be used by the connect() method"""
-        return ""
-
-    @abstractmethod
-    def connect(self, identifier: str = "") -> bool:
-        """Establish connection to the mainboard"""
-        return self.is_connected
-
-    @abstractmethod
-    def disconnect(self):
-        """Close the mainboard connection"""
-
-    @abstractmethod
-    def read_line(self) -> Optional[str]:
-        """Read a single line from the mainboard"""
-        return ""
-
-    @property
-    @abstractmethod
-    def is_connected(self) -> bool:
-        """Check if the mainboard connected and ready to communicate"""
-        return False
-
-    @abstractmethod
-    def send(self, line:str):
-        """Send a line to the minboard"""
-
-class MainboardConnectionBluetooth(MainboardConnection):
-    """Implementation of the MaimboardConnection using bluetooth"""
-    def __init__(self):
-        self._conn : bluetooth.BluetoothSocket = None
-        self._is_connected = False
-
-    @staticmethod
-    def find_bar_bot() -> str:
-        """Find all bluetooth devices nearby that have 'Bar Bot' in their name.
-        :returns: The mac address of the first found device that matches the name.
-        """
-        try:
-            nearby_devices = bluetooth.discover_devices(lookup_names=True)
-            for x in nearby_devices:
-                if "Bar Bot" in x[1]:
-                    # return address of first device with "Bar Bot" in its name
-                    return x[0]
-        except bluetooth.BluetoothError:
-            logger.debug("Bluetooth discovery failed", exc_info=True)
-        return None
-
-    def _read_line_unsave(self):
-        data = b''
-        # make sure to read everything there is
-        while True:
-            # read up to 1024 bytes
-            received = self._conn.recv(1024)
-            data += received
-            # we actually received 1024 bytes
-            if len(received) == 1024:
-                logging.warning("read_line: More than 1024 bytes read!")
-                # make shure to all bytes in the pipeline
-                continue
-            # we received a new line character
-            if data[-1:] == b'\n':
-                break
-        try:
-            decoded_data: str = data.decode('utf-8', errors='replace')
-        except UnicodeDecodeError as e:
-            logger.debug("Decoding received bytes failed: %s", e, exc_info=True)
-            decoded_data = ''
-        # normalize and split into lines, drop empty trailing item from split
-        lines = decoded_data.replace('\r', '').split('\n')
-        # remove empty strings
-        non_empty = [l for l in lines if l != '']
-        if len(non_empty) == 0:
-            logger.debug("_read_line_unsave: no non-empty lines received: %r", repr(decoded_data))
-            return ''
-        if len(non_empty) > 1:
-            logger.warning("read_line: More than one line in buffer! Received: '%s'", repr(decoded_data))
-        # return the last non-empty line
-        return non_empty[-1]
-
-    def read_line(self) -> str:
-        """Read the last line that was received on the manboard connection.
-        This command is blocking!
-        :returns: The last line received. None, if the mainboard is not connected."""
-        if self._conn is None:
-            self._is_connected = False
-            return None
-        try:
-            line = self._read_line_unsave()
-        except bluetooth.btcommon.BluetoothError as e:
-            self._is_connected = False
-            logging.error("Read failed with BluetoothError:%s", e.args)
-            return RawResponse(ResponseTypes.COMM_ERROR, e)
-
-        return line
-
-    def send(self, line : str):
-        self._conn.send(f"{line}\r".encode())
-
-    def connect(self, identifier: str = ""):
-        """Connect to a bluetooth device with the given mac address.
-        :param mac_address: The mac address of the device to connect to."""
-        mac_address = identifier
-        if self._conn is not None:
-            self._conn.close()
-        try:
-            self._conn = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-            self._conn.connect((mac_address, 1))
-            self._conn.settimeout(CONNECTION_TIMEOUT)
-            # read one line to make sure the mainboard has started (best-effort)
-            try:
-                _ = self.read_line()
-            except (bluetooth.BluetoothError, OSError) as e:
-                logger.debug("Ignored exception while priming connection: %s", e, exc_info=True)
-            self._is_connected = True
-            logger.info("Connection successful")
-        except bluetooth.BluetoothError as e:
-            logger.warning("Connection failed %s", e)
-            return False
-        return True
-
-    def disconnect(self):
-        """Disconnect from the mainboard by closing the bluetooth connection"""
-        if self._conn is not None:
-            self._conn.close()
-
-    @property
-    def is_connected(self) -> bool:
-        return self._is_connected
 
 class Mainboard:
     """Class representing the mainboard of the barbot, it is used to handle the communication"""
@@ -364,7 +91,10 @@ class Mainboard:
             result.error = ErrorType.COMM_ERROR
         if result.was_successful and message.message_type == ResponseTypes.ERROR:
             # first parameter is the error type
-            result.error = ErrorType[message.parameters[0]]
+            try:
+                result.error = ErrorType[message.parameters[0]]
+            except (KeyError, IndexError):
+                 result.error = ErrorType.WRONG_ANSWER
             result.return_parameters = message.parameters[1:]
         if result.was_successful and message.message_type == ResponseTypes.ACK:
             # an ack can include more info
@@ -390,7 +120,10 @@ class Mainboard:
                 if result.was_successful and message.command != command:
                     result.error = ErrorType.ANSWER_FOR_WRONG_COMMAND
                 if result.was_successful and message.message_type == ResponseTypes.ERROR:
-                    result.error = ErrorType(int(message.parameters[0]))
+                    try:
+                        result.error = ErrorType(int(message.parameters[0]))
+                    except (ValueError, IndexError):
+                        result.error = ErrorType.WRONG_ANSWER
                     result.return_parameters = message.parameters[1:]
                 if result.was_successful:
                     if message.message_type == ResponseTypes.DONE:
@@ -480,7 +213,7 @@ class Mainboard:
         if not self.is_connected:
             return RawResponse(ResponseTypes.COMM_ERROR, "port not open")
         line = self._connection.read_line()
-        if line == "":
+        if line == "" or line is None:
             return RawResponse(ResponseTypes.COMM_ERROR, "empty line read")
         tokens = line.split()
         # Do not repeat status messages over and over again

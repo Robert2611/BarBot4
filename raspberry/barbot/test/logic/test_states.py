@@ -6,7 +6,7 @@ from barbot.logic.core.states import (
 )
 from barbot.logic.core.common import UserInputType, UserMessageType, BarBotStateEnum, MixingOptions
 from barbot.logic.config.ingredients import IngredientType
-from barbot.logic.communication.communication import Mainboard, CommunicationResult
+from barbot.logic.communication import Mainboard, CommunicationResult
 from barbot.logic.config.barbot_config import BarBotConfig
 from barbot.logic.config.port_config import PortConfiguration
 from barbot.logic.core.barbot_context import BarBotContext
