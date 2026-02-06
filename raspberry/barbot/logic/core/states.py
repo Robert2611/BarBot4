@@ -363,7 +363,10 @@ class StartupState(BarBotState):
             if should_check and board_type not in self._context.connected_boards:
                 self._context.message = message_type
                 if not self._wait_for_user_input():
+                    # go back and check again after user confirmed
                     return None
+                # stay in state and re-check boards
+                return None
 
         self._context.remove_message()
 
@@ -508,6 +511,8 @@ class MixingState(BarBotState):
             and not self._context.should_abort_mixing
         ):
             while True:
+                if self._context.should_abort_mixing:
+                    break
                 was_successful = self._add_straw()
                 if was_successful:
                     break
@@ -517,8 +522,10 @@ class MixingState(BarBotState):
             progress += 1
             self._context.mixing_progress = progress
 
-        # Mixing complete
-        self._finish_mixing()
+        # Mixing complete only if not aborted
+        if not self._context.should_abort_mixing:
+            self._finish_mixing()
+
         return IdleState
 
 
@@ -535,6 +542,8 @@ class CrushingState(BarBotState):
     def update(self) -> Optional[Type["BarBotState"]]:
         """Perform the crushing of ice"""
         if self._context.should_abort_mixing:
+            return IdleState
+        if not self._wait_for_glass():
             return IdleState
         ice_to_add_result = self._add_ice_once(self._ice_to_add)
         if ice_to_add_result is None:
@@ -554,6 +563,8 @@ class StrawState(BarBotState):
 
     def update(self) -> Optional[Type["BarBotState"]]:
         """Try dispensing straw until it works or user aborts"""
+        if not self._wait_for_glass():
+            return IdleState
         was_successful = self._add_straw()
         if was_successful:
             return IdleState
