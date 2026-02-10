@@ -17,16 +17,22 @@ echo "📦 Installing system dependencies..."
 sudo apt-get update
 sudo apt-get -y -q install \
     bluetooth bluez libbluetooth-dev \
-    python3-pyqt5 python3-pip
+    python3-pyqt5 python3-pip python3-venv \
+    pi-bluetooth
 
 echo "🔧 Enabling Bluetooth..."
 sudo systemctl start hciuart || echo "⚠️  Failed to start hciuart, continuing..."
 
-# Detect Raspbian
-if grep -qi "ID=raspbian" /etc/os-release; then
-    echo "🖥️  Configuring LXDE autostart..."
-
+# Detect Raspberry Pi (Raspbian, Bookworm, Trixie, etc.)
+if grep -qi "ID=raspbian" /etc/os-release || [ -f /etc/rpi-issue ] || ([ -f /proc/device-tree/model ] && grep -qi "Raspberry Pi" /proc/device-tree/model); then
     mkdir -p "$AUTOSTART_PATH"
+
+    VENV_PATH="$HOME/barbot-venv"
+    echo "🐍 Setting up Python virtual environment..."
+    python3 -m venv --system-site-packages "$VENV_PATH"
+    
+    echo "🔗 Installing BarBot into venv..."
+    "$VENV_PATH/bin/pip" install -e .
 
     cat > "$AUTOSTART_FILE" << EOL
 @lxpanel --profile LXDE-pi
@@ -34,7 +40,7 @@ if grep -qi "ID=raspbian" /etc/os-release; then
 @xscreensaver -no-splash
 point-rpi
 @$TOUCH_SCRIPT
-@python3 -m barbot
+@$VENV_PATH/bin/barbot
 EOL
 
     echo "🌀 Creating touch_rotate.sh..."
@@ -57,4 +63,4 @@ echo "🔗 Installing $GIT_REPO@$LATEST_TAG via pip..."
 python3 -m pip install "git+https://github.com/$GIT_REPO.git@$LATEST_TAG#subdirectory=$PYTHON_PACKAGE_DIR"
 
 # echo and run initial setup	
-python3 -m barbot.setup
+"$VENV_PATH/bin/python3" -m barbot.setup
