@@ -9,9 +9,12 @@ GIT_REPO="Robert2611/BarBot4"
 PYTHON_PACKAGE_DIR="raspberry"
 VENV_PATH="$HOME/barbot-venv"
 
-# Warn if not running as root
-if [[ $EUID -ne 0 ]]; then
-    echo "⚠️  Some commands require root. Consider running with sudo."
+# Do NOT run this script as root or with sudo.
+# It will use sudo internally for system commands when needed.
+if [[ $EUID -eq 0 ]]; then
+    echo "❌ Do NOT run this script as root or with sudo."
+    echo "Please run it as a normal user. It will ask for your password when needed."
+    exit 1
 fi
 
 echo "📦 Installing system dependencies..."
