@@ -7,6 +7,7 @@ AUTOSTART_FILE="$AUTOSTART_PATH/autostart"
 TOUCH_SCRIPT="$INSTALL_BIN/touch_rotate.sh"
 GIT_REPO="Robert2611/BarBot4"
 PYTHON_PACKAGE_DIR="raspberry"
+VENV_PATH="$HOME/barbot-venv"
 
 # Warn if not running as root
 if [[ $EUID -ne 0 ]]; then
@@ -23,16 +24,26 @@ sudo apt-get -y -q install \
 echo "🔧 Enabling Bluetooth..."
 sudo systemctl start hciuart || echo "⚠️  Failed to start hciuart, continuing..."
 
+echo "🐍 Setting up Python virtual environment..."
+python3 -m venv --system-site-packages "$VENV_PATH"
+
+# Detect if we are in the BarBot repository
+if [ -f "pyproject.toml" ] && grep -q 'name = "barbot"' pyproject.toml && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "🛠️  Development mode detected: Installing from local source..."
+    "$VENV_PATH/bin/pip" install -e .
+else
+    echo "📦 Release mode: Installing latest release from GitHub..."
+    LATEST_TAG=$(curl -s "https://api.github.com/repos/$GIT_REPO/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
+    # Fallback to master if tag cannot be determined
+    [ -z "$LATEST_TAG" ] && LATEST_TAG="master"
+    echo "🔗 Installing version $LATEST_TAG..."
+    "$VENV_PATH/bin/pip" install --upgrade "git+https://github.com/$GIT_REPO.git@$LATEST_TAG#subdirectory=$PYTHON_PACKAGE_DIR"
+fi
+
 # Detect Raspberry Pi (Raspbian, Bookworm, Trixie, etc.)
 if grep -qi "ID=raspbian" /etc/os-release || [ -f /etc/rpi-issue ] || ([ -f /proc/device-tree/model ] && grep -qi "Raspberry Pi" /proc/device-tree/model); then
+    echo "🖥️  Raspberry Pi detected. Configuring LXDE autostart..."
     mkdir -p "$AUTOSTART_PATH"
-
-    VENV_PATH="$HOME/barbot-venv"
-    echo "🐍 Setting up Python virtual environment..."
-    python3 -m venv --system-site-packages "$VENV_PATH"
-    
-    echo "🔗 Installing BarBot into venv..."
-    "$VENV_PATH/bin/pip" install -e .
 
     cat > "$AUTOSTART_FILE" << EOL
 @lxpanel --profile LXDE-pi
@@ -53,14 +64,11 @@ EOF
 
     sudo chmod +x "$TOUCH_SCRIPT"
 else
-    echo "❌ Not a Raspbian system. Skipping autostart config."
+    echo "❌ Not a Raspberry Pi system. Skipping autostart config."
 fi
 
-echo "📦 Fetching latest BarBot release tag from GitHub..."
-LATEST_TAG=$(curl -s "https://api.github.com/repos/$GIT_REPO/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
-LATEST_TAG=python_project
-echo "🔗 Installing $GIT_REPO@$LATEST_TAG via pip..."
-python3 -m pip install "git+https://github.com/$GIT_REPO.git@$LATEST_TAG#subdirectory=$PYTHON_PACKAGE_DIR"
-
-# echo and run initial setup	
+# Run initial setup
+echo "⚙️  Running initial setup..."
 "$VENV_PATH/bin/python3" -m barbot.setup
+
+echo "✅ BarBot installation/update complete!"
