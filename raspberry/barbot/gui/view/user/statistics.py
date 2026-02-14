@@ -29,6 +29,7 @@ class Statistics(UserView):
         row.layout().addWidget(label)
         # - dropdown
         dates_widget = QtWidgets.QComboBox()
+        dates_widget.setView(QtWidgets.QListView())
         selected_party_index = 0
         for index, party in enumerate(self.barbot_.parties):
             dates_widget.addItem(party.start.strftime("%Y-%m-%d"), party)

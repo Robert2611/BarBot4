@@ -41,6 +41,8 @@ class View(QtWidgets.QWidget):
         :param selected_amount: The amount to preselect"""
         # add ingredient name
         widget = QtWidgets.QComboBox()
+        # use a list view to avoid coordinate issues on wayland
+        widget.setView(QtWidgets.QListView())
         widget.addItem("-", -1)
         widget.setCurrentIndex(0)
         for i in range(1, INGREDIENT_MAX_AMOUNT_OPTION):
@@ -68,6 +70,8 @@ class View(QtWidgets.QWidget):
         )
         # add ingredient name
         widget = QtWidgets.QComboBox()
+        # use a list view to avoid coordinate issues on wayland
+        widget.setView(QtWidgets.QListView())
         widget.addItem("-", None)
         widget.setCurrentIndex(0)
         for i, item in enumerate(entries):
