@@ -37,7 +37,7 @@ class BusyView(View):
 
         self._init_by_status()
 
-        self.update_message(None)
+        self.update_message(self.barbot_.current_message)
 
     def update_message(self, message: str = None):
         """Update the message shown to the user"""

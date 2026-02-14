@@ -12,6 +12,7 @@ def mock_barbot():
     bot.current_mixing_options = None
     bot.was_aborted = False
     bot.ports = MagicMock()
+    bot.current_message = UserMessageType.NONE
     return bot
 
 @pytest.fixture
@@ -26,6 +27,17 @@ def test_busy_view_initial_state(qtbot, mock_barbot, mock_recipes):
     assert view._title_label.text() != ""
     assert view._message_container.isHidden() is True
     assert view._content_container.isVisible() is True
+
+def test_busy_view_initializes_with_message(qtbot, mock_barbot, mock_recipes):
+    mock_barbot.current_message = UserMessageType.BOARD_NOT_CONNECTED_MIXER
+    view = BusyView(mock_barbot, mock_recipes)
+    qtbot.addWidget(view)
+    view.show()
+    
+    # Message should be visible immediately
+    assert view._message_container.isVisible() is True
+    assert view._content_container.isVisible() is False
+    assert "Mixer" in view._message_container.findChild(QtWidgets.QLabel).text()
 
 def test_busy_view_update_message_none(qtbot, mock_barbot, mock_recipes):
     view = BusyView(mock_barbot, mock_recipes)
