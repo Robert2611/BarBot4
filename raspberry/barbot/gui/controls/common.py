@@ -1,6 +1,13 @@
 """Common helper functions for GUI controls"""
 
 from PyQt5 import QtWidgets, Qt
+from enum import Enum, auto
+
+
+class InputMethod(Enum):
+    KEYBOARD = auto()
+    NUMPAD = auto()
+    LIST = auto()
 
 
 def move_widget_to_bottom_of_screen(window: QtWidgets.QWidget):

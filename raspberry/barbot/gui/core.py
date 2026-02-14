@@ -9,11 +9,9 @@ from PyQt5 import QtWidgets, Qt, QtCore
 
 from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, run_command
 from barbot.logic.recipes import RecipeCollection
-from .controls import Keyboard, Numpad, set_no_spacing
+from .controls import Keyboard, Numpad, ListSelector, SelectorButton, set_no_spacing
+from .controls.common import InputMethod
 
-class InputMethod(Enum):
-    KEYBOARD = auto()
-    NUMPAD = auto()
 
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 
@@ -180,6 +178,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.open_keyboard(target)
         elif method == InputMethod.NUMPAD:
             self.open_numpad(target)
+        elif method == InputMethod.LIST:
+            self.open_list_selector(target)
 
     def open_keyboard(self, target: QtWidgets.QLineEdit):
         """Open a keyboard for a given target widget
@@ -193,6 +193,14 @@ class MainWindow(QtWidgets.QMainWindow):
         :param target: The spin box that should be edited by the keyboard"""
         self.close_keyboard()
         self._keyboard = Numpad(target, self.styles)
+        self._keyboard.show()
+
+    def open_list_selector(self, target: "SelectorButton"):
+        """Open a list selector for a given target widget
+        :param target: The selector button that should be edited by the keyboard"""
+        self.close_keyboard()
+        self._keyboard = ListSelector(target.get_items(), self.styles)
+        self._keyboard.on_item_selected.connect(target.handle_selection)
         self._keyboard.show()
 
     def set_view(self, view):

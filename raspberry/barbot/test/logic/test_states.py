@@ -90,8 +90,8 @@ class TestStates(unittest.TestCase):
         with patch.object(StartupState, '_wait_for_user_input', return_value=True):
             state = StartupState(self.mock_config, self.mock_ports, self.mock_mainboard, self.mock_context)
             next_state = state.update()
-            # Should return None to stay in state and re-check
-            self.assertIsNone(next_state)
+            # Should return IdleState even if no boards are connected to avoid infinite UI loops
+            self.assertEqual(next_state, IdleState)
 
     def test_idle_state_update(self):
         self.mock_mainboard.is_connected = True

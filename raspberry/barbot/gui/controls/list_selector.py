@@ -1,6 +1,6 @@
 from typing import List, Any, Callable
 from PyQt5 import QtWidgets, QtCore, Qt
-from .common import set_no_spacing
+from .common import set_no_spacing, InputMethod
 
 class ListSelector(QtWidgets.QWidget):
     """A custom dropdown-like selector that opens as a full-width overlay at the bottom of the screen.
@@ -64,22 +64,23 @@ class SelectorButton(QtWidgets.QPushButton):
     selection_changed = QtCore.pyqtSignal(object)
     # alias for compatibility with QComboBox
     currentIndexChanged = QtCore.pyqtSignal(object)
+    request_selection_trigger = QtCore.pyqtSignal(object, object) # target, method
 
     def __init__(self, text: str, items_provider: Callable[[], List[tuple[str, Any]]], style: str = None, initial_data: Any = None):
         super().__init__(text)
         self._items_provider = items_provider
         self._style = style
         self._current_data = initial_data
-        self.clicked.connect(self._open_selector)
+        self.clicked.connect(self._request_selection)
         self.setProperty("class", "SelectorButton")
 
-    def _open_selector(self):
-        items = self._items_provider()
-        self._selector = ListSelector(items, self._style)
-        self._selector.on_item_selected.connect(self._handle_selection)
-        self._selector.show()
+    def _request_selection(self):
+        self.request_selection_trigger.emit(self, InputMethod.LIST)
 
-    def _handle_selection(self, data):
+    def get_items(self):
+        return self._items_provider()
+
+    def handle_selection(self, data):
         self._current_data = data
         self.selection_changed.emit(data)
         self.currentIndexChanged.emit(data)
@@ -93,3 +94,8 @@ class SelectorButton(QtWidgets.QPushButton):
 
     def currentData(self):
         return self._current_data
+
+    def setCurrentIndex(self, index):
+        items = self._items_provider()
+        if 0 <= index < len(items):
+            self.handle_selection(items[index][1])

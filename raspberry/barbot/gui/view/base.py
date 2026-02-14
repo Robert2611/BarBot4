@@ -48,6 +48,7 @@ class View(QtWidgets.QWidget):
 
         initial_text = str(selected_amount) if selected_amount is not None and selected_amount > 0 else "-"
         widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None, selected_amount)
+        widget.request_selection_trigger.connect(self.open_input_method_trigger.emit)
         return widget
 
     def combobox_ingredients(
@@ -70,6 +71,7 @@ class View(QtWidgets.QWidget):
 
         initial_text = str(selected_ingredient.name) if selected_ingredient else "-"
         widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None, selected_ingredient)
+        widget.request_selection_trigger.connect(self.open_input_method_trigger.emit)
         return widget
 
     @staticmethod
