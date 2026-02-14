@@ -11,7 +11,7 @@ class ListSelector(QtWidgets.QWidget):
     def __init__(self, items: List[tuple[str, Any]], style: str = None):
         super().__init__()
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
-        self.setProperty("class", "ListSelector")
+        self.setProperty("class", "Keyboard")
         if style:
             self.setStyleSheet(style)
         
@@ -21,20 +21,29 @@ class ListSelector(QtWidgets.QWidget):
 
         # Scroll area for many items
         scroll = QtWidgets.QScrollArea()
+        scroll.setProperty("class", "ContentScroller")
         scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
+        QtWidgets.QScroller.grabGesture(
+            scroll.viewport(),
+            QtWidgets.QScroller.LeftMouseButtonGesture
+        )
         
         scroll_content = QtWidgets.QWidget()
-        scroll_layout = QtWidgets.QVBoxLayout()
+        scroll_content.setProperty("class", "IdleContent")
+        scroll_layout = QtWidgets.QGridLayout()
         # Larger spacing for touch
         scroll_layout.setSpacing(5) 
         scroll_content.setLayout(scroll_layout)
         
-        for text, data in items:
+        for i, (text, data) in enumerate(items):
             btn = QtWidgets.QPushButton(text)
             btn.setMinimumHeight(60) # Large hit target
             btn.clicked.connect(lambda _, d=data: self._handle_selection(d))
-            scroll_layout.addWidget(btn)
+            # 2 columns
+            scroll_layout.addWidget(btn, i // 2, i % 2)
         
         scroll.setWidget(scroll_content)
         layout.addWidget(scroll)
@@ -51,9 +60,10 @@ class ListSelector(QtWidgets.QWidget):
 
     def _position_on_screen(self):
         desktop = QtWidgets.QApplication.desktop().availableGeometry()
-        width = desktop.width()
+        margin = 10
+        width = desktop.width() - 2 * margin
         height = min(desktop.height() // 2, 400) # Max half screen or 400px
-        self.setGeometry(0, desktop.height() - height, width, height)
+        self.setGeometry(margin, desktop.height() - height - margin, width, height)
 
     def _handle_selection(self, data):
         self.on_item_selected.emit(data)
