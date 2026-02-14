@@ -8,8 +8,9 @@ class ListSelector(QtWidgets.QWidget):
     """
     on_item_selected = QtCore.pyqtSignal(object)
 
-    def __init__(self, items: List[tuple[str, Any]], style: str = None):
+    def __init__(self, items: List[tuple[str, Any]], style: str = None, reference_widget: QtWidgets.QWidget = None):
         super().__init__()
+        self._reference_widget = reference_widget
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
         self.setProperty("class", "Keyboard")
         if style:
@@ -59,11 +60,14 @@ class ListSelector(QtWidgets.QWidget):
         self._position_on_screen()
 
     def _position_on_screen(self):
-        desktop = QtWidgets.QApplication.desktop().availableGeometry()
+        if self._reference_widget is not None:
+            ref_geo = self._reference_widget.geometry()
+        else:
+            ref_geo = QtWidgets.QApplication.desktop().availableGeometry()
         margin = 10
-        width = desktop.width() - 2 * margin
-        height = min(desktop.height() // 2, 400) # Max half screen or 400px
-        self.setGeometry(margin, desktop.height() - height - margin, width, height)
+        width = ref_geo.width() - 2 * margin
+        height = min(ref_geo.height() // 2, 400) # Max half screen or 400px
+        self.setGeometry(ref_geo.left() + margin, ref_geo.bottom() - height - margin, width, height)
 
     def _handle_selection(self, data):
         self.on_item_selected.emit(data)

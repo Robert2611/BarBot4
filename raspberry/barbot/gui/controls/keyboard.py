@@ -13,7 +13,7 @@ class Keyboard(QtWidgets.QWidget):
     _is_shift = False
     target: QtWidgets.QLineEdit = None
 
-    def __init__(self, target: QtWidgets.QLineEdit, style=None):
+    def __init__(self, target: QtWidgets.QLineEdit, style=None, reference_widget: QtWidgets.QWidget = None):
         super().__init__()
 
         self.target = target
@@ -44,7 +44,7 @@ class Keyboard(QtWidgets.QWidget):
         ]
         self._add_keys()
         self._update_keys()
-        move_widget_to_bottom_of_screen(self)
+        move_widget_to_bottom_of_screen(self, reference_widget)
 
     def _add_keys(self):
         # number keys

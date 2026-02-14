@@ -185,21 +185,21 @@ class MainWindow(QtWidgets.QMainWindow):
         """Open a keyboard for a given target widget
         :param target: The line edit that should be edited by the keyboard"""
         self.close_keyboard()
-        self._keyboard = Keyboard(target, self.styles)
+        self._keyboard = Keyboard(target, self.styles, self)
         self._keyboard.show()
 
     def open_numpad(self, target: QtWidgets.QSpinBox):
         """Open a numpad for a given target widget
         :param target: The spin box that should be edited by the keyboard"""
         self.close_keyboard()
-        self._keyboard = Numpad(target, self.styles)
+        self._keyboard = Numpad(target, self.styles, self)
         self._keyboard.show()
 
     def open_list_selector(self, target: "SelectorButton"):
         """Open a list selector for a given target widget
         :param target: The selector button that should be edited by the keyboard"""
         self.close_keyboard()
-        self._keyboard = ListSelector(target.get_items(), self.styles)
+        self._keyboard = ListSelector(target.get_items(), self.styles, self)
         self._keyboard.on_item_selected.connect(target.handle_selection)
         self._keyboard.show()
 

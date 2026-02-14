@@ -12,7 +12,7 @@ class Numpad(QtWidgets.QWidget):
     target: QtWidgets.QSpinBox = None
     current_value: int = 0
 
-    def __init__(self, target: QtWidgets.QSpinBox, style=None):
+    def __init__(self, target: QtWidgets.QSpinBox, style=None, reference_widget: QtWidgets.QWidget = None):
         super().__init__()
         self.target = target
         self.current_value = 0
@@ -27,7 +27,7 @@ class Numpad(QtWidgets.QWidget):
         self._add_value_label()
         self._add_keypad()
 
-        move_widget_to_bottom_of_screen(self)
+        move_widget_to_bottom_of_screen(self, reference_widget)
 
     def _add_value_label(self):
         self._value_label = QtWidgets.QLabel()

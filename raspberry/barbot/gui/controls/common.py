@@ -10,12 +10,15 @@ class InputMethod(Enum):
     LIST = auto()
 
 
-def move_widget_to_bottom_of_screen(window: QtWidgets.QWidget):
-    """Move a widget to the bottom of the screen"""
-    desktop = Qt.QApplication.desktop().availableGeometry()
+def move_widget_to_bottom_of_screen(window: QtWidgets.QWidget, reference_widget: QtWidgets.QWidget = None):
+    """Move a widget to the bottom of the screen (or reference widget)"""
+    if reference_widget is not None:
+        ref_geo = reference_widget.geometry()
+    else:
+        ref_geo = Qt.QApplication.desktop().availableGeometry()
     desired = Qt.QRect(Qt.QPoint(0, 0), window.sizeHint())
-    desired.moveBottomRight(desktop.bottomRight())
-    desired.setLeft(desktop.left())
+    desired.moveBottomRight(ref_geo.bottomRight())
+    desired.setLeft(ref_geo.left())
     window.setGeometry(desired)
 
 

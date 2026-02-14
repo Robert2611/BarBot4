@@ -66,15 +66,25 @@ def test_mainwindow_open_keyboard(main_window):
     target = QtWidgets.QLineEdit()
     with patch('barbot.gui.core.Keyboard') as mock_keyboard_class:
         main_window.open_keyboard(target)
-        mock_keyboard_class.assert_called_with(target, main_window.styles)
+        mock_keyboard_class.assert_called_with(target, main_window.styles, main_window)
         assert main_window._keyboard == mock_keyboard_class.return_value
 
 def test_mainwindow_open_numpad(main_window):
     target = QtWidgets.QSpinBox()
     with patch('barbot.gui.core.Numpad') as mock_numpad_class:
         main_window.open_numpad(target)
-        mock_numpad_class.assert_called_with(target, main_window.styles)
+        mock_numpad_class.assert_called_with(target, main_window.styles, main_window)
         assert main_window._keyboard == mock_numpad_class.return_value
+
+def test_mainwindow_open_list_selector(main_window):
+    target = MagicMock()
+    target.get_items.return_value = [("Item 1", 1)]
+    with patch('barbot.gui.core.ListSelector') as mock_list_selector_class:
+        main_window.open_list_selector(target)
+        mock_list_selector_class.assert_called_with(target.get_items.return_value, main_window.styles, main_window)
+        assert main_window._keyboard == mock_list_selector_class.return_value
+        # Check signal connection
+        mock_list_selector_class.return_value.on_item_selected.connect.assert_called_with(target.handle_selection)
 
 def test_mainwindow_close_keyboard(main_window):
     main_window._keyboard = MagicMock()
