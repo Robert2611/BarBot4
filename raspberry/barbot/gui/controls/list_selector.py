@@ -41,7 +41,6 @@ class ListSelector(QtWidgets.QWidget):
         
         for i, (text, data) in enumerate(items):
             btn = QtWidgets.QPushButton(text)
-            btn.setMinimumHeight(60) # Large hit target
             btn.clicked.connect(lambda _, d=data: self._handle_selection(d))
             # 2 columns
             scroll_layout.addWidget(btn, i // 2, i % 2)
@@ -51,7 +50,6 @@ class ListSelector(QtWidgets.QWidget):
 
         # Close/Cancel button
         cancel_btn = QtWidgets.QPushButton("Abbrechen")
-        cancel_btn.setMinimumHeight(60)
         cancel_btn.setProperty("class", "CancelButton")
         cancel_btn.clicked.connect(self.close)
         layout.addWidget(cancel_btn)
