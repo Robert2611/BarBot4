@@ -33,11 +33,11 @@ def is_raspberry() -> bool:
     if platform.system() != "Linux":
         return False
     try:
-        uname = getattr(os, "uname")
-        name = uname().nodename
-    except AttributeError:
+        with open("/proc/device-tree/model", "r", encoding="utf-8") as f:
+            model = f.read()
+            return "Raspberry Pi" in model
+    except FileNotFoundError:
         return False
-    return "raspberry" in name
 
 def css_path() -> str:
     """Get the absolute path to the css folder"""
