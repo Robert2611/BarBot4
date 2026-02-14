@@ -48,6 +48,7 @@ class MainboardConnectionMockup(MainboardConnection):
             "GetWeight": ["GET", 0],
             "HasGlas": ["GET", 0],
             "GetConnectedBoards": ["GET", 0],
+            "ABORT": ["DO", 0],
         }
 
     @property
