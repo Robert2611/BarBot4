@@ -20,8 +20,13 @@ SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 def restart_barbot():
     """Callback to restart the barbot and gui"""
     QtWidgets.QApplication.instance().quit()
-    filepath = os.path.join(sys.path[0], "main.py")
-    run_command(filepath)
+    import shlex
+    # Re-run the current script with the same arguments
+    # os.path.abspath(sys.argv[0]) ensures we use the full path
+    args = sys.argv[:]
+    args[0] = os.path.abspath(args[0])
+    cmd = shlex.join(args)
+    run_command(cmd)
 
 def is_raspberry() -> bool:
     """Check whether we are running on a raspberry pi"""

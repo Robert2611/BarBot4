@@ -151,6 +151,7 @@ class BarBotState(ABC):
                 if not result.was_successful:
                     self._context.message = UserMessageType.UNKNOWN_ERROR
                     self._wait_for_user_input()
+                    self._context.remove_message()
                     return False
                 result = self._mainboard.do("Draft", port, weight)
             # user aborted
@@ -182,12 +183,14 @@ class BarBotState(ABC):
                 logging.warning("Glas was removed while drafting")
                 self._context.message = UserMessageType.GLAS_REMOVED_WHILE_DRAFTING
                 self._wait_for_user_input()
+                self._context.remove_message()
                 return False
 
             else:
                 logging.warning("Unexpected error code")
                 self._context.message = UserMessageType.UNKNOWN_ERROR
                 self._wait_for_user_input()
+                self._context.remove_message()
                 return False
 
     def _delay_and_keep_communicating(self, seconds):
@@ -364,9 +367,13 @@ class StartupState(BarBotState):
 
             if should_check and board_type not in self._context.connected_boards:
                 self._context.message = message_type
-                if not self._wait_for_user_input():
-                    # go back and check again after user confirmed
-                    return None
+                user_confirmed = self._wait_for_user_input()
+                self._context.remove_message()
+                # give user time to see that the click was registered
+                time.sleep(0.5)
+                if not user_confirmed:
+                    # User aborted, go back to idle
+                    return IdleState
                 # stay in state and re-check boards
                 return None
 
