@@ -2,7 +2,8 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic import BarBot
 from barbot.logic.recipes import RecipeCollection
 from barbot.logic.config import Ingredient
-from ..core import InputMethod
+from ..core import InputMethod, restart_barbot, run_command
+from ..controls.list_selector import SelectorButton
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17
 
@@ -38,7 +39,6 @@ class View(QtWidgets.QWidget):
     def combobox_amounts(self, selected_amount=None):
         """Create a selector for selecting the amount of a ingredient.
         :param selected_amount: The amount to preselect"""
-        from ..controls.list_selector import SelectorButton
         
         def get_items():
             items = [("-", -1)]
@@ -47,7 +47,7 @@ class View(QtWidgets.QWidget):
             return items
 
         initial_text = str(selected_amount) if selected_amount is not None and selected_amount > 0 else "-"
-        widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None)
+        widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None, selected_amount)
         return widget
 
     def combobox_ingredients(
@@ -58,7 +58,6 @@ class View(QtWidgets.QWidget):
         only_weighed=False,
     ):
         """Create a selector with options for ingredients selected by the filter parameters """
-        from ..controls.list_selector import SelectorButton
 
         def get_items():
             entries = self.barbot_.config.get_ingredient_list(
@@ -70,13 +69,12 @@ class View(QtWidgets.QWidget):
             return items
 
         initial_text = str(selected_ingredient.name) if selected_ingredient else "-"
-        widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None)
+        widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None, selected_ingredient)
         return widget
 
     @staticmethod
     def set_system_view(container: QtWidgets.QWidget):
         """Get the systems view widget."""
-        from ..core import restart_barbot, run_command
         if container.layout() is None:
             container.setLayout(QtWidgets.QVBoxLayout())
 

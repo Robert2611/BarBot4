@@ -2,6 +2,7 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic.recipes import PartyStatistics, Party
 from barbot.logic import RecipeCollection, BarBot
 from ...controls import BarChartRow, BarChart, set_no_spacing
+from ...controls.list_selector import SelectorButton
 from .base import UserView
 
 class Statistics(UserView):
@@ -28,16 +29,15 @@ class Statistics(UserView):
         label = QtWidgets.QLabel("Datum")
         row.layout().addWidget(label)
         # - dropdown
-        dates_widget = QtWidgets.QComboBox()
-        selected_party_index = 0
-        for index, party in enumerate(self.barbot_.parties):
-            dates_widget.addItem(party.start.strftime("%Y-%m-%d"), party)
-            if party == self.barbot_.parties.current_party:
-                selected_party_index = index
-        dates_widget.setCurrentIndex(selected_party_index)
-        dates_widget.currentIndexChanged.connect(
-            lambda _: self._update_view(dates_widget.currentData())
-        )
+        
+        def get_items():
+            return [(party.start.strftime("%Y-%m-%d"), party) for party in self.barbot_.parties]
+
+        initial_party = self.barbot_.parties.current_party
+        initial_text = initial_party.start.strftime("%Y-%m-%d") if initial_party else "-"
+        
+        dates_widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None, initial_party)
+        dates_widget.selection_changed.connect(self._update_view)
         row.layout().addWidget(dates_widget)
 
     def _add_statisctics_container(self):

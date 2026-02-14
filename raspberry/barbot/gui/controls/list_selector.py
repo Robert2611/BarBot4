@@ -62,11 +62,14 @@ class ListSelector(QtWidgets.QWidget):
 class SelectorButton(QtWidgets.QPushButton):
     """A button that looks like a QComboBox and opens a ListSelector when clicked."""
     selection_changed = QtCore.pyqtSignal(object)
+    # alias for compatibility with QComboBox
+    currentIndexChanged = QtCore.pyqtSignal(object)
 
-    def __init__(self, text: str, items_provider: Callable[[], List[tuple[str, Any]]], style: str = None):
+    def __init__(self, text: str, items_provider: Callable[[], List[tuple[str, Any]]], style: str = None, initial_data: Any = None):
         super().__init__(text)
         self._items_provider = items_provider
         self._style = style
+        self._current_data = initial_data
         self.clicked.connect(self._open_selector)
         self.setProperty("class", "SelectorButton")
 
@@ -77,7 +80,9 @@ class SelectorButton(QtWidgets.QPushButton):
         self._selector.show()
 
     def _handle_selection(self, data):
+        self._current_data = data
         self.selection_changed.emit(data)
+        self.currentIndexChanged.emit(data)
         # Update button text to reflect selection if possible
         # We find the label in the items
         items = self._items_provider()
@@ -85,3 +90,6 @@ class SelectorButton(QtWidgets.QPushButton):
             if d == data:
                 self.setText(text)
                 break
+
+    def currentData(self):
+        return self._current_data
