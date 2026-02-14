@@ -73,11 +73,11 @@ if [ "$SESSION_TYPE" = "wayland" ]; then
     # Set defaults if run from SSH
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
     export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
-    wlr-randr --output DSI-1 --transform 90
+    wlr-randr --output DSI-1 --transform 270
 elif [ "$SESSION_TYPE" = "x11" ]; then
     echo "🖥️  X11 session detected. Using xrandr..."
-    # Note: touch is handled via udev for both but we keep xinput as fallback if udev fails
-    xinput --set-prop '10-0038 generic ft5x06 (79)' 'Coordinate Transformation Matrix' 0 -1 1 1 0 -0.02 0 0 1 || true
+    # CCW matrix: 0 1 0 -1 0 1 0 0 1
+    xinput --set-prop "$(xinput list --name-only | grep -i touchscreen | head -n1)" 'Coordinate Transformation Matrix' 0 1 0 -1 0 1 0 0 1 || true
     xrandr --output DSI-1 --rotate left
 else
     echo "⚠️  Could not detect graphical session type ($SESSION_TYPE). Skipping rotation."
@@ -88,7 +88,7 @@ EOF
     # Persistent touch rotation via udev (works for both X11 and Wayland)
     echo "👆 Creating udev rule for touch rotation..."
     sudo tee /etc/udev/rules.d/99-barbot-touch.rules > /dev/null << 'EOF'
-ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1 1 0 -0.02 0 0 1"
+ENV{ID_INPUT_TOUCHSCREEN}=="1", ENV{LIBINPUT_CALIBRATION_MATRIX}="0 1 0 -1 0 1 0 0 1"
 EOF
     sudo udevadm control --reload-rules
     sudo udevadm trigger --subsystem-match=input
