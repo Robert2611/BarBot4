@@ -36,17 +36,18 @@ class View(QtWidgets.QWidget):
         return self._recipes
 
     def combobox_amounts(self, selected_amount=None):
-        """Create a combobox for selecting the amount of a ingredient.
-        Set it to the selected data if provided.
+        """Create a selector for selecting the amount of a ingredient.
         :param selected_amount: The amount to preselect"""
-        # add ingredient name
-        widget = QtWidgets.QComboBox()
-        widget.addItem("-", -1)
-        widget.setCurrentIndex(0)
-        for i in range(1, INGREDIENT_MAX_AMOUNT_OPTION):
-            widget.addItem(str(i), i)
-            if i == selected_amount:
-                widget.setCurrentIndex(i)
+        from ..controls.list_selector import SelectorButton
+        
+        def get_items():
+            items = [("-", -1)]
+            for i in range(1, INGREDIENT_MAX_AMOUNT_OPTION):
+                items.append((str(i), i))
+            return items
+
+        initial_text = str(selected_amount) if selected_amount is not None and selected_amount > 0 else "-"
+        widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None)
         return widget
 
     def combobox_ingredients(
@@ -56,24 +57,20 @@ class View(QtWidgets.QWidget):
         only_normal=False,
         only_weighed=False,
     ):
-        """Create a combobox with options for ingredients selected by the filter parameters 
-        
-        :param only_available: If set to true, only return ingredients that \
-            are currently connected to ports
-        :param only_normal: If set to true, only return ingredients that are pumped
-        :param only_weighed: If set to true, only return ingredients that are added by weight    
-        """
-        entries = self.barbot_.config.get_ingredient_list(
-            self.barbot_.ports, only_available, only_normal, only_weighed
-        )
-        # add ingredient name
-        widget = QtWidgets.QComboBox()
-        widget.addItem("-", None)
-        widget.setCurrentIndex(0)
-        for i, item in enumerate(entries):
-            widget.addItem(str(item.name), item)
-            if item == selected_ingredient:
-                widget.setCurrentIndex(i + 1)
+        """Create a selector with options for ingredients selected by the filter parameters """
+        from ..controls.list_selector import SelectorButton
+
+        def get_items():
+            entries = self.barbot_.config.get_ingredient_list(
+                self.barbot_.ports, only_available, only_normal, only_weighed
+            )
+            items = [("-", None)]
+            for item in entries:
+                items.append((str(item.name), item))
+            return items
+
+        initial_text = str(selected_ingredient.name) if selected_ingredient else "-"
+        widget = SelectorButton(initial_text, get_items, self.styles if hasattr(self, "styles") else None)
         return widget
 
     @staticmethod

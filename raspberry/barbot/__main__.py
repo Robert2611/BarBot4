@@ -91,11 +91,6 @@ def run(is_demo: bool, enable_log_to_stdout: bool):
 
     sys.excepthook = handle_exception_factory(exception_file_path)
 
-    # set application attributes for better touch support on Wayland
-    from PyQt5.QtCore import Qt
-    QtWidgets.QApplication.setAttribute(Qt.AA_SynthesizeMouseForUnhandledTouchEvents, False)
-    QtWidgets.QApplication.setAttribute(Qt.AA_SynthesizeTouchForUnhandledMouseEvents, False)
-
     app = QtWidgets.QApplication(sys.argv)
     setup_sigint(app)
     form = MainWindow(bot, recipe_collection)
