@@ -374,8 +374,7 @@ class StartupState(BarBotState):
                 if not user_confirmed:
                     # User aborted, go back to idle
                     return IdleState
-                # stay in state and re-check boards
-                return None
+                # continue to next board check or IdleState
 
         self._context.remove_message()
 

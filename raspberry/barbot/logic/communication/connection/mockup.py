@@ -2,6 +2,7 @@
 
 import time
 from .base import MainboardConnection
+from ..common import BoardType
 
 class MainboardConnectionMockup(MainboardConnection):
     """Mockup class for MainboardConnection.
@@ -15,7 +16,10 @@ class MainboardConnectionMockup(MainboardConnection):
         self._current_command_type = None
         self._command_history = []
         self._was_ack_sent = False
-        self._getter_results = {}
+        # make sure to return a connected balance
+        self._getter_results = {
+            "GetConnectedBoards": 1 << BoardType.BALANCE.value
+        }
         self.duration_DO = 0.5
         self.duration_SET = 0.1
         self.duration_GET = 0.1
