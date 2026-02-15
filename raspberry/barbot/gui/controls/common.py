@@ -16,7 +16,15 @@ def move_widget_to_bottom_of_screen(window: QtWidgets.QWidget, reference_widget:
         ref_geo = reference_widget.geometry()
     else:
         ref_geo = Qt.QApplication.desktop().availableGeometry()
-    desired = Qt.QRect(Qt.QPoint(0, 0), window.sizeHint())
+    
+    # Use sizeHint but respect maximum size constraints
+    size = window.sizeHint()
+    if window.maximumHeight() < size.height():
+        size.setHeight(window.maximumHeight())
+    if window.maximumWidth() < size.width():
+        size.setWidth(window.maximumWidth())
+
+    desired = Qt.QRect(Qt.QPoint(0, 0), size)
     desired.moveBottomRight(ref_geo.bottomRight())
     desired.setLeft(ref_geo.left())
     window.setGeometry(desired)

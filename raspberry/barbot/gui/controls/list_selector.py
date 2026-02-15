@@ -77,6 +77,9 @@ class ListSelector(QtWidgets.QWidget):
             max_h = 400
         self.setMaximumHeight(max(max_h, 300))
         self.setFixedWidth(reference_widget.width() if reference_widget else 480)
+        
+        # Ensure the widget is resized according to its constraints
+        self.adjustSize()
 
         # Position it
         move_widget_to_bottom_of_screen(self, reference_widget)
