@@ -4,6 +4,7 @@ import os
 import platform
 import sys
 import logging
+import time
 from enum import Enum, auto
 from PyQt5 import QtWidgets, Qt, QtCore
 from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, run_command
@@ -59,6 +60,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self._barbot = barbot_
         self._recipes = recipes
+        self._keyboard_open_time = 0
 
         from .view.base import View # Local import to avoid circular dependency
         
@@ -79,10 +81,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setStyleSheet(self.styles)
 
         def _handle_mouse_press(event):
+            # If a keyboard/selector was opened very recently, ignore the event.
+            # This prevents the initial touch "release" or "jitter" from closing the widget.
+            if time.time() - self._keyboard_open_time < 0.5:
+                return
+
             if self._keyboard is not None and self._keyboard.isVisible():
-                # Get the global position of the click
-                global_pos = self.mapToGlobal(event.pos())
-                # Check if it is within the keyboard/selector's geometry
+                # All these controls (Keyboard, Numpad, ListSelector) are top-level windows
+                global_pos = event.globalPos()
                 if self._keyboard.geometry().contains(global_pos):
                     return
             self.close_keyboard()
@@ -190,6 +196,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :param target: The line edit that should be edited by the keyboard"""
         self.close_keyboard()
         self._keyboard = Keyboard(target, self.styles, self)
+        self._keyboard_open_time = time.time()
         self._keyboard.show()
 
     def open_numpad(self, target: QtWidgets.QSpinBox):
@@ -197,6 +204,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :param target: The spin box that should be edited by the keyboard"""
         self.close_keyboard()
         self._keyboard = Numpad(target, self.styles, self)
+        self._keyboard_open_time = time.time()
         self._keyboard.show()
 
     def open_list_selector(self, target: "SelectorButton"):
@@ -204,6 +212,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :param target: The selector button that should be edited by the keyboard"""
         self.close_keyboard()
         self._keyboard = ListSelector(target.get_items(), self.styles, self)
+        self._keyboard_open_time = time.time()
         self._keyboard.on_item_selected.connect(target.handle_selection)
         self._keyboard.show()
 
