@@ -1,6 +1,6 @@
 from typing import List, Any, Callable
 from PyQt5 import QtWidgets, QtCore, Qt
-from .common import set_no_spacing, InputMethod
+from .common import set_no_spacing, InputMethod, move_widget_to_bottom_of_screen
 
 class ListSelector(QtWidgets.QWidget):
     """A custom dropdown-like selector that opens as a full-width overlay at the bottom of the screen.
@@ -16,6 +16,11 @@ class ListSelector(QtWidgets.QWidget):
         if style:
             self.setStyleSheet(style)
         
+        # Disable cursor if on Raspberry Pi
+        # (This is usually handled by core.py for the MainWindow, 
+        # but Keyboard/Numpad also set it)
+        self.setCursor(QtCore.Qt.BlankCursor)
+
         layout = QtWidgets.QVBoxLayout()
         set_no_spacing(layout)
         self.setLayout(layout)
@@ -27,10 +32,21 @@ class ListSelector(QtWidgets.QWidget):
         scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
+        # Tune scroller for touch
+        scroller = QtWidgets.QScroller.scroller(scroll.viewport())
         QtWidgets.QScroller.grabGesture(
             scroll.viewport(),
             QtWidgets.QScroller.LeftMouseButtonGesture
         )
+        # Make it less sensitive to movement to avoid accidental scroll instead of click
+        props = scroller.scrollerProperties()
+        # Minimum distance to start scrolling
+        props.setScrollMetric(QtWidgets.QScrollerProperties.MinimumVelocity, 0.05)
+        props.setScrollMetric(QtWidgets.QScrollerProperties.DragStartDistance, 0.01)
+        scroller.setScrollerProperties(props)
+
+        # Install event filter to block events from reaching MainWindow
+        scroll.viewport().installEventFilter(self)
         
         scroll_content = QtWidgets.QWidget()
         scroll_content.setProperty("class", "IdleContent")
@@ -54,18 +70,28 @@ class ListSelector(QtWidgets.QWidget):
         cancel_btn.clicked.connect(self.close)
         layout.addWidget(cancel_btn)
 
-        # Position it
-        self._position_on_screen()
-
-    def _position_on_screen(self):
-        if self._reference_widget is not None:
-            ref_geo = self._reference_widget.geometry()
+        # Enforce height limits before positioning
+        if reference_widget:
+            max_h = reference_widget.height() // 2
         else:
-            ref_geo = QtWidgets.QApplication.desktop().availableGeometry()
-        margin = 10
-        width = ref_geo.width() - 2 * margin
-        height = min(ref_geo.height() // 2, 400) # Max half screen or 400px
-        self.setGeometry(ref_geo.left() + margin, ref_geo.bottom() - height - margin, width, height)
+            max_h = 400
+        self.setMaximumHeight(max(max_h, 300))
+        self.setFixedWidth(reference_widget.width() if reference_widget else 480)
+
+        # Position it
+        move_widget_to_bottom_of_screen(self, reference_widget)
+
+    def mousePressEvent(self, event):
+        # Consume mouse press events to prevent them from reaching the MainWindow,
+        # which would close the selector if it's considered "outside"
+        event.accept()
+
+    def eventFilter(self, source, event):
+        # Block mouse/touch events on the scroll area from reaching MainWindow
+        if event.type() in [QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.MouseMove]:
+            event.accept()
+            return True
+        return super().eventFilter(source, event)
 
     def _handle_selection(self, data):
         self.on_item_selected.emit(data)

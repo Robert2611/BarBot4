@@ -6,12 +6,10 @@ import sys
 import logging
 from enum import Enum, auto
 from PyQt5 import QtWidgets, Qt, QtCore
-
 from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, run_command
 from barbot.logic.recipes import RecipeCollection
 from .controls import Keyboard, Numpad, ListSelector, SelectorButton, set_no_spacing
 from .controls.common import InputMethod
-
 
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
 
@@ -57,14 +55,12 @@ class MainWindow(QtWidgets.QMainWindow):
     _mixing_progress_trigger = QtCore.pyqtSignal(int)
     _message_trigger = QtCore.pyqtSignal(UserMessageType)
     _show_message_trigger = QtCore.pyqtSignal(str)
-
     def __init__(self, barbot_: BarBot, recipes: RecipeCollection):
         super().__init__()
         self._barbot = barbot_
         self._recipes = recipes
 
-        from .view.base import View # Local import to avoid circular dependency if any? 
-        # Actually View is in view.base now.
+        from .view.base import View # Local import to avoid circular dependency
         
         self._current_view = None
         self._last_idle_view = None
@@ -82,7 +78,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.styles = self.styles.replace("#iconpath#", css_path().replace("\\", "/"))
         self.setStyleSheet(self.styles)
 
-        self.mousePressEvent = lambda _: self.close_keyboard()
+        def _handle_mouse_press(event):
+            if self._keyboard is not None and self._keyboard.isVisible():
+                # Get the global position of the click
+                global_pos = self.mapToGlobal(event.pos())
+                # Check if it is within the keyboard/selector's geometry
+                if self._keyboard.geometry().contains(global_pos):
+                    return
+            self.close_keyboard()
+        self.mousePressEvent = _handle_mouse_press
 
         # forward status changed
         self._barbot_state_trigger.connect(self.update_view)
