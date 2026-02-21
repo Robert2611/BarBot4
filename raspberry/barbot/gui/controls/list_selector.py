@@ -40,13 +40,12 @@ class ListSelector(QtWidgets.QWidget):
         )
         # Make it less sensitive to movement to avoid accidental scroll instead of click
         props = scroller.scrollerProperties()
-        # Minimum distance to start scrolling
-        props.setScrollMetric(QtWidgets.QScrollerProperties.MinimumVelocity, 0.05)
-        props.setScrollMetric(QtWidgets.QScrollerProperties.DragStartDistance, 0.01)
+        # Minimum distance to start scrolling (meters)
+        # Increase to avoid micro-drags being seen as scrolls
+        props.setScrollMetric(QtWidgets.QScrollerProperties.DragStartDistance, 0.05)
+        # Ensure clicks are passed through immediately
+        props.setScrollMetric(QtWidgets.QScrollerProperties.MousePressEventDelay, 0)
         scroller.setScrollerProperties(props)
-
-        # Install event filter to block events from reaching MainWindow
-        scroll.viewport().installEventFilter(self)
         
         scroll_content = QtWidgets.QWidget()
         scroll_content.setProperty("class", "IdleContent")
@@ -90,10 +89,12 @@ class ListSelector(QtWidgets.QWidget):
         event.accept()
 
     def eventFilter(self, source, event):
-        # Block mouse/touch events on the scroll area from reaching MainWindow
+        # Block mouse/touch events on the selector itself from reaching MainWindow,
+        # but don't intercept events on the viewport or children which would break clicking
         if event.type() in [QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.MouseMove]:
-            event.accept()
-            return True
+            if source is self:
+                event.accept()
+                return True
         return super().eventFilter(source, event)
 
     def _handle_selection(self, data):
