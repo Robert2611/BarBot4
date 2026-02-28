@@ -23,18 +23,26 @@ class MainboardConnectionBluetooth(MainboardConnection):
         Uses bluetoothctl for discovery to avoid the legacy PyBluez dependency.
         :returns: The mac address of the first found device that matches the name.
         """
+        logger.debug("Searching for Bar Bot...")
         try:
             # Run bluetoothctl devices to get a list of paired/seen devices
             result = subprocess.run(['bluetoothctl', 'devices'], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 for line in result.stdout.splitlines():
+                    logger.debug("Bluetooth device: %s", line)
                     # Format: Device XX:XX:XX:XX:XX:XX Name
                     if "Bar Bot" in line:
                         parts = line.split(maxsplit=2)
                         if len(parts) >= 2:
-                            return parts[1]
+                            mac = parts[1]
+                            name = parts[2] if len(parts) > 2 else "Unknown"
+                            logger.info("Bar Bot found: %s (%s)", name, mac)
+                            return mac
+            else:
+                logger.warning("bluetoothctl devices returned with code %s", result.returncode)
         except Exception as e:
             logger.debug("Bluetooth discovery failed using bluetoothctl: %s", e)
+        logger.warning("No Bar Bot found in bluetooth devices")
         return None
 
     def _read_line_unsave(self):
