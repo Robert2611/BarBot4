@@ -3,7 +3,7 @@ from barbot.logic.communication import BoardType
 from barbot.logic import version as barbot_version
 from barbot.logic import RecipeCollection, BarBot
 from .base import AdminView
-from ...core import qt_icon_from_file_name
+from ...common import qt_icon_from_file_name
 
 from .system import System
 from .ports import Ports

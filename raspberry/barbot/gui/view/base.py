@@ -1,8 +1,8 @@
 from PyQt5 import QtWidgets, QtCore
-from barbot.logic import BarBot
+from barbot.logic import BarBot, run_command
 from barbot.logic.recipes import RecipeCollection
 from barbot.logic.config import Ingredient
-from ..core import InputMethod, restart_barbot, run_command
+from ..common import InputMethod, restart_barbot
 from ..controls.list_selector import SelectorButton
 
 INGREDIENT_MAX_AMOUNT_OPTION = 17

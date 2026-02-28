@@ -4,7 +4,7 @@ from typing import List
 from dataclasses import dataclass
 from PyQt5 import QtWidgets
 
-from .common import set_no_spacing
+from ..common import set_no_spacing
 
 
 @dataclass

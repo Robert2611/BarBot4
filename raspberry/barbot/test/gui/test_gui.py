@@ -10,12 +10,12 @@ from barbot.logic import PortConfiguration, BarBotConfig, BarBot, Mainboard
 from barbot.logic.recipes import RecipeCollection
 from barbot.logic.communication import BoardType
 from barbot.logic.communication import MainboardConnectionMockup
-from barbot.gui.core import MainWindow
+from barbot.gui.main_window import MainWindow
 from barbot.gui.view.user import ListRecipes, RecipeNewOrEdit
 from barbot.gui.view.user import SingleIngredient, Statistics, OrderRecipe
 from barbot.gui.view.admin import AdminLogin, BalanceCalibration, Overview
 from barbot.gui.view.admin import Ports, Cleaning, Settings, RemoveRecipe
-from barbot.gui.controls import set_no_spacing
+from barbot.gui.common import set_no_spacing
 
 temp_path = os.path.join(os.path.dirname(__file__), ".barbot")
 # make sure the temp data folder exists

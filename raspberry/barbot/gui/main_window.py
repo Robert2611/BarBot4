@@ -1,52 +1,13 @@
-"""Core functionality of the barbot gui"""
-
 import os
-import platform
-import sys
 import logging
 import time
-from enum import Enum, auto
 from PyQt5 import QtWidgets, Qt, QtCore
-from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, run_command
+from barbot.logic import BarBot, UserMessageType, BarBotStateEnum
 from barbot.logic.recipes import RecipeCollection
-from .controls import Keyboard, Numpad, ListSelector, SelectorButton, set_no_spacing
-from .controls.common import InputMethod
+from .common import is_raspberry, css_path, set_no_spacing, InputMethod
+from .controls import Keyboard, Numpad, ListSelector, SelectorButton
 
 SPLASH_MESSAGE_DURATION_IN_SECONDS = 1.5
-
-def restart_barbot():
-    """Callback to restart the barbot and gui"""
-    QtWidgets.QApplication.instance().quit()
-    import shlex
-    # Re-run the current script with the same arguments
-    # os.path.abspath(sys.argv[0]) ensures we use the full path
-    args = sys.argv[:]
-    args[0] = os.path.abspath(args[0])
-    cmd = shlex.join(args)
-    run_command(cmd)
-
-def is_raspberry() -> bool:
-    """Check whether we are running on a raspberry pi"""
-    if platform.system() != "Linux":
-        return False
-    try:
-        with open("/proc/device-tree/model", "r", encoding="utf-8") as f:
-            model = f.read()
-            return "Raspberry Pi" in model
-    except FileNotFoundError:
-        return False
-
-def css_path() -> str:
-    """Get the absolute path to the css folder"""
-    script_dir = os.path.dirname(__file__)
-    return os.path.join(script_dir, "asset")
-
-def qt_icon_from_file_name(file_name) -> Qt.QIcon:
-    """Get a QtIcon from containing an image located at a given path.
-    :param file_name: Path to the image file"""
-    script_dir = os.path.dirname(__file__)
-    path = os.path.join(script_dir, "asset", file_name)
-    return Qt.QIcon(path)
 
 class MainWindow(QtWidgets.QMainWindow):
     """Main window for the barbot"""

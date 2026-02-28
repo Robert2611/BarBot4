@@ -1,10 +1,12 @@
+import logging
+import time
 from typing import List, Any, Callable
 from PyQt5 import QtWidgets, QtCore, Qt
-from .common import set_no_spacing, InputMethod, move_widget_to_bottom_of_screen
+from ..common import set_no_spacing, InputMethod, move_widget_to_bottom_of_screen, is_raspberry
 
 class ListSelector(QtWidgets.QWidget):
-    """A custom dropdown-like selector that opens as a full-width overlay at the bottom of the screen.
-    This bypasses coordinate misalignment issues with standard QComboBox popups on Wayland.
+    """A custom dropdown-like selector that opens as a full-screen transparent overlay.
+    This resolves coordinate mapping conflicts between the MainWindow and the pop-up on Wayland.
     """
     on_item_selected = QtCore.pyqtSignal(object)
 
@@ -12,16 +14,33 @@ class ListSelector(QtWidgets.QWidget):
         super().__init__()
         self._reference_widget = reference_widget
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setProperty("class", "Keyboard")
         if style:
             self.setStyleSheet(style)
         
         # Disable cursor if on Raspberry Pi
         self.setCursor(QtCore.Qt.BlankCursor)
+        self._open_time = time.time()
 
-        layout = QtWidgets.QVBoxLayout()
-        set_no_spacing(layout)
-        self.setLayout(layout)
+        # Full-screen vertical layout
+        self._main_layout = QtWidgets.QVBoxLayout()
+        set_no_spacing(self._main_layout)
+        self.setLayout(self._main_layout)
+
+        # Transparent spacer at the top (tapping here closes the selector)
+        self._top_spacer = QtWidgets.QWidget()
+        self._top_spacer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self._main_layout.addWidget(self._top_spacer)
+
+        # Content container at the bottom (the actual visible selector)
+        self._content_container = QtWidgets.QWidget()
+        self._content_container.setProperty("class", "Keyboard") # Ensure it gets the background color
+        self._main_layout.addWidget(self._content_container)
+
+        content_layout = QtWidgets.QVBoxLayout()
+        set_no_spacing(content_layout)
+        self._content_container.setLayout(content_layout)
 
         # Scroll area for many items
         scroll = QtWidgets.QScrollArea()
@@ -49,6 +68,9 @@ class ListSelector(QtWidgets.QWidget):
         props.setScrollMetric(QtWidgets.QScrollerProperties.MaximumVelocity, 0.01)
         scroller.setScrollerProperties(props)
         
+        # Install event filter to log events for coordinate jump debugging
+        scroll.viewport().installEventFilter(self)
+        
         scroll_content = QtWidgets.QWidget()
         scroll_content.setProperty("class", "IdleContent")
         scroll_layout = QtWidgets.QGridLayout()
@@ -58,36 +80,64 @@ class ListSelector(QtWidgets.QWidget):
         
         for i, (text, data) in enumerate(items):
             btn = QtWidgets.QPushButton(text)
-            btn.clicked.connect(lambda _, d=data: self._handle_selection(d))
+            # Use a wrapper to log which button was clicked
+            def on_click(checked, d=data, t=text):
+                logging.debug(f"ListSelector: Button clicked: '{t}'")
+                self._handle_selection(d)
+            btn.clicked.connect(on_click)
             # 2 columns
             scroll_layout.addWidget(btn, i // 2, i % 2)
         
         scroll.setWidget(scroll_content)
-        layout.addWidget(scroll)
+        content_layout.addWidget(scroll)
 
         # Close/Cancel button
         cancel_btn = QtWidgets.QPushButton("Abbrechen")
         cancel_btn.setProperty("class", "CancelButton")
         cancel_btn.clicked.connect(self.close)
-        layout.addWidget(cancel_btn)
+        content_layout.addWidget(cancel_btn)
 
-        # Enforce height limits before positioning
+        # Enforce height limits for the content container
         if reference_widget:
             max_h = reference_widget.height() // 2
         else:
             max_h = 400
-        self.setMaximumHeight(max(max_h, 300))
-        self.setFixedWidth(reference_widget.width() if reference_widget else 480)
-        
-        # Ensure the widget is resized according to its constraints
-        self.adjustSize()
+        self._content_container.setMaximumHeight(max(max_h, 300))
+        # Overlay is full width anyway, but content container should match expectations
+        self._content_container.setFixedWidth(reference_widget.width() if reference_widget else 480)
 
-        # Position it
-        move_widget_to_bottom_of_screen(self, reference_widget)
+    def mousePressEvent(self, event):
+        # Log to track the jump
+        logging.debug(f"ListSelector: mousePressEvent at {event.pos()} (global: {event.globalPos()})")
+        
+        # If tapping outside the content but inside the overlay, close it.
+        # But only after a short delay to avoid accidental closes during the jump.
+        if time.time() - self._open_time > 0.5:
+            if not self._content_container.geometry().contains(event.pos()):
+                logging.debug("ListSelector: Clicked outside content, closing.")
+                self.close()
+        event.accept()
+
+    def eventFilter(self, source, event):
+        # Log events on components to track the jump
+        if event.type() in [QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.MouseMove]:
+            event_name = {
+                QtCore.QEvent.MouseButtonPress: "Press",
+                QtCore.QEvent.MouseButtonRelease: "Release",
+                QtCore.QEvent.MouseMove: "Move"
+            }.get(event.type())
+            logging.debug(f"ListSelector: EventFilter {event_name} on {source.__class__.__name__} at {event.pos()} (global: {event.globalPos()})")
+        return super().eventFilter(source, event)
 
     def _handle_selection(self, data):
         self.on_item_selected.emit(data)
         self.close()
+
+    def show(self):
+        if is_raspberry():
+            self.showFullScreen()
+        else:
+            super().show()
 
 class SelectorButton(QtWidgets.QPushButton):
     """A button that looks like a QComboBox and opens a ListSelector when clicked."""

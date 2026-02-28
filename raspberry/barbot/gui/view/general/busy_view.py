@@ -3,7 +3,7 @@ from barbot.logic import BarBot, UserMessageType, BarBotStateEnum, UserInputType
 from barbot.logic.config import IngredientType
 from barbot.logic.recipes import RecipeCollection
 from ..base import View
-from ...core import qt_icon_from_file_name, set_no_spacing
+from ...common import qt_icon_from_file_name, set_no_spacing
 
 class BusyView(View):
     """Content that will be shown in the main window when the barbot is busy"""

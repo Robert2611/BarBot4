@@ -9,7 +9,7 @@ class SystemBusyView(View):
         super().__init__(barbot, recipes, is_idle_view=False)
 
         self.setLayout(QtWidgets.QVBoxLayout())
-        from ...core import set_no_spacing
+        from ...common import qt_icon_from_file_name, set_no_spacing
         set_no_spacing(self.layout())
 
         self.header = QtWidgets.QWidget()

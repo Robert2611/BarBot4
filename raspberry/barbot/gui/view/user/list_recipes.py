@@ -2,7 +2,7 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic import RecipeCollection, BarBot
 from barbot.logic.recipes import RecipeItem, Recipe
 from barbot.logic.config import IngredientType
-from ...core import qt_icon_from_file_name, set_no_spacing
+from ...common import qt_icon_from_file_name, set_no_spacing
 from ...controls import GlasFilling, GlasIndicator
 from .base import UserView
 

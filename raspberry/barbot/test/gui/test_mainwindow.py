@@ -3,7 +3,8 @@ from unittest.mock import MagicMock, patch, mock_open
 from PyQt5 import QtWidgets, QtCore
 from barbot.logic import BarBot, UserMessageType, BarBotStateEnum
 from barbot.logic.recipes import RecipeCollection
-from barbot.gui.core import MainWindow, InputMethod
+from barbot.gui.main_window import MainWindow
+from barbot.gui.common import InputMethod
 
 @pytest.fixture
 def mock_barbot():
@@ -37,10 +38,10 @@ class MockView(View):
 @pytest.fixture
 def main_window(qtbot, mock_barbot, mock_recipes):
     # Patch styling and file loading
-    with patch('barbot.gui.core.css_path', return_value='/tmp'), \
+    with patch('barbot.gui.main_window.css_path', return_value='/tmp'), \
          patch('builtins.open', mock_open(read_data="* { color: black; }")), \
-         patch('barbot.gui.core.MainWindow.show'), \
-         patch('barbot.gui.core.is_raspberry', return_value=False):
+         patch('barbot.gui.main_window.MainWindow.show'), \
+         patch('barbot.gui.main_window.is_raspberry', return_value=False):
         
         with patch('barbot.gui.view.user.ListRecipes', return_value=MockView(mock_barbot, mock_recipes)), \
              patch('barbot.gui.view.general.BusyView', return_value=MockView(mock_barbot, mock_recipes, is_idle=False)):
@@ -64,14 +65,14 @@ def test_mainwindow_show_message_splash(qtbot, main_window):
 
 def test_mainwindow_open_keyboard(main_window):
     target = QtWidgets.QLineEdit()
-    with patch('barbot.gui.core.Keyboard') as mock_keyboard_class:
+    with patch('barbot.gui.main_window.Keyboard') as mock_keyboard_class:
         main_window.open_keyboard(target)
         mock_keyboard_class.assert_called_with(target, main_window.styles, main_window)
         assert main_window._keyboard == mock_keyboard_class.return_value
 
 def test_mainwindow_open_numpad(main_window):
     target = QtWidgets.QSpinBox()
-    with patch('barbot.gui.core.Numpad') as mock_numpad_class:
+    with patch('barbot.gui.main_window.Numpad') as mock_numpad_class:
         main_window.open_numpad(target)
         mock_numpad_class.assert_called_with(target, main_window.styles, main_window)
         assert main_window._keyboard == mock_numpad_class.return_value
@@ -79,7 +80,7 @@ def test_mainwindow_open_numpad(main_window):
 def test_mainwindow_open_list_selector(main_window):
     target = MagicMock()
     target.get_items.return_value = [("Item 1", 1)]
-    with patch('barbot.gui.core.ListSelector') as mock_list_selector_class:
+    with patch('barbot.gui.main_window.ListSelector') as mock_list_selector_class:
         main_window.open_list_selector(target)
         mock_list_selector_class.assert_called_with(target.get_items.return_value, main_window.styles, main_window)
         assert main_window._keyboard == mock_list_selector_class.return_value

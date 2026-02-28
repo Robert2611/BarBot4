@@ -2,7 +2,7 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic.recipes import Recipe, RecipeFilter
 from barbot.logic import RecipeCollection, BarBot
 from .base import AdminView
-from ...core import qt_icon_from_file_name
+from ...common import qt_icon_from_file_name
 
 class RemoveRecipe(AdminView):
     """Remove recipes"""

@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic.recipes import RecipeItem
 from barbot.logic.config import IngredientType, Stir as StirIngredient
 from barbot.logic import RecipeCollection, BarBot
-from ...core import qt_icon_from_file_name
+from ...common import qt_icon_from_file_name
 from .base import UserView
 
 class SingleIngredient(UserView):

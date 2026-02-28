@@ -1,7 +1,7 @@
 from PyQt5 import QtWidgets, QtCore
 from barbot.logic import RecipeCollection, BarBot
 from .base import AdminView
-from ...core import InputMethod
+from ...common import InputMethod
 
 class Settings(AdminView):
     """Edit barbot settings"""

@@ -2,7 +2,7 @@ from PyQt5 import QtWidgets, QtCore
 from barbot.logic.recipes import RecipeItem, Recipe, RecipeFilter
 from barbot.logic.config import IngredientType
 from barbot.logic import RecipeCollection, BarBot
-from ...core import InputMethod
+from ...common import InputMethod
 from .base import UserView
 
 class RecipeNewOrEdit(UserView):

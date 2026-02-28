@@ -1,7 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
 from PyQt5 import QtWidgets, QtCore
-from barbot.gui.core import MainWindow, InputMethod
+from barbot.gui.main_window import MainWindow
+from barbot.gui.common import InputMethod
 from barbot.gui.controls import Keyboard, Numpad, ListSelector, SelectorButton
 from barbot.logic import BarBot, BarBotStateEnum
 from barbot.logic.recipes import RecipeCollection
@@ -23,10 +24,10 @@ def mock_recipes():
 @pytest.fixture
 def main_window(qtbot, mock_barbot, mock_recipes):
     # Patch styling and file loading
-    with patch('barbot.gui.core.css_path', return_value='/tmp'), \
+    with patch('barbot.gui.main_window.css_path', return_value='/tmp'), \
          patch('builtins.open', mock_open(read_data="* { color: black; }")), \
-         patch('barbot.gui.core.MainWindow.show'), \
-         patch('barbot.gui.core.is_raspberry', return_value=False):
+         patch('barbot.gui.main_window.MainWindow.show'), \
+         patch('barbot.gui.main_window.is_raspberry', return_value=False):
         
         # Patch views to avoid complex dependencies but still allow MainWindow to work
         from barbot.gui.view.base import View
@@ -143,6 +144,9 @@ def test_overlay_closes_on_outside_click(qtbot, main_window):
     target = QtWidgets.QLineEdit()
     main_window.open_keyboard(target)
     assert main_window._keyboard is not None
+    
+    # Wait for the 0.5s protection delay added for coordinate jump filtering
+    qtbot.wait(600)
     
     # Click on the central widget (outside the keyboard)
     qtbot.mouseClick(main_window.center, QtCore.Qt.LeftButton)

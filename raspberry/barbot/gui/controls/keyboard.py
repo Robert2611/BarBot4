@@ -3,7 +3,7 @@
 from typing import List
 from PyQt5 import QtWidgets, QtCore
 
-from .common import move_widget_to_bottom_of_screen, set_no_spacing
+from ..common import move_widget_to_bottom_of_screen, set_no_spacing
 
 
 class Keyboard(QtWidgets.QWidget):

@@ -1,6 +1,6 @@
 from PyQt5 import QtWidgets, QtCore
 from barbot.logic import RecipeCollection, BarBot
-from ...core import set_no_spacing
+from ...common import set_no_spacing
 from ..base import View
 
 class UserView(View):
