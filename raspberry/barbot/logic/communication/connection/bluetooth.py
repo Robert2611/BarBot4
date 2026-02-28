@@ -81,7 +81,7 @@ class MainboardConnectionBluetooth(MainboardConnection):
         except (socket.error, ConnectionError) as e:
             self._is_connected = False
             logger.error("Read failed with error: %s", e)
-            return RawResponse(ResponseTypes.COMM_ERROR, str(e))
+            return None
 
         return line
 
