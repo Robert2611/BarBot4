@@ -18,32 +18,80 @@ class MainboardConnectionBluetooth(MainboardConnection):
         self._is_connected = False
 
     @staticmethod
-    def find_bar_bot() -> str:
-        """Find all bluetooth devices nearby that have 'Bar Bot' in their name.
-        Uses bluetoothctl for discovery to avoid the legacy PyBluez dependency.
-        :returns: The mac address of the first found device that matches the name.
-        """
-        logger.debug("Searching for Bar Bot...")
+    def _get_known_devices() -> list[str]:
+        """Get a list of known (paired or seen) devices from bluetoothctl"""
         try:
-            # Run bluetoothctl devices to get a list of paired/seen devices
             result = subprocess.run(['bluetoothctl', 'devices'], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
-                for line in result.stdout.splitlines():
-                    logger.debug("Bluetooth device: %s", line)
-                    # Format: Device XX:XX:XX:XX:XX:XX Name
-                    if "Bar Bot" in line:
-                        parts = line.split(maxsplit=2)
-                        if len(parts) >= 2:
-                            mac = parts[1]
-                            name = parts[2] if len(parts) > 2 else "Unknown"
-                            logger.info("Bar Bot found: %s (%s)", name, mac)
-                            return mac
-            else:
-                logger.warning("bluetoothctl devices returned with code %s", result.returncode)
+                return result.stdout.splitlines()
         except Exception as e:
-            logger.debug("Bluetooth discovery failed using bluetoothctl: %s", e)
-        logger.warning("No Bar Bot found in bluetooth devices")
+            logger.debug("Failed to get known devices: %s", e)
+        return []
+
+    @staticmethod
+    def _find_bar_bot_in_device_list(devices: list[str]) -> Optional[str]:
+        """Search for a 'Bar Bot' in a list of bluetoothctl device strings"""
+        for line in devices:
+            if "Bar Bot" in line:
+                parts = line.split(maxsplit=2)
+                if len(parts) >= 2:
+                    mac = parts[1]
+                    name = parts[2] if len(parts) > 2 else "Unknown"
+                    logger.debug("Bar Bot found: %s (%s)", name, mac)
+                    return mac
         return None
+
+    @staticmethod
+    def find_bar_bot() -> str:
+        """Find all bluetooth devices nearby that have 'Bar Bot' in their name.
+        Uses bluetoothctl for discovery.
+        :returns: The mac address of the first found device that matches the name.
+        """
+        logger.debug("Searching for Bar Bot in known devices...")
+        
+        # 1. Check known devices first
+        mac = MainboardConnectionBluetooth._find_bar_bot_in_device_list(
+            MainboardConnectionBluetooth._get_known_devices()
+        )
+        if mac:
+            logger.info("Bar Bot found in known devices: %s", mac)
+            return mac
+
+        # 2. If not found, trigger a short scan
+        logger.info("Bar Bot not found in known devices, starting scan...")
+        try:
+            # Start scan
+            subprocess.run(['bluetoothctl', 'scan', 'on'], timeout=2, capture_output=True)
+            # wait a bit for devices to be found
+            time.sleep(5)
+            # Stop scan
+            subprocess.run(['bluetoothctl', 'scan', 'off'], timeout=2, capture_output=True)
+            
+            # Check devices again after scan
+            mac = MainboardConnectionBluetooth._find_bar_bot_in_device_list(
+                MainboardConnectionBluetooth._get_known_devices()
+            )
+            if mac:
+                logger.info("Bar Bot found after scan: %s", mac)
+                return mac
+        except Exception as e:
+            logger.debug("Bluetooth scan failed: %s", e)
+            
+        logger.warning("No Bar Bot found in bluetooth devices after scan")
+        return None
+
+    @staticmethod
+    def pair_device(mac_address: str) -> bool:
+        """Pair and trust a device using bluetoothctl"""
+        logger.info("Attempting to pair and trust device: %s", mac_address)
+        try:
+            # Note: pairing might fail if already paired, but that's okay
+            subprocess.run(['bluetoothctl', 'pair', mac_address], timeout=10, capture_output=True)
+            subprocess.run(['bluetoothctl', 'trust', mac_address], timeout=5, capture_output=True)
+            return True
+        except Exception as e:
+            logger.error("Failed to pair/trust device %s: %s", mac_address, e)
+            return False
 
     def _read_line_unsave(self):
         data = b''
@@ -107,7 +155,19 @@ class MainboardConnectionBluetooth(MainboardConnection):
             # Create a native Bluetooth RFCOMM socket
             self._conn = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
             self._conn.settimeout(5) # Set a generous timeout for connection
-            self._conn.connect((mac_address, 1))
+            
+            # Try to connect
+            try:
+                self._conn.connect((mac_address, 1))
+            except (socket.error, ConnectionError) as e:
+                # If connection fails, it might be because the device is not paired/trusted
+                logger.info("Initial connection failed, attempting to pair: %s", e)
+                if MainboardConnectionBluetooth.pair_device(mac_address):
+                    # try connecting again after pairing
+                    self._conn.connect((mac_address, 1))
+                else:
+                    raise e
+
             self._conn.settimeout(CONNECTION_TIMEOUT)
             
             # read one line to make sure the mainboard has started (best-effort)
