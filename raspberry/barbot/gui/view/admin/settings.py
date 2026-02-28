@@ -41,6 +41,19 @@ class Settings(AdminView):
         self._add_back_button_to_fixed_content()
         self._add_form_defined_by_entries()
         self._add_save_button()
+        self._add_reset_mac_button()
+
+    def _add_reset_mac_button(self):
+        reset_button = QtWidgets.QPushButton("MAC-Adresse zurücksetzen")
+        reset_button.clicked.connect(self._reset_mac)
+        self._content.layout().addWidget(reset_button)
+
+    def _reset_mac(self):
+        self.barbot_.config.mac_address = ""
+        self.barbot_.config.save()
+        self.barbot_.reconnect()
+        self.show_message_trigger.emit(
+            "MAC-Adresse wurde zurückgesetzt, Suche nach BarBot gestartet")
 
     def _add_form_defined_by_entries(self):
         form_widget = QtWidgets.QWidget()
