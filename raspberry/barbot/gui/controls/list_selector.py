@@ -1,3 +1,4 @@
+import logging
 from typing import List, Any, Callable
 from PyQt5 import QtWidgets, QtCore, Qt
 from .common import set_no_spacing, InputMethod, move_widget_to_bottom_of_screen
@@ -47,6 +48,9 @@ class ListSelector(QtWidgets.QWidget):
         props.setScrollMetric(QtWidgets.QScrollerProperties.MousePressEventDelay, 0)
         scroller.setScrollerProperties(props)
         
+        # Install event filter to log events for debugging
+        scroll.viewport().installEventFilter(self)
+        
         scroll_content = QtWidgets.QWidget()
         scroll_content.setProperty("class", "IdleContent")
         scroll_layout = QtWidgets.QGridLayout()
@@ -56,7 +60,11 @@ class ListSelector(QtWidgets.QWidget):
         
         for i, (text, data) in enumerate(items):
             btn = QtWidgets.QPushButton(text)
-            btn.clicked.connect(lambda _, d=data: self._handle_selection(d))
+            # Use a wrapper to log which button was clicked
+            def on_click(checked, d=data, t=text):
+                logging.debug(f"ListSelector: Button clicked: '{t}' with data '{d}'")
+                self._handle_selection(d)
+            btn.clicked.connect(on_click)
             # 2 columns
             scroll_layout.addWidget(btn, i // 2, i % 2)
         
@@ -86,15 +94,26 @@ class ListSelector(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         # Consume mouse press events to prevent them from reaching the MainWindow,
         # which would close the selector if it's considered "outside"
+        logging.debug(f"ListSelector: mousePressEvent at {event.pos()} (global: {event.globalPos()})")
         event.accept()
 
     def eventFilter(self, source, event):
         # Block mouse/touch events on the selector itself from reaching MainWindow,
         # but don't intercept events on the viewport or children which would break clicking
         if event.type() in [QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.MouseMove]:
+            event_name = {
+                QtCore.QEvent.MouseButtonPress: "Press",
+                QtCore.QEvent.MouseButtonRelease: "Release",
+                QtCore.QEvent.MouseMove: "Move"
+            }.get(event.type())
+            
             if source is self:
+                logging.debug(f"ListSelector: EventFilter {event_name} on SELF at {event.pos()}")
                 event.accept()
                 return True
+            else:
+                # Log events on other sources (like viewport) for debugging, but don't block them
+                logging.debug(f"ListSelector: EventFilter {event_name} on {source.__class__.__name__} at {event.pos()}")
         return super().eventFilter(source, event)
 
     def _handle_selection(self, data):
