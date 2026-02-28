@@ -149,7 +149,7 @@ class ListRecipes(UserView):
         self.switch_view_trigger.emit(RecipeNewOrEdit(self.barbot_, self.recipes, recipe))
 
     def _order(self, recipe):
-        if not self.barbot_.can_start_order:
+        if self.barbot_.is_busy:
             self.show_message_trigger.emit(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return

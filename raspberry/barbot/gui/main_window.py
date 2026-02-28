@@ -133,7 +133,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self._timer.singleShot(1000, _reset_admin_button)
             return
-        if self._barbot.can_access_admin:
+        if not self._barbot.is_busy:
             self.set_view(AdminLogin(self._barbot, self._recipes))
         else:
             self.set_view(SystemBusyView(self._barbot, self._recipes))
@@ -211,13 +211,7 @@ class MainWindow(QtWidgets.QMainWindow):
         Else load the last idle view. If none was set, load the recipe list"""
         from .view.user import ListRecipes, OrderRecipe
         from .view.general import BusyView
-        from .view.admin import AdminView
-
-        if self._barbot.can_start_order:
-            # if we are already in an admin view, don't overwrite it with the idle view
-            if isinstance(self._current_view, AdminView):
-                return
-
+        if not self._barbot.is_busy:
             # load the default view
             if self._last_idle_view is None or isinstance(
                 self._last_idle_view, OrderRecipe

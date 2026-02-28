@@ -96,7 +96,7 @@ class SingleIngredient(UserView):
         self._content.layout().setAlignment(ice_button, QtCore.Qt.AlignCenter)
 
     def _start(self, action_type: ActionType):
-        if not self.barbot_.can_start_order:
+        if self.barbot_.is_busy:
             self.show_message_trigger.emit(
                 "Bitte warten bis die laufende\nAktion abgeschlossen ist.")
             return

@@ -271,25 +271,9 @@ class BarBot:
         return None
 
     @property
-    def can_start_order(self):
-        """Whether the barbot is in a state where a new order can be started"""
-        return self.state == BarBotStateEnum.IDLE and not self._is_transitioning
-
-    @property
-    def can_access_admin(self):
-        """Whether the admin views can be accessed.
-        This is true unless the bot is in an operational state that requires
-        the user's attention or the bot is moving."""
-        if self._is_transitioning:
-            return False
-        operational_states = [
-            BarBotStateEnum.MIXING,
-            BarBotStateEnum.CRUSHING,
-            BarBotStateEnum.STRAW,
-            BarBotStateEnum.CLEANING_CYCLE,
-            BarBotStateEnum.SINGLE_INGREDIENT,
-        ]
-        return self.state not in operational_states
+    def is_busy(self):
+        """Whether the barbot is executing any commands"""
+        return self.state != BarBotStateEnum.IDLE or self._is_transitioning
 
     @property
     def can_edit_database(self):
@@ -308,7 +292,7 @@ class BarBot:
     def start_mixing(self, options: MixingOptions):
         """Start mixing a recipe.
         :param options: Mixing options"""
-        if not self.can_start_order:
+        if self.is_busy:
             logging.warning("Cannot start mixing while busy")
             return
         self._context.current_mixing_options = options
@@ -317,7 +301,7 @@ class BarBot:
     def start_single_ingredient(self, recipe_item: RecipeItem):
         """Start adding a single ingredient to your glas.
         :param recipe_item: The item to be added"""
-        if not self.can_start_order:
+        if self.is_busy:
             logging.warning("Cannot start single ingredient while busy")
             return
         self._context.current_recipe_item = recipe_item
@@ -325,7 +309,7 @@ class BarBot:
 
     def start_crushing(self):
         """Add ice to the glas"""
-        if not self.can_start_order:
+        if self.is_busy:
             logging.warning("Cannot start crushing while busy")
             return
         self._set_next_state_by_enum(BarBotStateEnum.CRUSHING)
@@ -333,7 +317,7 @@ class BarBot:
     def start_cleaning(self, port: int):
         """Start cleaning a single pump.
         :param port: The port to clean"""
-        if not self.can_start_order:
+        if self.is_busy:
             logging.warning("Cannot start cleaning while busy")
             return
         self._context.pumps_to_clean = [port]
@@ -343,7 +327,7 @@ class BarBot:
     def start_cleaning_cycle(self, pumps_to_clean: List[int]):
         """Start a cleaning cycle.
         :param pumps_to_clean: List of ports to clean successively"""
-        if not self.can_start_order:
+        if self.is_busy:
             logging.warning("Cannot start cleaning cycle while busy")
             return
         self._context.pumps_to_clean = pumps_to_clean
@@ -351,7 +335,7 @@ class BarBot:
 
     def start_straw(self):
         """Add a straw to the glas"""
-        if not self.can_start_order:
+        if self.is_busy:
             logging.warning("Cannot start adding straw while busy")
             return
         self._set_next_state_by_enum(BarBotStateEnum.STRAW)
