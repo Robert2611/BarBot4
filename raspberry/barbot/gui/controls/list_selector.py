@@ -1,4 +1,3 @@
-import logging
 from typing import List, Any, Callable
 from PyQt5 import QtWidgets, QtCore, Qt
 from .common import set_no_spacing, InputMethod, move_widget_to_bottom_of_screen
@@ -18,8 +17,6 @@ class ListSelector(QtWidgets.QWidget):
             self.setStyleSheet(style)
         
         # Disable cursor if on Raspberry Pi
-        # (This is usually handled by core.py for the MainWindow, 
-        # but Keyboard/Numpad also set it)
         self.setCursor(QtCore.Qt.BlankCursor)
 
         layout = QtWidgets.QVBoxLayout()
@@ -39,17 +36,18 @@ class ListSelector(QtWidgets.QWidget):
             scroll.viewport(),
             QtWidgets.QScroller.LeftMouseButtonGesture
         )
-        # Make it less sensitive to movement to avoid accidental scroll instead of click
-        props = scroller.scrollerProperties()
-        # Minimum distance to start scrolling (meters)
-        # Increase to avoid micro-drags being seen as scrolls
-        props.setScrollMetric(QtWidgets.QScrollerProperties.DragStartDistance, 0.05)
-        # Ensure clicks are passed through immediately
-        props.setScrollMetric(QtWidgets.QScrollerProperties.MousePressEventDelay, 0)
-        scroller.setScrollerProperties(props)
         
-        # Install event filter to log events for debugging
-        scroll.viewport().installEventFilter(self)
+        # Make it much less sensitive to movement to avoid accidental scroll instead of click.
+        # This is critical on Raspberry Pi touchscreens which often report 
+        # large coordinate "jumps" (>200px) immediately after a press.
+        props = scroller.scrollerProperties()
+        # Minimum distance to start scrolling in meters (~0.1m is ~400px at 96dpi)
+        props.setScrollMetric(QtWidgets.QScrollerProperties.DragStartDistance, 0.1)
+        # Ensure clicks are passed through immediately without delay
+        props.setScrollMetric(QtWidgets.QScrollerProperties.MousePressEventDelay, 0)
+        # Disable flicking/momentum to stay stable during taps
+        props.setScrollMetric(QtWidgets.QScrollerProperties.MaximumVelocity, 0.01)
+        scroller.setScrollerProperties(props)
         
         scroll_content = QtWidgets.QWidget()
         scroll_content.setProperty("class", "IdleContent")
@@ -60,11 +58,7 @@ class ListSelector(QtWidgets.QWidget):
         
         for i, (text, data) in enumerate(items):
             btn = QtWidgets.QPushButton(text)
-            # Use a wrapper to log which button was clicked
-            def on_click(checked, d=data, t=text):
-                logging.debug(f"ListSelector: Button clicked: '{t}' with data '{d}'")
-                self._handle_selection(d)
-            btn.clicked.connect(on_click)
+            btn.clicked.connect(lambda _, d=data: self._handle_selection(d))
             # 2 columns
             scroll_layout.addWidget(btn, i // 2, i % 2)
         
@@ -90,31 +84,6 @@ class ListSelector(QtWidgets.QWidget):
 
         # Position it
         move_widget_to_bottom_of_screen(self, reference_widget)
-
-    def mousePressEvent(self, event):
-        # Consume mouse press events to prevent them from reaching the MainWindow,
-        # which would close the selector if it's considered "outside"
-        logging.debug(f"ListSelector: mousePressEvent at {event.pos()} (global: {event.globalPos()})")
-        event.accept()
-
-    def eventFilter(self, source, event):
-        # Block mouse/touch events on the selector itself from reaching MainWindow,
-        # but don't intercept events on the viewport or children which would break clicking
-        if event.type() in [QtCore.QEvent.MouseButtonPress, QtCore.QEvent.MouseButtonRelease, QtCore.QEvent.MouseMove]:
-            event_name = {
-                QtCore.QEvent.MouseButtonPress: "Press",
-                QtCore.QEvent.MouseButtonRelease: "Release",
-                QtCore.QEvent.MouseMove: "Move"
-            }.get(event.type())
-            
-            if source is self:
-                logging.debug(f"ListSelector: EventFilter {event_name} on SELF at {event.pos()}")
-                event.accept()
-                return True
-            else:
-                # Log events on other sources (like viewport) for debugging, but don't block them
-                logging.debug(f"ListSelector: EventFilter {event_name} on {source.__class__.__name__} at {event.pos()}")
-        return super().eventFilter(source, event)
 
     def _handle_selection(self, data):
         self.on_item_selected.emit(data)
