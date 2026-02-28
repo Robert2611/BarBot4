@@ -9,4 +9,4 @@ class System(AdminView):
 
         self._add_title_to_fixed_content("System")
         self._add_back_button_to_fixed_content()
-        View.set_system_view(self._content)
+        View.set_system_view(self._content, self.barbot_)

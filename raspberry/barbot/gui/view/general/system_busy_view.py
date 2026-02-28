@@ -19,4 +19,4 @@ class SystemBusyView(View):
         self.layout().addWidget(self._content)
 
         # add actual content
-        View.set_system_view(self._content)
+        View.set_system_view(self._content, self.barbot_)

@@ -75,7 +75,7 @@ class View(QtWidgets.QWidget):
         return widget
 
     @staticmethod
-    def set_system_view(container: QtWidgets.QWidget):
+    def set_system_view(container: QtWidgets.QWidget, barbot: BarBot = None):
         """Get the systems view widget."""
         if container.layout() is None:
             container.setLayout(QtWidgets.QVBoxLayout())
@@ -91,6 +91,16 @@ class View(QtWidgets.QWidget):
         button = QtWidgets.QPushButton("Schließen")
         button.clicked.connect(QtWidgets.QApplication.instance().quit)
         container.layout().addWidget(button)
+
+        if barbot is not None:
+            def reset_mac():
+                barbot.config.mac_address = ""
+                barbot.config.save()
+                barbot.reconnect()
+
+            button = QtWidgets.QPushButton("MAC Adresse zurücksetzen")
+            button.clicked.connect(reset_mac)
+            container.layout().addWidget(button)
 
         label = QtWidgets.QLabel("PI")
         container.layout().addWidget(label)
