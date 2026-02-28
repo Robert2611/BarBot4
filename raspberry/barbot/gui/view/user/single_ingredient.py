@@ -104,7 +104,7 @@ class SingleIngredient(UserView):
         if action_type == self.ActionType.INGREDIENT:
             ingredient = self._ingredient_widget.currentData()
             amount = self._amount_widget.currentData()
-            if ingredient is not None and amount > 0:
+            if ingredient is not None and amount is not None and amount > 0:
                 item = RecipeItem(ingredient, amount)
                 if item.ingredient.type == IngredientType.SUGAR:
                     pass
