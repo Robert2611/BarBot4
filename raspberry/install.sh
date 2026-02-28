@@ -57,7 +57,7 @@ check_requirements() {
 install_dependencies() {
     sudo apt-get update > "$REDIRECT" 2>&1
     sudo apt-get -y -q install \
-        bluetooth bluez libbluetooth-dev \
+        bluetooth bluez \
         python3-pyqt5 python3-pip python3-venv \
         pi-bluetooth wlr-randr > "$REDIRECT" 2>&1
     

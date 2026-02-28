@@ -12,7 +12,6 @@ requires-python = ">=3.10"
 dependencies = [
     # Add your runtime dependencies here, e.g.:
     "PyQt5>=5.15.0",
-    "pybluez @ git+https://github.com/pybluez/pybluez.git",
     "pyyaml",
     "psutil",
     "platformdirs",

@@ -1,5 +1,4 @@
 import logging
-import bluetooth
 from .common import (
     ErrorType, CommunicationResult, RawResponse, ResponseTypes, 
     FirmwareVersion, decode_firmware_version, is_mainboard_error
@@ -205,7 +204,7 @@ class Mainboard:
             try:
                 self._connection.send(line)
                 return True
-            except bluetooth.BluetoothError:
+            except Exception:
                 logging.exception("Send command failed")
         return False
 
