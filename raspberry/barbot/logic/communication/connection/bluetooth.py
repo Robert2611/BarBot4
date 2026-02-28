@@ -47,37 +47,38 @@ class MainboardConnectionBluetooth(MainboardConnection):
         Uses bluetoothctl for discovery.
         :returns: The mac address of the first found device that matches the name.
         """
-        logger.debug("Searching for Bar Bot in known devices...")
-        
-        # 1. Check known devices first
-        mac = MainboardConnectionBluetooth._find_bar_bot_in_device_list(
-            MainboardConnectionBluetooth._get_known_devices()
-        )
-        if mac:
-            logger.info("Bar Bot found in known devices: %s", mac)
-            return mac
-
-        # 2. If not found, trigger a short scan
-        logger.info("Bar Bot not found in known devices, starting scan...")
+        logger.info("Starting live scan for Bar Bots...")
         try:
-            # Start scan
-            subprocess.run(['bluetoothctl', 'scan', 'on'], timeout=2, capture_output=True)
-            # wait a bit for devices to be found
-            time.sleep(5)
-            # Stop scan
-            subprocess.run(['bluetoothctl', 'scan', 'off'], timeout=2, capture_output=True)
+            # We use --timeout to let bluetoothctl handle the duration
+            # We parse the output of the scan command itself to find "New" or "Device" entries
+            result = subprocess.run(
+                ['bluetoothctl', '--timeout', '10', 'scan', 'on'], 
+                capture_output=True, 
+                text=True
+            )
+            # Find all MAC addresses in the output that are associated with "Bar Bot"
+            # Format in scan output is typically: [CHG] Device XX:XX:XX:XX:XX:XX Name: Bar Bot ...
+            # or: [NEW] Device XX:XX:XX:XX:XX:XX Bar Bot
+            discovered_lines = result.stdout.splitlines()
+            mac = MainboardConnectionBluetooth._find_bar_bot_in_device_list(discovered_lines)
             
-            # Check devices again after scan
+            if mac:
+                logger.info("Bar Bot found during live scan: %s", mac)
+                return mac
+            
+            # fallback: check the general devices list one last time (in case it was found but output was different)
+            logger.debug("No Bar Bot found in scan output, checking full device list...")
             mac = MainboardConnectionBluetooth._find_bar_bot_in_device_list(
                 MainboardConnectionBluetooth._get_known_devices()
             )
             if mac:
-                logger.info("Bar Bot found after scan: %s", mac)
+                logger.info("Bar Bot found in updated device list: %s", mac)
                 return mac
+
         except Exception as e:
             logger.debug("Bluetooth scan failed: %s", e)
             
-        logger.warning("No Bar Bot found in bluetooth devices after scan")
+        logger.warning("No Bar Bot found in bluetooth devices after live scan")
         return None
 
     @staticmethod
