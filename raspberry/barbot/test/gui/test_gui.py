@@ -45,7 +45,7 @@ class TestGui:
         recipe_collection.load()
         bar_bot_thread = threading.Thread(target=bot.run)
         bar_bot_thread.start()
-        while bot.is_busy:
+        while not bot.can_start_order:
             time.sleep(1)
         window = MainWindow(bot, recipe_collection)
         window.show()
@@ -65,7 +65,7 @@ class TestGui:
         view._start_button.click()
         mainboard_connection_mockup.set_result_for_getter("HasGlas", 1)
         time.sleep(2)
-        while main_window.barbot_.is_busy:
+        while not main_window.barbot_.can_start_order:
             time.sleep(1)
         assert "Draft" in mainboard_connection_mockup.command_history
 

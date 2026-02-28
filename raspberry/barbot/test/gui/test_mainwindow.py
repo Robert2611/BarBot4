@@ -10,7 +10,8 @@ from barbot.gui.common import InputMethod
 def mock_barbot():
     bot = MagicMock(spec=BarBot)
     bot.state = BarBotStateEnum.IDLE
-    bot.is_busy = False
+    bot.can_start_order = True
+    bot.can_access_admin = True
     bot.on_state_changed = None
     bot.on_message_changed = None
     bot.on_mixing_progress_changed = None
@@ -95,7 +96,7 @@ def test_mainwindow_close_keyboard(main_window):
     assert main_window._keyboard is None
 
 def test_mainwindow_update_view_busy(main_window, mock_barbot):
-    mock_barbot.is_busy = True
+    mock_barbot.can_start_order = False
     with patch('barbot.gui.view.general.BusyView', return_value=MockView(is_idle=False)):
         main_window.update_view()
         assert isinstance(main_window._current_view, MockView)
@@ -105,7 +106,7 @@ def test_mainwindow_header_clicked_admin_login(main_window, mock_barbot):
     main_window.header_clicked(None)
     assert main_window._admin_button_active is True
     
-    mock_barbot.is_busy = False
+    mock_barbot.can_access_admin = True
     with patch('barbot.gui.view.admin.AdminLogin', return_value=MockView()):
         main_window.header_clicked(None)
         assert isinstance(main_window._current_view, MockView)

@@ -11,7 +11,8 @@ from barbot.logic.recipes import RecipeCollection
 def mock_barbot():
     bot = MagicMock(spec=BarBot)
     bot.state = BarBotStateEnum.IDLE
-    bot.is_busy = False
+    bot.can_start_order = True
+    bot.can_access_admin = True
     bot.on_state_changed = None
     bot.on_message_changed = None
     bot.on_mixing_progress_changed = None
