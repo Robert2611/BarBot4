@@ -1,5 +1,7 @@
 # BarBot4
 
+![BarBot4](barbot.jpg)
+
 BarBot4 is a high-end, automated cocktail-mixing machine designed for precision and ease of use. It combines a Raspberry Pi-powered touch interface with modular microcontroller-based hardware to deliver perfectly mixed drinks every time.
 
 ## ✨ Features
