@@ -6,7 +6,7 @@ def main():
     data_folder = Path(user_config_dir("barbot"))
     log_folder = data_folder / "log"
     recipes_folder = data_folder / "recipes"
-    package_recipes_folder = Path(__file__).parent / "data" / "recipes"
+    package_recipes_folder = Path(__file__).parent.parent / "recipe-collections" / "standard"
 
     print(f"Creating data folders in {data_folder}...")
     log_folder.mkdir(parents=True, exist_ok=True)

@@ -11,10 +11,10 @@ This file provides an overview of the folder organization for the BarBot4 projec
     - `/shared`: Common code and headers shared across multiple firmware projects.
     - `/mixer`, `/crusher`, `/straw`, `/sugar`: Firmware for specialized peripheral modules.
 - `/raspberry`: Main application and control software running on a Raspberry Pi.
+    - `/recipe-collections`: Organized recipe sets (e.g., `standard`, `party-set`).
     - `/barbot`: The core Python source code.
         - `/gui`: PyQt5-based user interface components.
         - `/logic`: Core business logic, hardware interaction, and cocktail preparation flows.
-        - `/data`: Recipes, default configurations, and other static data.
         - `/test`: Unit tests and integration tests for the Python application.
     - `install.sh`: Automated setup script for initializing the Raspberry Pi environment.
 - `/info`: General project documentation, build guides, and auxiliary information.

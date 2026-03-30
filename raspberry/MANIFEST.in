@@ -1,1 +1,1 @@
-recursive-include barbot/data/recipes *
+recursive-include recipe-collections *
